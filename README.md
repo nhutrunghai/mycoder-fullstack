@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚀 JobGo Fullstack
+# 🚀 MyCoder Fullstack
 
 ### Nền tảng kết nối việc làm giữa Ứng viên và Nhà tuyển dụng
 
@@ -18,7 +18,7 @@
 
 ## ✨ Tổng quan
 
-**JobGo Fullstack** là dự án mô phỏng một nền tảng tuyển dụng hiện đại, hỗ trợ ứng viên tìm kiếm việc làm, quản lý hồ sơ/CV và ứng tuyển; đồng thời hỗ trợ nhà tuyển dụng quản lý công ty, tin tuyển dụng, hồ sơ ứng viên, ví giao dịch và các luồng tương tác với ứng viên.
+**MyCoder Fullstack** là dự án mô phỏng một nền tảng tuyển dụng hiện đại, hỗ trợ ứng viên tìm kiếm việc làm, quản lý hồ sơ/CV và ứng tuyển; đồng thời hỗ trợ nhà tuyển dụng quản lý công ty, tin tuyển dụng, hồ sơ ứng viên, ví giao dịch và các luồng tương tác với ứng viên.
 
 Dự án được xây dựng theo hướng **full-stack** với backend API, frontend React application và hạ tầng hỗ trợ gồm MongoDB, Redis, Elasticsearch, Kibana, Docker Compose và embedding service cho tìm kiếm/RAG.
 
@@ -48,7 +48,7 @@ Dự án được xây dựng theo hướng **full-stack** với backend API, fr
 ## 🏗️ Kiến trúc dự án
 
 ```text
-jobgo-fullstack/
+mycoder-fullstack/
 ├── backend/
 │   └── src/
 │       ├── configs/        # Cấu hình env, database, Redis, Elasticsearch
