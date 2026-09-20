@@ -41,7 +41,7 @@ const employerSections = [
     items: [
       { key: 'job-list', icon: 'checklist', label: 'Danh sách job', to: '/employer-job-list' },
       { key: 'post-job', icon: 'add', label: 'Đăng tin mới', to: '/employer-post-job' },
-      { key: 'job-promotions', icon: 'rocket_launch', label: 'Quảng cáo tuyển dụng', to: '/employer-job-promotions' },
+      { key: 'job-promotions', icon: 'rocket_launch', label: 'Quảng cáo', to: '/employer-job-promotions' },
     ],
   },
   {

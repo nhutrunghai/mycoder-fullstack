@@ -352,7 +352,7 @@ export default function WalletTopUp() {
                     }}
                     className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
                   >
-                    {formatMoney(quickAmount).replace(/\s?â‚«/, '')}
+                    {formatMoney(quickAmount).replace(/\s?₫/, '')}
                   </button>
                 ))}
               </div>

@@ -128,22 +128,22 @@ export default function EmployerJobPromotions() {
                         {PROMOTION_STATUS_OPTIONS.find((option) => option.value === promotion.status)?.label || promotion.status}
                       </span>
                     </div>
-                    <p className="mt-2 text-sm text-slate-500">{promotion.plan_snapshot?.name || 'Gói quảng cáo'} • {promotion.job?.location || 'Chưa có địa điểm'} • {promotion.job?.level || 'Chưa có cấp bậc'}</p>
+                    <p className="mt-2 text-sm font-medium text-slate-600">{promotion.plan_snapshot?.name || 'Gói quảng cáo'} • {promotion.job?.location || 'Chưa có địa điểm'} • {promotion.job?.level || 'Chưa có cấp bậc'}</p>
                     <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-4">
                       <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Bắt đầu</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Bắt đầu</p>
                         <p className="mt-1 text-[12px] font-semibold text-slate-700">{formatDateTime(promotion.starts_at)}</p>
                       </div>
                       <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Kết thúc</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Kết thúc</p>
                         <p className="mt-1 text-[12px] font-semibold text-slate-700">{formatDateTime(promotion.ends_at)}</p>
                       </div>
                       <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Thời lượng</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Thời lượng</p>
                         <p className="mt-1 text-[12px] font-semibold text-slate-700">{getPromotionDurationDays(promotion)} ngày</p>
                       </div>
                       <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Đã thanh toán</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Đã thanh toán</p>
                         <p className="mt-1 text-[12px] font-semibold text-slate-700">{formatMoney(promotion.amount_paid, promotion.currency)}</p>
                       </div>
                     </div>

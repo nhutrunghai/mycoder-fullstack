@@ -279,14 +279,33 @@ export default function AdminRagChatConfig() {
               </div>
               <button type="button" onClick={async () => { setHealthLoading(true); try { await loadHealth() } catch (error) { setToast({ type: 'error', message: error.message || 'Không thể tải kiểm tra hệ thống.' }) } finally { setHealthLoading(false) } }} disabled={healthLoading} className="h-9 rounded-md border border-slate-200 bg-white px-3 text-[12px] font-extrabold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">{healthLoading ? 'Đang tải...' : 'Làm mới'}</button>
             </div>
-            <div className="mt-3 space-y-2 text-[12px] font-semibold text-slate-700">
-              <div className="rounded-md border border-slate-100 bg-slate-50 p-3">Trạng thái: {health?.enabled ? 'Bật' : 'Tắt'}</div>
-              <div className="rounded-md border border-slate-100 bg-slate-50 p-3">Nhà cung cấp: {health?.provider || "Chưa có"} · {health?.provider_configured ? "Đã có key" : "Thiếu key"}</div>
-              <div className="rounded-md border border-slate-100 bg-slate-50 p-3">OpenAI: {health?.openai_api_key_configured ? "Đã cấu hình" : "Chưa cấu hình"}</div>
-              <div className="rounded-md border border-slate-100 bg-slate-50 p-3">Gemini: {health?.gemini_api_key_configured ? "Đã cấu hình" : "Chưa cấu hình"}</div>
-              <div className="rounded-md border border-slate-100 bg-slate-50 p-3">Index hồ sơ: {health?.resume_search_index || 'Chưa có'}</div>
-              <div className="rounded-md border border-slate-100 bg-slate-50 p-3">Index việc làm công khai: {health?.public_jobs_search_index || 'Chưa có'}</div>
-              <div className="rounded-md border border-slate-100 bg-slate-50 p-3 break-all">URL Embedding API: {health?.embedding_api_url || 'Chưa có'}</div>
+            <div className="mt-4 space-y-2.5 text-sm font-semibold text-slate-700">
+              <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-3">
+                <span className="font-bold text-slate-800">Trạng thái hệ thống</span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${health?.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                  {health?.enabled ? 'Đang bật' : 'Đang tắt'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-3">
+                <span className="font-bold text-slate-800">Nhà cung cấp</span>
+                <span className="text-right font-extrabold text-slate-900">{health?.provider || 'Chưa có'} · {health?.provider_configured ? 'Đã có key' : 'Thiếu key'}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-3">
+                <span className="font-bold text-slate-800">OpenAI</span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${health?.openai_api_key_configured ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {health?.openai_api_key_configured ? 'Đã cấu hình' : 'Chưa cấu hình'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-3">
+                <span className="font-bold text-slate-800">Gemini</span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${health?.gemini_api_key_configured ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {health?.gemini_api_key_configured ? 'Đã cấu hình' : 'Chưa cấu hình'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-3">
+                <span className="font-bold text-slate-800">Embedding API</span>
+                <span className="break-all text-right font-extrabold text-slate-900">{health?.embedding_api_url || 'Chưa có'}</span>
+              </div>
             </div>
           </section>
         </div>

@@ -345,7 +345,7 @@ export default function SearchJobs() {
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-wrap gap-2">
                     {(job.tags || job.skills || []).slice(0, 5).map((tag) => (
-                      <span key={tag} className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition hover:bg-slate-200">
+                      <span key={tag} className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-200">
                         {tag}
                       </span>
                     ))}
