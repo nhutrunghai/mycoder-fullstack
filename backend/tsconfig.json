@@ -3,6 +3,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "target": "ES2023",
+    "isolatedModules": true,
     "outDir": "dist",
     "esModuleInterop": true,
     "strict": true,

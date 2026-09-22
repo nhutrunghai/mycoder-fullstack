@@ -17,3 +17,5 @@ frontend/.env.local
 frontend/*.local
 frontend/logs/
 frontend/*.log
+
+coverage/

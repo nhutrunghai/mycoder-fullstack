@@ -93,7 +93,7 @@ class ResumeIngestionService {
 
   private normalizeText(text: string) {
     return text
-      .replace(/\u0000/g, ' ')
+      .replaceAll('\0', ' ')
       .replace(/[ \t]+/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
       .trim()
