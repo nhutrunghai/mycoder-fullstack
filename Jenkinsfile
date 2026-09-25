@@ -43,6 +43,14 @@ spec:
     }
   }
 
+  parameters {
+    booleanParam(
+      name: 'FULL_BUILD',
+      defaultValue: false,
+      description: 'Build and deploy all services'
+    )
+  }
+
   options {
     skipDefaultCheckout(true)
     timestamps()
@@ -67,7 +75,7 @@ spec:
     stage('Test Backend') {
       when {
         anyOf {
-          expression { currentBuild.previousBuild == null }
+          expression { params.FULL_BUILD }
           changeset 'backend/**'
           changeset 'k8s/app/backend/**'
         }
@@ -86,7 +94,7 @@ spec:
     stage('Build & Push Backend Image') {
       when {
         anyOf {
-          expression { currentBuild.previousBuild == null }
+          expression { params.FULL_BUILD }
           changeset 'backend/**'
           changeset 'k8s/app/backend/**'
         }
@@ -122,7 +130,7 @@ spec:
     stage('Test Frontend') {
       when {
         anyOf {
-          expression { currentBuild.previousBuild == null }
+          expression { params.FULL_BUILD }
           changeset 'frontend/**'
           changeset 'k8s/app/frontend/**'
         }
@@ -141,7 +149,7 @@ spec:
     stage('Build & Push Frontend Image') {
       when {
         anyOf {
-          expression { currentBuild.previousBuild == null }
+          expression { params.FULL_BUILD }
           changeset 'frontend/**'
           changeset 'k8s/app/frontend/**'
         }
@@ -178,7 +186,7 @@ spec:
     stage('Test Embedding API') {
       when {
         anyOf {
-          expression { currentBuild.previousBuild == null }
+          expression { params.FULL_BUILD }
           changeset 'embedding-api/**'
         }
       }
@@ -194,7 +202,7 @@ spec:
     stage('Build & Push Embedding API Image') {
       when {
         anyOf {
-          expression { currentBuild.previousBuild == null }
+          expression { params.FULL_BUILD }
           changeset 'embedding-api/**'
         }
       }
@@ -229,7 +237,7 @@ spec:
     stage('Deploy Backend') {
       when {
         anyOf {
-          expression { currentBuild.previousBuild == null }
+          expression { params.FULL_BUILD }
           changeset 'backend/**'
           changeset 'k8s/app/backend/**'
         }
@@ -259,7 +267,7 @@ spec:
     stage('Deploy Frontend') {
       when {
         anyOf {
-          expression { currentBuild.previousBuild == null }
+          expression { params.FULL_BUILD }
           changeset 'frontend/**'
           changeset 'k8s/app/frontend/**'
         }
@@ -288,7 +296,7 @@ spec:
     stage('Deploy Embedding API') {
       when {
         anyOf {
-          expression { currentBuild.previousBuild == null }
+          expression { params.FULL_BUILD }
           changeset 'embedding-api/**'
         }
       }
