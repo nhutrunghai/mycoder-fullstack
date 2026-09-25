@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: mycoder-dev
+  labels:
+    app: mycoder-elasticsearch
+    tier: search
+spec:
+  type: ClusterIP
+  selector:
+    app: mycoder-elasticsearch
+    tier: search
+  ports:
+    - name: http
+      port: 9200
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-headless
+  namespace: mycoder-dev
+  labels:
+    app: mycoder-elasticsearch
+    tier: search
+spec:
+  clusterIP: None
+  selector:
+    app: mycoder-elasticsearch
+    tier: search
+  ports:
+    - name: http
+      port: 9200
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: mycoder-dev
+  labels:
+    app: mycoder-elasticsearch
+    tier: search
+spec:
+  serviceName: elasticsearch-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mycoder-elasticsearch
+      tier: search
+  template:
+    metadata:
+      labels:
+        app: mycoder-elasticsearch
+        tier: search
+    spec:
+      securityContext:
+        fsGroup: 1000
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: cluster.name
+              value: mycoder-cluster
+            - name: discovery.type
+              value: single-node
+            - name: xpack.security.enabled
+              value: "false"
+            - name: ES_JAVA_OPTS
+              value: -Xms512m -Xmx512m
+          ports:
+            - name: http
+              containerPort: 9200
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health?wait_for_status=yellow&timeout=1s
+              port: http
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 1536Mi
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/elasticsearch/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: local-path
+        resources:
+          requests:
+            storage: 10Gi

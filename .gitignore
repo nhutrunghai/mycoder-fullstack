@@ -3,6 +3,12 @@ embedding-api/.venv_local/
 embedding-api/.cache/
 embedding-api/.models/
 embedding-api/__pycache__/
+embedding-api/**/__pycache__/
+
+# Local environment files may contain passwords and API keys.
+.env
+.env.*
+!.env.example
 
 # Local browser profiles and snapshot backups are runtime artifacts.
 logs/
@@ -19,3 +25,7 @@ frontend/logs/
 frontend/*.log
 
 coverage/
+
+# Kubernetes secrets and local values with real credentials.
+k8s/app/backend/secret.yaml
+k8s/infra/mongodb/values.yaml

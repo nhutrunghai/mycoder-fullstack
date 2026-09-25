@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mycoder-frontend
+  namespace: mycoder-dev
+  labels:
+    app: mycoder-frontend
+    tier: web
+    env: dev
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: mycoder-frontend
+      tier: web
+      env: dev
+  template:
+    metadata:
+      labels:
+        app: mycoder-frontend
+        tier: web
+        env: dev
+    spec:
+      terminationGracePeriodSeconds: 15
+      containers:
+        - name: frontend
+          image: docker.io/replace-with-dockerhub-username/mycoder-frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: mycoder-dev
+  labels:
+    app: mycoder-frontend
+    tier: web
+    env: dev
+spec:
+  type: NodePort
+  selector:
+    app: mycoder-frontend
+    tier: web
+    env: dev
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      nodePort: 30080
+      protocol: TCP

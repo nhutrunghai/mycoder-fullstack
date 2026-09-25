@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: "JobGo API"
+  title: "MyCoder API"
   version: "0.3.0"
   description: "Tài liệu API backend hiện tại, cập nhật theo source code trong repo."
 servers:

@@ -20,10 +20,10 @@ services:
     environment:
       PORT: 4000
       BUILD_MODE: production
-      DB_URL: mongodb://mongo:27017/jobgo
+      DB_URL: mongodb://mongo:27017/mycoder
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: 30122005
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env before starting Docker Compose}
       ELASTICSEARCH_URL: http://elasticsearch:9200
       EMBEDDING_API_URL: http://embedding-api:8000
       ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080,http://localhost:4001,http://127.0.0.1:4001,http://nhutrunghai.id.vn,http://www.nhutrunghai.id.vn,https://nhutrunghai.id.vn,https://www.nhutrunghai.id.vn
@@ -77,13 +77,13 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes --requirepass 30122005
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env before starting Docker Compose}
     ports:
       - "6380:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "30122005", "PING"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env before starting Docker Compose}", "PING"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -92,7 +92,7 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
     environment:
-      cluster.name: jobgo-cluster
+      cluster.name: mycoder-cluster
       discovery.type: single-node
       xpack.security.enabled: "false"
       ES_JAVA_OPTS: -Xms512m -Xmx512m

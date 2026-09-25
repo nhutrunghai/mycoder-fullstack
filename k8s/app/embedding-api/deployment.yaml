@@ -1,0 +1,132 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mycoder-embedding-api
+  namespace: mycoder-dev
+  labels:
+    app: mycoder-embedding-api
+    tier: ai
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mycoder-embedding-api
+      tier: ai
+  template:
+    metadata:
+      labels:
+        app: mycoder-embedding-api
+        tier: ai
+    spec:
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: download-model
+          image: docker.io/replace-with-dockerhub-username/mycoder-embedding-api:latest
+          imagePullPolicy: Always
+          command:
+            - python
+            - -c
+            - |
+              from pathlib import Path
+              from huggingface_hub import snapshot_download
+
+              model_dir = Path("/models/dangvantuan__vietnamese-document-embedding")
+              ready_file = model_dir / ".model-ready"
+              if not ready_file.is_file():
+                  snapshot_download(
+                      repo_id="dangvantuan/vietnamese-document-embedding",
+                      local_dir=str(model_dir),
+                  )
+                  ready_file.touch()
+          env:
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: HF_HUB_DISABLE_TELEMETRY
+              value: "1"
+          volumeMounts:
+            - name: model-data
+              mountPath: /models
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      containers:
+        - name: embedding-api
+          image: docker.io/replace-with-dockerhub-username/mycoder-embedding-api:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: MODEL_DIR
+              value: /models/dangvantuan__vietnamese-document-embedding
+            - name: LOCAL_FILES_ONLY
+              value: "true"
+            - name: HF_HOME
+              value: /models/.cache/huggingface
+            - name: HF_MODULES_CACHE
+              value: /models/.cache/hf_modules
+            - name: TORCH_HOME
+              value: /models/.cache/torch
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: TRANSFORMERS_OFFLINE
+              value: "1"
+            - name: HF_HUB_DISABLE_TELEMETRY
+              value: "1"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          volumeMounts:
+            - name: model-data
+              mountPath: /models
+      volumes:
+        - name: model-data
+          persistentVolumeClaim:
+            claimName: embedding-model-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: embedding-api
+  namespace: mycoder-dev
+  labels:
+    app: mycoder-embedding-api
+    tier: ai
+spec:
+  type: ClusterIP
+  selector:
+    app: mycoder-embedding-api
+    tier: ai
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP
