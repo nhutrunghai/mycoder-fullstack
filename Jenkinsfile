@@ -33,7 +33,7 @@ spec:
         - /busybox/cat
       tty: true
     - name: kubectl
-      image: bitnami/kubectl:1.37
+      image: rancher/kubectl:v1.36.2
       command:
         - /bin/sh
         - -c
