@@ -198,6 +198,7 @@ spec:
         anyOf {
           expression { params.FULL_BUILD }
           changeset 'embedding-api/**'
+          changeset 'k8s/app/embedding-api/**'
         }
       }
       steps {
@@ -214,6 +215,7 @@ spec:
         anyOf {
           expression { params.FULL_BUILD }
           changeset 'embedding-api/**'
+          changeset 'k8s/app/embedding-api/**'
         }
       }
       steps {
@@ -308,6 +310,7 @@ spec:
         anyOf {
           expression { params.FULL_BUILD }
           changeset 'embedding-api/**'
+          changeset 'k8s/app/embedding-api/**'
         }
       }
       steps {
