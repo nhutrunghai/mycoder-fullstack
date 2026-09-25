@@ -128,7 +128,6 @@ spec:
                 --context="${WORKSPACE}/backend" \
                 --dockerfile="${WORKSPACE}/backend/Dockerfile" \
                 --destination="docker.io/${DOCKERHUB_USERNAME}/${BACKEND_IMAGE_NAME}:${BUILD_NUMBER}" \
-                --destination="docker.io/${DOCKERHUB_USERNAME}/${BACKEND_IMAGE_NAME}:latest" \
                 --cache=true \
                 --cache-repo="docker.io/${DOCKERHUB_USERNAME}/${BACKEND_IMAGE_NAME}-cache"
             '''
@@ -184,7 +183,6 @@ spec:
                 --dockerfile="${WORKSPACE}/frontend/Dockerfile" \
                 --build-arg="VITE_API_BASE_URL=${FRONTEND_BUILD_API_BASE_URL}" \
                 --destination="docker.io/${DOCKERHUB_USERNAME}/${FRONTEND_IMAGE_NAME}:${BUILD_NUMBER}" \
-                --destination="docker.io/${DOCKERHUB_USERNAME}/${FRONTEND_IMAGE_NAME}:latest" \
                 --cache=true \
                 --cache-repo="docker.io/${DOCKERHUB_USERNAME}/${FRONTEND_IMAGE_NAME}-cache"
             '''
@@ -237,7 +235,6 @@ spec:
                 --context="${WORKSPACE}/embedding-api" \
                 --dockerfile="${WORKSPACE}/embedding-api/Dockerfile" \
                 --destination="docker.io/${DOCKERHUB_USERNAME}/${EMBEDDING_API_IMAGE_NAME}:${BUILD_NUMBER}" \
-                --destination="docker.io/${DOCKERHUB_USERNAME}/${EMBEDDING_API_IMAGE_NAME}:latest" \
                 --cache=true \
                 --cache-repo="docker.io/${DOCKERHUB_USERNAME}/${EMBEDDING_API_IMAGE_NAME}-cache"
             '''
