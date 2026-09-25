@@ -27,7 +27,17 @@ spec:
       command:
         - cat
       tty: true
-    - name: kaniko
+    - name: kaniko-backend
+      image: gcr.io/kaniko-project/executor:v1.23.2-debug
+      command:
+        - /busybox/cat
+      tty: true
+    - name: kaniko-frontend
+      image: gcr.io/kaniko-project/executor:v1.23.2-debug
+      command:
+        - /busybox/cat
+      tty: true
+    - name: kaniko-embedding
       image: gcr.io/kaniko-project/executor:v1.23.2-debug
       command:
         - /busybox/cat
@@ -100,7 +110,7 @@ spec:
         }
       }
       steps {
-        container('kaniko') {
+        container('kaniko-backend') {
           withCredentials([
             usernamePassword(
               credentialsId: 'docker-account',
@@ -155,7 +165,7 @@ spec:
         }
       }
       steps {
-        container('kaniko') {
+        container('kaniko-frontend') {
           withCredentials([
             usernamePassword(
               credentialsId: 'docker-account',
@@ -207,7 +217,7 @@ spec:
         }
       }
       steps {
-        container('kaniko') {
+        container('kaniko-embedding') {
           withCredentials([
             usernamePassword(
               credentialsId: 'docker-account',
