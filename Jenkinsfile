@@ -11,6 +11,8 @@ metadata:
 spec:
   serviceAccountName: jenkins-admin
   restartPolicy: Never
+  nodeSelector:
+    kubernetes.io/hostname: k8s-worker2
   containers:
     - name: node
       image: node:20-bookworm
@@ -42,6 +44,11 @@ spec:
       command:
         - /busybox/cat
       tty: true
+      resources:
+        requests:
+          memory: 1Gi
+        limits:
+          memory: 3Gi
     - name: kubectl
       image: alpine/kubectl:1.37.0
       command:
