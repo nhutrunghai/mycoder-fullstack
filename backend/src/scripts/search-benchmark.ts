@@ -8,6 +8,7 @@ import { JobLevel, JobStatus, JobType } from '~/constants/enums'
 import Job from '~/models/schema/client/jobs.schema'
 import { generateLocalEmbedding } from '~/services/chat/ai/embedding.service'
 import jobIndexService from '~/services/chat/indexing/job-index.service'
+import logger from '~/configs/logger.config.js'
 
 type SearchHit = {
   job_id: string
@@ -124,8 +125,7 @@ const BENCHMARK_JOBS: BenchmarkJobSeed[] = [
   },
   {
     title: 'Java Spring Backend Engineer',
-    description:
-      'Maintain Java backend APIs, PostgreSQL integrations, and enterprise service workflows.',
+    description: 'Maintain Java backend APIs, PostgreSQL integrations, and enterprise service workflows.',
     requirements: 'Java, Spring Boot, REST API, SQL',
     benefits: 'Work on stable backend business systems.',
     location: 'Ho Chi Minh',
@@ -148,8 +148,7 @@ const BENCHMARK_JOBS: BenchmarkJobSeed[] = [
   },
   {
     title: 'AI Product Engineer',
-    description:
-      'Build LLM ranking, recommendation flows, semantic retrieval, and AI-assisted search experiences.',
+    description: 'Build LLM ranking, recommendation flows, semantic retrieval, and AI-assisted search experiences.',
     requirements: 'LLM, ranking, vector database, embeddings, product engineering',
     benefits: 'Hands-on AI product work with semantic retrieval.',
     location: 'Da Nang',
@@ -160,8 +159,7 @@ const BENCHMARK_JOBS: BenchmarkJobSeed[] = [
   },
   {
     title: 'Vue Frontend Engineer',
-    description:
-      'Develop frontend giao dien web for job discovery, search forms, filters, and candidate-facing UI.',
+    description: 'Develop frontend giao dien web for job discovery, search forms, filters, and candidate-facing UI.',
     requirements: 'Vue, frontend, giao dien web, search UI, component architecture',
     benefits: 'Own responsive frontend search experience.',
     location: 'Da Nang',
@@ -172,8 +170,7 @@ const BENCHMARK_JOBS: BenchmarkJobSeed[] = [
   },
   {
     title: 'Frontend Performance Engineer',
-    description:
-      'Optimize web frontend performance, rendering, bundle size, and candidate search pages.',
+    description: 'Optimize web frontend performance, rendering, bundle size, and candidate search pages.',
     requirements: 'Frontend, web performance, JavaScript, UX, browser rendering',
     benefits: 'Deep browser and UI performance work.',
     location: 'Da Nang',
@@ -232,17 +229,11 @@ const mergeCandidates = (lexicalHits: SearchHit[], semanticHits: SearchHit[], fo
   }
 
   return candidates
-    .filter(
-      (item) => item.final_score >= formula.threshold && item.lexical_score >= formula.lexicalMinThreshold
-    )
+    .filter((item) => item.final_score >= formula.threshold && item.lexical_score >= formula.lexicalMinThreshold)
     .sort((a, b) => b.final_score - a.final_score)
 }
 
-const summarizeRanking = (
-  candidates: SearchCandidate[],
-  jobsById: Map<string, Job>,
-  expectedTopTitles: string[]
-) => {
+const summarizeRanking = (candidates: SearchCandidate[], jobsById: Map<string, Job>, expectedTopTitles: string[]) => {
   const rankedTitles = candidates.slice(0, 5).map((item) => jobsById.get(item.job_id)?.title || item.job_id)
   const topTitle = rankedTitles[0] || 'none'
   const topMatch = expectedTopTitles.some((title) => topTitle.includes(title))
@@ -318,13 +309,13 @@ const main = async () => {
 
     const client = ElasticsearchConfig.getInstance()
 
-    console.log(
-      JSON.stringify({
-        tag: 'search_benchmark_dataset_created',
+    logger.info(
+      {
         company_id: String(companyId),
         benchmark_job_ids: jobIds,
         benchmark_titles: Array.from(jobsById.values()).map((job) => job.title)
-      })
+      },
+      'Search benchmark dataset created'
     )
 
     for (const benchmarkQuery of BENCHMARK_QUERIES) {
@@ -382,9 +373,8 @@ const main = async () => {
         score: hit._score || 0
       }))
 
-      console.log(
-        JSON.stringify({
-          tag: 'search_benchmark_query_timings',
+      logger.debug(
+        {
           query: benchmarkQuery.query,
           lexical_ms: Number(lexicalElapsedMs.toFixed(2)),
           embedding_ms: Number(embeddingElapsedMs.toFixed(2)),
@@ -397,16 +387,16 @@ const main = async () => {
             title: jobsById.get(item.job_id)?.title,
             score: Number(item.score.toFixed(4))
           }))
-        })
+        },
+        'Search benchmark query completed'
       )
 
       for (const formula of FORMULAS) {
         const ranked = mergeCandidates(lexicalHits, semanticHits, formula)
         const ranking = summarizeRanking(ranked, jobsById, benchmarkQuery.expectedTopTitles)
 
-        console.log(
-          JSON.stringify({
-            tag: 'search_benchmark_formula_result',
+        logger.debug(
+          {
             query: benchmarkQuery.query,
             formula: formula.name,
             top_match_expected: ranking.topMatch,
@@ -417,17 +407,13 @@ const main = async () => {
               semantic: Number(item.semantic_score.toFixed(4)),
               final: Number(item.final_score.toFixed(4))
             }))
-          })
+          },
+          'Search benchmark formula evaluated'
         )
       }
     }
 
-    console.log(
-      JSON.stringify({
-        tag: 'search_benchmark_completed',
-        elapsed_ms: Number((performance.now() - startedAt).toFixed(2))
-      })
-    )
+    logger.info({ elapsed_ms: Number((performance.now() - startedAt).toFixed(2)) }, 'Search benchmark completed')
   } finally {
     if (createdJobIds.length > 0) {
       await databaseService.jobs.deleteMany({
@@ -435,10 +421,12 @@ const main = async () => {
       })
 
       const deleteOperations = createdJobIds.map((jobId) =>
-        ElasticsearchConfig.getInstance().delete({
-          index: env.PUBLIC_JOBS_SEARCH_INDEX,
-          id: jobId.toString()
-        }).catch(() => null)
+        ElasticsearchConfig.getInstance()
+          .delete({
+            index: env.PUBLIC_JOBS_SEARCH_INDEX,
+            id: jobId.toString()
+          })
+          .catch(() => null)
       )
 
       await Promise.all(deleteOperations)
@@ -446,18 +434,12 @@ const main = async () => {
         index: env.PUBLIC_JOBS_SEARCH_INDEX
       })
 
-      console.log(
-        JSON.stringify({
-          tag: 'search_benchmark_cleanup_done',
-          deleted_job_ids: createdJobIds.map((id) => id.toString())
-        })
-      )
+      logger.info({ deleted_job_count: createdJobIds.length }, 'Search benchmark cleanup completed')
     }
   }
 }
 
 main().catch((error) => {
-  console.error('Search benchmark failed:', error)
+  logger.fatal({ err: error }, 'Search benchmark failed')
   process.exit(1)
 })
-

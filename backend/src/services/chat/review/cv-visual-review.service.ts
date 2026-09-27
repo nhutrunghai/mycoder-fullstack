@@ -2,6 +2,7 @@ import axios from 'axios'
 import env from '~/configs/env.config'
 import Resume from '~/models/schema/client/resumes.schema'
 import adminSystemSettingService from '~/services/admin/system-setting.service'
+import logger from '~/configs/logger.config.js'
 
 type CvVisualReviewResult = {
   summary: string | null
@@ -71,13 +72,7 @@ class CvVisualReviewService {
     return 'Unknown visual CV review error'
   }
 
-  async reviewResumePdf({
-    message,
-    resume
-  }: {
-    message: string
-    resume: Resume
-  }): Promise<CvVisualReviewResult> {
+  async reviewResumePdf({ message, resume }: { message: string; resume: Resume }): Promise<CvVisualReviewResult> {
     const model = env.OPENAI_MODEL_CV_VISUAL_REVIEW
     const apiKey = await adminSystemSettingService.getOpenAiApiKey()
 
@@ -166,13 +161,13 @@ Nếu PDF không đủ rõ để kết luận một điểm nào đó, hãy nói
         throw new Error('OpenAI Responses API returned an empty visual review result')
       }
 
-      console.log(
-        JSON.stringify({
-          tag: 'cv_visual_review_success',
+      logger.debug(
+        {
           model,
           resume_id: resume._id ? String(resume._id) : null,
           elapsed_ms: Date.now() - startedAt
-        })
+        },
+        'CV visual review succeeded'
       )
 
       return {
@@ -183,14 +178,15 @@ Nếu PDF không đủ rõ để kết luận một điểm nào đó, hãy nói
     } catch (error) {
       const normalizedError = this.normalizeError(error)
 
-      console.error(
-        JSON.stringify({
-          tag: 'cv_visual_review_failed',
+      logger.error(
+        {
+          err: error,
           model,
           resume_id: resume._id ? String(resume._id) : null,
           elapsed_ms: Date.now() - startedAt,
-          error: normalizedError
-        })
+          error_detail: normalizedError
+        },
+        'CV visual review failed'
       )
 
       return {

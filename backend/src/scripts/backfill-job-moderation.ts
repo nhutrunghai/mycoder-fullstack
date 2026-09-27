@@ -5,6 +5,7 @@ import env from '~/configs/env.config.js'
 import { publicJobsSearchSchema } from '~/configs/search.config.js'
 import { JobModerationStatus } from '~/constants/enums.js'
 import jobIndexService from '~/services/chat/indexing/job-index.service.js'
+import logger from '~/configs/logger.config.js'
 
 async function backfillMongoJobs() {
   const result = await databaseService.jobs.updateMany(
@@ -18,12 +19,9 @@ async function backfillMongoJobs() {
     }
   )
 
-  console.log(
-    JSON.stringify({
-      tag: 'backfill_job_moderation_mongo',
-      matched: result.matchedCount,
-      modified: result.modifiedCount
-    })
+  logger.info(
+    { matched: result.matchedCount, modified: result.modifiedCount },
+    'Job moderation backfill updated MongoDB'
   )
 }
 
@@ -37,12 +35,9 @@ async function ensureElasticsearchMapping() {
     }
   })
 
-  console.log(
-    JSON.stringify({
-      tag: 'backfill_job_moderation_es_mapping',
-      index: env.PUBLIC_JOBS_SEARCH_INDEX,
-      field: 'moderation_status'
-    })
+  logger.info(
+    { index: env.PUBLIC_JOBS_SEARCH_INDEX, field: 'moderation_status' },
+    'Job moderation Elasticsearch mapping updated'
   )
 }
 
@@ -63,12 +58,7 @@ async function reindexAllJobs() {
     processed += 1
   }
 
-  console.log(
-    JSON.stringify({
-      tag: 'backfill_job_moderation_reindex',
-      processed
-    })
-  )
+  logger.info({ processed }, 'Job moderation backfill reindex completed')
 }
 
 async function main() {
@@ -80,11 +70,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(
-    JSON.stringify({
-      tag: 'backfill_job_moderation_failed',
-      error: error instanceof Error ? error.message : String(error)
-    })
-  )
+  logger.fatal({ err: error }, 'Job moderation backfill failed')
   process.exit(1)
 })

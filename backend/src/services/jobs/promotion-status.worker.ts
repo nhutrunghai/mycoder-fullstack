@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import databaseService from '~/configs/database.config.js'
 import adminJobPromotionService from '~/services/admin/job-promotion.service.js'
+import logger from '~/configs/logger.config.js'
 
 const LOCK_KEY = 'job_promotion_status_worker_lock'
 const INTERVAL_MS = 5 * 60 * 1000
@@ -13,10 +14,7 @@ async function runPromotionStatusSync(owner: string) {
     const lock = await databaseService.systemSettings.findOneAndUpdate(
       {
         key: LOCK_KEY,
-        $or: [
-          { 'value.locked_until': { $lte: now } },
-          { 'value.locked_until': { $exists: false } }
-        ]
+        $or: [{ 'value.locked_until': { $lte: now } }, { 'value.locked_until': { $exists: false } }]
       },
       {
         $set: {
@@ -45,7 +43,11 @@ async function runPromotionStatusSync(owner: string) {
 
 export const startPromotionStatusWorker = () => {
   const owner = randomUUID()
-  const run = () => runPromotionStatusSync(owner).catch((error) => console.error('Promotion status sync failed:', error))
+  logger.info({ interval_ms: INTERVAL_MS }, 'Promotion status worker started')
+  const run = () =>
+    runPromotionStatusSync(owner).catch((error) => {
+      logger.error({ err: error }, 'Promotion status sync failed')
+    })
   void run()
   const timer = setInterval(run, INTERVAL_MS)
   timer.unref()

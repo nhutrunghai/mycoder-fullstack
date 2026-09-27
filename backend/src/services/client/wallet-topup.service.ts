@@ -3,7 +3,6 @@ import axios from 'axios'
 import { ClientSession, ObjectId } from 'mongodb'
 import crypto from 'node:crypto'
 import databaseService from '~/configs/database.config.js'
-import env from '~/configs/env.config.js'
 import {
   NotificationType,
   WalletTopUpOrderStatus,
@@ -19,6 +18,7 @@ import WalletTopUpOrder from '~/models/schema/client/walletTopUpOrders.schema.js
 import WalletTransaction from '~/models/schema/client/walletTransactions.schema.js'
 import adminSystemSettingService from '~/services/admin/system-setting.service.js'
 import walletService from '~/services/client/wallet.service.js'
+import logger from '~/configs/logger.config.js'
 
 type SePayWebhookPayload = Record<string, unknown>
 
@@ -222,13 +222,7 @@ class WalletTopUpService {
 
       await this.processWebhook(matchedTransaction)
     } catch (error) {
-      console.error(
-        JSON.stringify({
-          tag: 'sepay_pending_order_sync_failed',
-          order_code: order.order_code,
-          message: error instanceof Error ? error.message : 'Unknown error'
-        })
-      )
+      logger.warn({ err: error, order_code: order.order_code }, 'SePay pending order sync failed')
     }
   }
 
@@ -444,10 +438,12 @@ class WalletTopUpService {
   }
 
   private normalizeWebhookPayload(payload: SePayWebhookPayload): NormalizedWebhookPayload {
-    const transferType = this.pickString(payload.transferType) || this.mapTransferType(this.pickString(payload.transfer_type))
+    const transferType =
+      this.pickString(payload.transferType) || this.mapTransferType(this.pickString(payload.transfer_type))
     const transferAmountRaw = payload.transferAmount ?? payload.amount ?? payload.amount_in
     const content = this.pickString(payload.content) || this.pickString(payload.transaction_content)
-    const code = this.pickString(payload.code) || this.pickString(payload.payment_code) || this.extractOrderCode(content)
+    const code =
+      this.pickString(payload.code) || this.pickString(payload.payment_code) || this.extractOrderCode(content)
     const transactionId = this.pickString(payload.id) || this.pickString(payload.transaction_id)
     const referenceCode =
       this.pickString(payload.referenceCode) ||

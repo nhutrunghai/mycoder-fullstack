@@ -1,5 +1,6 @@
 import { CreateIndexesOptions, Db, IndexSpecification } from 'mongodb'
 import env from './env.config.js'
+import logger from './logger.config.js'
 
 type DatabaseIndexDefinition = {
   collection: string
@@ -279,7 +280,7 @@ const setupTtlIndexes = async (db: Db) => {
     }
   }
 
-  console.log('All TTL indexes initialized.')
+  logger.debug('TTL indexes initialized')
 }
 
 const setupCollectionIndexes = async (db: Db) => {
@@ -289,9 +290,9 @@ const setupCollectionIndexes = async (db: Db) => {
 
     if (!exists) {
       await collection.createIndex(item.key, item.option)
-      console.log(`Created index: ${item.option.name}`)
+      logger.info({ collection: item.collection, index: item.option.name }, 'Database index created')
     }
   }
 
-  console.log('Indexes initialized.')
+  logger.debug('Database indexes initialized')
 }

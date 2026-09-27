@@ -1,15 +1,27 @@
 import 'dotenv/config'
 import { ObjectId } from 'mongodb'
 import databaseService from '~/configs/database.config'
+import logger from '~/configs/logger.config.js'
 
 const CATEGORY_DEFINITIONS = [
-  { slug: 'information-technology', name: 'Information Technology', parent: null, sort_order: 10, description: 'Software, data, infrastructure and technology jobs.' },
+  {
+    slug: 'information-technology',
+    name: 'Information Technology',
+    parent: null,
+    sort_order: 10,
+    description: 'Software, data, infrastructure and technology jobs.'
+  },
   { slug: 'backend-development', name: 'Backend Development', parent: 'information-technology', sort_order: 11 },
   { slug: 'frontend-development', name: 'Frontend Development', parent: 'information-technology', sort_order: 12 },
   { slug: 'fullstack-development', name: 'Fullstack Development', parent: 'information-technology', sort_order: 13 },
   { slug: 'mobile-development', name: 'Mobile Development', parent: 'information-technology', sort_order: 14 },
   { slug: 'devops-cloud', name: 'DevOps / Cloud', parent: 'information-technology', sort_order: 15 },
-  { slug: 'data-ai-machine-learning', name: 'Data / AI / Machine Learning', parent: 'information-technology', sort_order: 16 },
+  {
+    slug: 'data-ai-machine-learning',
+    name: 'Data / AI / Machine Learning',
+    parent: 'information-technology',
+    sort_order: 16
+  },
   { slug: 'qa-testing', name: 'QA / Testing', parent: 'information-technology', sort_order: 17 },
   { slug: 'ui-ux-design', name: 'UI/UX Design', parent: 'information-technology', sort_order: 18 },
   { slug: 'business-sales', name: 'Business / Sales', parent: null, sort_order: 20 },
@@ -50,16 +62,27 @@ const normalizeText = (value: unknown) =>
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
 
-const matchCategorySlugs = (job: { title?: string; description?: string; requirements?: string; skills?: string[]; category?: string[] }) => {
-  const text = normalizeText([job.title, job.description, job.requirements, ...(job.skills || []), ...(job.category || [])].join(' '))
+const matchCategorySlugs = (job: {
+  title?: string
+  description?: string
+  requirements?: string
+  skills?: string[]
+  category?: string[]
+}) => {
+  const text = normalizeText(
+    [job.title, job.description, job.requirements, ...(job.skills || []), ...(job.category || [])].join(' ')
+  )
   const slugs = new Set<string>()
 
-  if (/backend|back end|node|express|nestjs|java|spring|php|laravel|api|server/.test(text)) slugs.add('backend-development')
-  if (/frontend|front end|react|vue|angular|html|css|javascript|typescript/.test(text)) slugs.add('frontend-development')
+  if (/backend|back end|node|express|nestjs|java|spring|php|laravel|api|server/.test(text))
+    slugs.add('backend-development')
+  if (/frontend|front end|react|vue|angular|html|css|javascript|typescript/.test(text))
+    slugs.add('frontend-development')
   if (/fullstack|full stack/.test(text)) slugs.add('fullstack-development')
   if (/mobile|android|ios|flutter|react native|kotlin|swift/.test(text)) slugs.add('mobile-development')
   if (/devops|cloud|aws|azure|gcp|docker|kubernetes|ci\/cd|infrastructure/.test(text)) slugs.add('devops-cloud')
-  if (/data|ai|machine learning|ml|deep learning|python|analyst|analytics|etl/.test(text)) slugs.add('data-ai-machine-learning')
+  if (/data|ai|machine learning|ml|deep learning|python|analyst|analytics|etl/.test(text))
+    slugs.add('data-ai-machine-learning')
   if (/qa|tester|testing|automation test|quality assurance/.test(text)) slugs.add('qa-testing')
   if (/ui|ux|designer|figma|product design/.test(text)) slugs.add('ui-ux-design')
   if (/sales|sale|telesales|account executive/.test(text)) slugs.add('sales')
@@ -80,7 +103,16 @@ const matchCategorySlugs = (job: { title?: string; description?: string; require
   if (/health|medical|doctor|nurse|y te|duoc/.test(text)) slugs.add('healthcare')
   if (/manufacturing|factory|production|san xuat/.test(text)) slugs.add('manufacturing')
 
-  const hasTech = ['backend-development', 'frontend-development', 'fullstack-development', 'mobile-development', 'devops-cloud', 'data-ai-machine-learning', 'qa-testing', 'ui-ux-design'].some((slug) => slugs.has(slug))
+  const hasTech = [
+    'backend-development',
+    'frontend-development',
+    'fullstack-development',
+    'mobile-development',
+    'devops-cloud',
+    'data-ai-machine-learning',
+    'qa-testing',
+    'ui-ux-design'
+  ].some((slug) => slugs.has(slug))
   if (hasTech) slugs.add('information-technology')
 
   if (slugs.size === 0) slugs.add('other')
@@ -123,7 +155,9 @@ const migrateJobs = async () => {
 
   let migrated = 0
   for (const job of jobs) {
-    const slugs = matchCategorySlugs(job as { title?: string; description?: string; requirements?: string; skills?: string[]; category?: string[] })
+    const slugs = matchCategorySlugs(
+      job as { title?: string; description?: string; requirements?: string; skills?: string[]; category?: string[] }
+    )
     const categoryIds = slugs.map((slug) => CATEGORY_IDS.get(slug)).filter((id): id is ObjectId => Boolean(id))
 
     await databaseService.jobs.updateOne(
@@ -148,11 +182,11 @@ const main = async () => {
   await databaseService.connect()
   await seedCategories()
   const migrated = await migrateJobs()
-  console.log(JSON.stringify({ tag: 'job_categories_migrated', categories: CATEGORY_DEFINITIONS.length, migrated }))
+  logger.info({ categories: CATEGORY_DEFINITIONS.length, migrated }, 'Job categories migrated')
   process.exit(0)
 }
 
 main().catch((error) => {
-  console.error(error)
+  logger.fatal({ err: error }, 'Job category migration failed')
   process.exit(1)
 })

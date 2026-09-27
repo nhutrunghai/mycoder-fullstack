@@ -41,7 +41,10 @@ export const updateProfileUserController = async (req: Request, res: Response) =
     message: UserMessages.USER_UPDATE_SUCCESS
   })
 }
-export const updateUserAvatarController = async (req: Request<ParamsDictionary, any, UpdateUserAvatarRqType>, res: Response) => {
+export const updateUserAvatarController = async (
+  req: Request<ParamsDictionary, any, UpdateUserAvatarRqType>,
+  res: Response
+) => {
   await userService.updateAvatar(req.decodeToken?.userId as string, req.body)
   return res.status(StatusCodes.OK).json({
     status: 'success',
@@ -86,8 +89,6 @@ export const resendMailController = async (req: Request, res: Response<any, User
   }
   if (env.BUILD_MODE === 'production') {
     await resendProvider.sendWithTemplate(TemplateResendId.VERIFY_EMAIL, [payloadSendVerify])
-  } else {
-    console.log('[DEV] verify url:', payloadSendVerify.variables.verify_url)
   }
   return res.status(StatusCodes.OK).json({
     status: 'success',
@@ -116,8 +117,6 @@ export const changePasswordController = async (req: Request, res: Response<any, 
   }
   if (env.BUILD_MODE === 'production') {
     await resendProvider.sendWithTemplate(TemplateResendId.CHANGE_PASSWORD, [payloadSendVerify])
-  } else {
-    console.log('[DEV] Otpcode change password :', otpCode)
   }
   return res.status(StatusCodes.OK).json({
     status: 'success',
@@ -133,4 +132,3 @@ export const newPasswordController = async (req: Request<ParamsDictionary, any, 
     message: UserMessages.FORGOT_PASSWORD_SUCCESS
   })
 }
-

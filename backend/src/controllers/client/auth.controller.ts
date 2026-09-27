@@ -4,12 +4,7 @@ import { StatusCodes } from 'http-status-codes'
 import env from '~/configs/env.config.js'
 import { OtpType, TemplateResendId, UserRole } from '~/constants/enums.js'
 import UserMessages from '~/constants/messages/index.js'
-import {
-  ForgotPasswordRqType,
-  LoginRqType,
-  RegisterRqType,
-  ResetPasswordRqType
-} from '~/types/http/request.type.js'
+import { ForgotPasswordRqType, LoginRqType, RegisterRqType, ResetPasswordRqType } from '~/types/http/request.type.js'
 import User from '~/models/schema/client/user.schema.js'
 import type OtpCode from '~/models/schema/client/otpCodes.schema.js'
 import userInfo from '~/types/auth/user-info.type.js'
@@ -23,7 +18,11 @@ import { VerifyOtpLocals } from '~/types/http/response.type.js'
 import _ from 'lodash'
 import { clearRefreshTokenCookie, setRefreshTokenCookie } from '~/utils/auth-cookie.util.js'
 
-function storeRefreshToken(res: Response, result: { RefreshToken: string; AccessToken: string; id: unknown }, remember = true) {
+function storeRefreshToken(
+  res: Response,
+  result: { RefreshToken: string; AccessToken: string; id: unknown },
+  remember = true
+) {
   setRefreshTokenCookie(res, result.RefreshToken, remember)
   return {
     id: result.id,
@@ -55,8 +54,6 @@ export const RegisterController = async (req: Request<ParamsDictionary, any, Reg
   }
   if (env.BUILD_MODE === 'production') {
     await resendProvider.sendWithTemplate(TemplateResendId.VERIFY_EMAIL, [payloadSendVerify])
-  } else {
-    console.log('[DEV] verify url:', payloadSendVerify.variables.verify_url)
   }
   return res.status(StatusCodes.CREATED).json({
     status: 'success',
@@ -134,8 +131,6 @@ export const forgotPasswordController = async (
     // Thay template vẫn đang dùng template xác thực email
     if (env.BUILD_MODE === 'production') {
       await resendProvider.sendWithTemplate(TemplateResendId.VERIFY_EMAIL, [payloadSendVerify])
-    } else {
-      console.log('[DEV] verify url:', payloadSendVerify.variables.verify_url)
     }
   }
   return res.status(StatusCodes.OK).json({
@@ -153,4 +148,3 @@ export const resetPasswordController = async (
     message: UserMessages.FORGOT_PASSWORD_SUCCESS
   })
 }
-

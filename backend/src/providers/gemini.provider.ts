@@ -1,6 +1,7 @@
 import axios from 'axios'
 import env from '~/configs/env.config'
 import adminSystemSettingService from '~/services/admin/system-setting.service'
+import logger from '~/configs/logger.config.js'
 
 type GenerateTextParams = {
   model: string
@@ -56,25 +57,25 @@ class GeminiProvider {
         throw new Error('Gemini API returned an empty response')
       }
 
-      console.log(
-        JSON.stringify({
-          tag: 'gemini_provider_success',
+      logger.debug(
+        {
           model,
           response_mime_type: responseMimeType,
           elapsed_ms: Date.now() - startedAt
-        })
+        },
+        'Gemini request succeeded'
       )
 
       return text.trim()
     } catch (error) {
-      console.error(
-        JSON.stringify({
-          tag: 'gemini_provider_failed',
+      logger.error(
+        {
+          err: error,
           model,
           response_mime_type: responseMimeType,
-          elapsed_ms: Date.now() - startedAt,
-          error: error instanceof Error ? error.message : String(error)
-        })
+          elapsed_ms: Date.now() - startedAt
+        },
+        'Gemini request failed'
       )
 
       throw error

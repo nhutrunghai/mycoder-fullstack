@@ -1,6 +1,6 @@
 ﻿import { ObjectId } from 'mongodb'
 import { StatusCodes } from 'http-status-codes'
-import env from '~/configs/env.config'
+import logger from '~/configs/logger.config.js'
 import { ChatIntent } from '~/constants/chat-intent'
 import ErrorCode from '~/constants/error-code'
 import UserMessages from '~/constants/messages/index'
@@ -145,9 +145,7 @@ class RagChatService {
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/\u0111/g, 'd')
 
-    const explicitMatch = normalized.match(
-      /(?:cho\s*(?:toi|minh)\s*)?(\d{1,2})\s*(?:job|jobs|cong\s*viec|viec\s*lam)/i
-    )
+    const explicitMatch = normalized.match(/(?:cho\s*(?:toi|minh)\s*)?(\d{1,2})\s*(?:job|jobs|cong\s*viec|viec\s*lam)/i)
     const trailingMatch = normalized.match(
       /(?:job|jobs|cong\s*viec|viec\s*lam)\s*(?:backend|frontend|fullstack|java|python|node|react|tester|qa|devops)?\s*(\d{1,2})/i
     )
@@ -197,13 +195,7 @@ class RagChatService {
     try {
       chunks = await resumeChatRetrievalService.retrieveForCvReview(message, resume, config.cv_review_top_k)
     } catch (error) {
-      console.error(
-        JSON.stringify({
-          tag: 'cv_review_text_retrieval_failed',
-          resume_id: resume._id ? String(resume._id) : null,
-          error: error instanceof Error ? error.message : String(error)
-        })
-      )
+      logger.error({ err: error, resume_id: resume._id ? String(resume._id) : null }, 'CV review text retrieval failed')
     }
 
     const visualReviewResult = await cvVisualReviewService.reviewResumePdf({
@@ -300,12 +292,9 @@ class RagChatService {
     try {
       chunks = await resumeChatRetrievalService.retrieveForCvReview(message, resume, config.cv_review_top_k)
     } catch (error) {
-      console.error(
-        JSON.stringify({
-          tag: 'cv_job_match_resume_retrieval_failed',
-          resume_id: resume._id ? String(resume._id) : null,
-          error: error instanceof Error ? error.message : String(error)
-        })
+      logger.error(
+        { err: error, resume_id: resume._id ? String(resume._id) : null },
+        'CV job match resume retrieval failed'
       )
     }
 
@@ -319,8 +308,15 @@ class RagChatService {
 
     const jobs =
       intent === 'cv_match_previous_jobs'
-        ? await jobChatRetrievalService.retrieveForExplanation(message, lastJobIds, this.getJobRetrievalLimit(message, config.job_explanation_top_k))
-        : await jobChatRetrievalService.retrieveForJobSearch(this.buildResumeJobSearchQuery(chunks), this.getJobRetrievalLimit(message, config.job_search_top_k))
+        ? await jobChatRetrievalService.retrieveForExplanation(
+            message,
+            lastJobIds,
+            this.getJobRetrievalLimit(message, config.job_explanation_top_k)
+          )
+        : await jobChatRetrievalService.retrieveForJobSearch(
+            this.buildResumeJobSearchQuery(chunks),
+            this.getJobRetrievalLimit(message, config.job_search_top_k)
+          )
 
     if (intent === 'cv_match_previous_jobs' && jobs.length === 0) {
       return {
@@ -364,27 +360,32 @@ class RagChatService {
         }
       })
 
-      const selectedJobIds = new Set(jsonAnswer.selected_job_ids.filter((jobId) => contextJobs.some((job) => job.job_id === jobId)))
+      const selectedJobIds = new Set(
+        jsonAnswer.selected_job_ids.filter((jobId) => contextJobs.some((job) => job.job_id === jobId))
+      )
       const selectedJobs = contextJobs.filter((job) => selectedJobIds.has(job.job_id))
-      const answerMatchedJobs = selectedJobs.length ? selectedJobs : this.matchJobsMentionedInAnswer(jsonAnswer.answer, contextJobs)
+      const answerMatchedJobs = selectedJobs.length
+        ? selectedJobs
+        : this.matchJobsMentionedInAnswer(jsonAnswer.answer, contextJobs)
 
       return {
         answer: jsonAnswer.answer,
-        sources: [...contextAssemblyService.buildSources(answerMatchedJobs, answerMatchedJobs.length), ...this.buildResumeSources(chunks)]
+        sources: [
+          ...contextAssemblyService.buildSources(answerMatchedJobs, answerMatchedJobs.length),
+          ...this.buildResumeSources(chunks)
+        ]
       }
     } catch (error) {
-      console.warn(
-        JSON.stringify({
-          tag: 'cv_job_match_json_answer_failed',
-          error: error instanceof Error ? error.message : String(error)
-        })
-      )
+      logger.warn({ err: error }, 'CV job match structured answer failed; using fallback')
     }
 
     return {
       answer:
         'Tôi đã tìm được một số job có thể so khớp với CV, nhưng chưa tạo được phần giải thích chi tiết. Bạn có thể hỏi lại ngắn hơn hoặc thử chọn CV khác.',
-      sources: [...contextAssemblyService.buildSources(contextJobs, contextJobs.length), ...this.buildResumeSources(chunks)]
+      sources: [
+        ...contextAssemblyService.buildSources(contextJobs, contextJobs.length),
+        ...this.buildResumeSources(chunks)
+      ]
     }
   }
 
@@ -405,9 +406,16 @@ class RagChatService {
   ) {
     switch (intent) {
       case 'job_search':
-        return jobChatRetrievalService.retrieveForJobSearch(message, this.getJobRetrievalLimit(message, config.job_search_top_k))
+        return jobChatRetrievalService.retrieveForJobSearch(
+          message,
+          this.getJobRetrievalLimit(message, config.job_search_top_k)
+        )
       case 'job_explanation':
-        return jobChatRetrievalService.retrieveForExplanation(message, lastJobIds, this.getJobRetrievalLimit(message, config.job_explanation_top_k))
+        return jobChatRetrievalService.retrieveForExplanation(
+          message,
+          lastJobIds,
+          this.getJobRetrievalLimit(message, config.job_explanation_top_k)
+        )
       default:
         return []
     }
@@ -458,9 +466,13 @@ class RagChatService {
         }
       })
 
-      const selectedJobIds = new Set(jsonAnswer.selected_job_ids.filter((jobId) => contextJobs.some((job) => job.job_id === jobId)))
+      const selectedJobIds = new Set(
+        jsonAnswer.selected_job_ids.filter((jobId) => contextJobs.some((job) => job.job_id === jobId))
+      )
       const selectedJobs = contextJobs.filter((job) => selectedJobIds.has(job.job_id))
-      const answerMatchedJobs = selectedJobs.length ? selectedJobs : this.matchJobsMentionedInAnswer(jsonAnswer.answer, contextJobs)
+      const answerMatchedJobs = selectedJobs.length
+        ? selectedJobs
+        : this.matchJobsMentionedInAnswer(jsonAnswer.answer, contextJobs)
       const sourceJobs = intent === 'job_search' ? contextJobs : answerMatchedJobs
 
       return {
@@ -468,12 +480,7 @@ class RagChatService {
         sources: contextAssemblyService.buildSources(sourceJobs, sourceJobs.length)
       }
     } catch (error) {
-      console.warn(
-        JSON.stringify({
-          tag: 'job_chat_json_answer_failed',
-          error: error instanceof Error ? error.message : String(error)
-        })
-      )
+      logger.warn({ err: error }, 'Job chat structured answer failed; using fallback')
     }
 
     const answer = await llmService.generateText({
@@ -496,12 +503,20 @@ class RagChatService {
 
   private matchJobsMentionedInAnswer(answer: string, jobs: RetrievedChatJob[]) {
     const normalizedAnswer = answer.toLowerCase()
-    return jobs.filter((job) => normalizedAnswer.includes(job.job_id.toLowerCase()) || normalizedAnswer.includes(job.title.toLowerCase()))
+    return jobs.filter(
+      (job) => normalizedAnswer.includes(job.job_id.toLowerCase()) || normalizedAnswer.includes(job.title.toLowerCase())
+    )
   }
 
   private isIntentDisabled(intent: ChatIntent, config: RagChatRuntimeConfig) {
     if (intent === 'cv_review') return !config.allow_cv_review
-    if (intent === 'job_search' || intent === 'job_explanation' || intent === 'cv_job_match' || intent === 'cv_match_previous_jobs') return !config.allow_job_qa
+    if (
+      intent === 'job_search' ||
+      intent === 'job_explanation' ||
+      intent === 'cv_job_match' ||
+      intent === 'cv_match_previous_jobs'
+    )
+      return !config.allow_job_qa
     if (intent === 'policy_qa') return !config.allow_policy_qa
     if (intent === 'unsupported') return !config.allow_general_qa
     return false
@@ -520,13 +535,7 @@ Câu hỏi của user:
 ${message}`
       })
     } catch (error) {
-      console.warn(
-        JSON.stringify({
-          tag: 'freeform_chat_answer_failed',
-          intent,
-          error: error instanceof Error ? error.message : String(error)
-        })
-      )
+      logger.warn({ err: error, intent }, 'Freeform chat answer failed')
       return this.buildFallbackAnswer(intent)
     }
   }

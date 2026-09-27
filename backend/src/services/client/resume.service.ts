@@ -8,6 +8,7 @@ import Resume from '~/models/schema/client/resumes.schema.js'
 import uploadThingProvider from '~/providers/uploadthing.provider.js'
 import resumeIngestionService from '~/services/chat/ingestion/resume-ingestion.service.js'
 import resumeIndexService from '~/services/chat/indexing/resume-index.service.js'
+import logger from '~/configs/logger.config.js'
 
 type CreateResumePayload = {
   title: string
@@ -169,13 +170,13 @@ class ResumeService {
         await resumeIndexService.syncCandidateDefaultResume(String(resume.candidate_id), String(resume._id))
       }
     })().catch((error) => {
-      console.error(
-        JSON.stringify({
-          tag: 'resume_ingestion_background_failed',
+      logger.error(
+        {
+          err: error,
           resume_id: resume._id ? String(resume._id) : null,
-          candidate_id: String(resume.candidate_id),
-          error: error instanceof Error ? error.message : String(error)
-        })
+          candidate_id: String(resume.candidate_id)
+        },
+        'Background resume ingestion failed'
       )
     })
   }

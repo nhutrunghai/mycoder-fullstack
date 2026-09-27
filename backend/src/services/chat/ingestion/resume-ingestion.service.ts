@@ -3,6 +3,7 @@ import { PDFParse } from 'pdf-parse'
 import { ResumeStatus } from '~/constants/enums'
 import Resume from '~/models/schema/client/resumes.schema'
 import resumeIndexService, { ResumeChunkInput } from '~/services/chat/indexing/resume-index.service'
+import logger from '~/configs/logger.config.js'
 
 type ResumeIndexingResult = {
   status: 'completed' | 'skipped' | 'failed'
@@ -23,6 +24,14 @@ class ResumeIngestionService {
       const chunks = this.buildResumeChunks(resume, text)
 
       if (chunks.length === 0) {
+        logger.debug(
+          {
+            resume_id: String(resume._id),
+            candidate_id: String(resume.candidate_id)
+          },
+          'Resume ingestion skipped because no text was extracted'
+        )
+
         return {
           status: 'skipped',
           chunks_indexed: 0,
@@ -33,18 +42,27 @@ class ResumeIngestionService {
       await resumeIndexService.deleteResumeChunks(String(resume.candidate_id), String(resume._id))
       const result = await resumeIndexService.indexResumeChunks(chunks)
 
+      logger.info(
+        {
+          resume_id: String(resume._id),
+          candidate_id: String(resume.candidate_id),
+          chunks_indexed: result.indexed
+        },
+        'Resume ingestion completed'
+      )
+
       return {
         status: 'completed',
         chunks_indexed: result.indexed
       }
     } catch (error) {
-      console.error(
-        JSON.stringify({
-          tag: 'resume_ingestion_failed',
+      logger.error(
+        {
+          err: error,
           resume_id: String(resume._id),
-          candidate_id: String(resume.candidate_id),
-          error: error instanceof Error ? error.message : String(error)
-        })
+          candidate_id: String(resume.candidate_id)
+        },
+        'Resume ingestion failed'
       )
 
       return {

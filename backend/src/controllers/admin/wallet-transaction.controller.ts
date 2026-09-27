@@ -13,6 +13,7 @@ import UserMessages from '~/constants/messages/index.js'
 import adminAuditLogService from '~/services/admin/audit-log.service.js'
 import adminWalletTransactionService from '~/services/admin/wallet-transaction.service.js'
 import notificationService from '~/services/client/notification.service.js'
+import logger from '~/configs/logger.config.js'
 
 export const getAdminWalletTransactionsController = async (req: Request, res: Response) => {
   const page = Number(req.query.page || 1)
@@ -97,13 +98,13 @@ export const adjustAdminWalletTransactionController = async (
       }
     })
   } catch (error) {
-    console.error(
-      JSON.stringify({
-        tag: 'admin_wallet_adjust_notification_failed',
-        userId: req.body.userId,
-        transactionId: String(result.transaction._id),
-        message: error instanceof Error ? error.message : 'Unknown error'
-      })
+    logger.error(
+      {
+        err: error,
+        user_id: req.body.userId,
+        transaction_id: String(result.transaction._id)
+      },
+      'Wallet adjustment notification failed'
     )
   }
 

@@ -6,24 +6,23 @@ import {
   generateGeminiEmbedding,
   generateLocalEmbedding
 } from '../services/chat/ai/embedding.service'
+import logger from '~/configs/logger.config.js'
 
 const args = process.argv.slice(2)
 const providerArg = args.find((arg) => arg.startsWith('--provider=')) || '--provider=local'
 const repeatArg = args.find((arg) => arg.startsWith('--repeat=')) || '--repeat=1'
 const dimsArg = args.find((arg) => arg.startsWith('--dims='))
-const text = args
-  .filter((arg) => !arg.startsWith('--'))
-  .join(' ')
-  .trim() || 'Toi muon tim mot cong viec backend o Ha Noi'
+const text =
+  args
+    .filter((arg) => !arg.startsWith('--'))
+    .join(' ')
+    .trim() || 'Toi muon tim mot cong viec backend o Ha Noi'
 
 const provider = providerArg.split('=')[1]
 const repeat = Math.max(1, Number(repeatArg.split('=')[1] || 1))
 const outputDimensionality = dimsArg ? Number(dimsArg.split('=')[1]) : undefined
 
-const benchmark = async (
-  label: string,
-  fn: () => Promise<number[]>
-) => {
+const benchmark = async (label: string, fn: () => Promise<number[]>) => {
   const elapsedMsList: number[] = []
   let vector: number[] = []
 
@@ -32,26 +31,29 @@ const benchmark = async (
     vector = await fn()
     const elapsedMs = performance.now() - startedAt
     elapsedMsList.push(Number(elapsedMs.toFixed(2)))
-    console.log(`[${label}] attempt ${attempt}: ${elapsedMs.toFixed(2)}ms`)
+    logger.info({ label, attempt, elapsed_ms: Number(elapsedMs.toFixed(2)) }, 'Embedding attempt completed')
   }
 
-  console.log(`[${label}] vector length:`, vector.length)
-  console.log(`[${label}] first 12 values:`, vector.slice(0, 12))
-  console.log(`[${label}] elapsed ms list:`, elapsedMsList)
+  logger.debug(
+    { label, vector_length: vector.length, first_values: vector.slice(0, 12), elapsed_ms: elapsedMsList },
+    'Embedding benchmark completed'
+  )
 }
 
 const main = async () => {
-  console.log('Input text:', text)
+  logger.debug({ input_length: text.length }, 'Embedding demo started')
 
   if (provider === 'local') {
-    console.log('Embedding model:', LOCAL_EMBEDDING_MODEL)
+    logger.info({ provider, model: LOCAL_EMBEDDING_MODEL }, 'Running embedding demo')
     await benchmark('local', () => generateLocalEmbedding(text))
     return
   }
 
   if (provider === 'gemini') {
-    console.log('Embedding model:', GEMINI_EMBEDDING_MODEL_NAME)
-    console.log('Output dimensionality:', outputDimensionality ?? 'default')
+    logger.info(
+      { provider, model: GEMINI_EMBEDDING_MODEL_NAME, output_dimensionality: outputDimensionality ?? null },
+      'Running embedding demo'
+    )
     await benchmark('gemini', () => generateGeminiEmbedding(text, { outputDimensionality }))
     return
   }
@@ -60,6 +62,6 @@ const main = async () => {
 }
 
 main().catch((error) => {
-  console.error('Embedding demo failed:', error)
+  logger.error({ err: error, provider }, 'Embedding demo failed')
   process.exit(1)
 })

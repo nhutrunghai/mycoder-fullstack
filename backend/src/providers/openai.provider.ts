@@ -1,6 +1,7 @@
 import axios from 'axios'
 import env from '~/configs/env.config'
 import adminSystemSettingService from '~/services/admin/system-setting.service'
+import logger from '~/configs/logger.config.js'
 
 type GenerateTextParams = {
   model: string
@@ -64,31 +65,31 @@ class OpenAiProvider {
         throw new Error('OpenAI API returned an empty response')
       }
 
-      console.log(
-        JSON.stringify({
-          tag: 'openai_provider_success',
+      logger.debug(
+        {
           model,
           response_mime_type: responseMimeType,
           elapsed_ms: Date.now() - startedAt
-        })
+        },
+        'OpenAI request succeeded'
       )
 
       return text.trim()
     } catch (error) {
       const responseStatus = axios.isAxiosError(error) ? error.response?.status : undefined
       const responseError = axios.isAxiosError(error) ? error.response?.data?.error : undefined
-      console.error(
-        JSON.stringify({
-          tag: 'openai_provider_failed',
+      logger.error(
+        {
+          err: error,
           model,
           response_mime_type: responseMimeType,
           elapsed_ms: Date.now() - startedAt,
           status: responseStatus,
           api_error_type: responseError?.type,
           api_error_code: responseError?.code,
-          api_error_message: responseError?.message,
-          error: error instanceof Error ? error.message : String(error)
-        })
+          api_error_message: responseError?.message
+        },
+        'OpenAI request failed'
       )
 
       throw error

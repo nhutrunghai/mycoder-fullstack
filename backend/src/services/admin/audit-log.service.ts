@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb'
 import databaseService from '~/configs/database.config.js'
 import { AdminAuditAction, AdminAuditTargetType } from '~/constants/enums.js'
 import AdminAuditLog from '~/models/schema/admin/adminAuditLogs.schema.js'
+import logger from '~/configs/logger.config.js'
 
 type CreateAuditLogInput = {
   req?: Request
@@ -46,13 +47,7 @@ class AdminAuditLogService {
         ...log
       }
     } catch (error) {
-      console.error(
-        JSON.stringify({
-          tag: 'admin_audit_log_write_failed',
-          action: input.action,
-          message: error instanceof Error ? error.message : 'Unknown error'
-        })
-      )
+      logger.error({ err: error, action: input.action }, 'Admin audit log write failed')
       return null
     }
   }

@@ -6,6 +6,7 @@ import hybridJobSearchService from './hybrid-job-search.service'
 import lexicalJobSearchService from './lexical-job-search.service'
 import semanticJobSearchService from './semantic-job-search.service'
 import { PublicJobListItem, SearchCandidate, SearchPublicJobsParams, SearchScorePreview } from './job-search.type'
+import logger from '~/configs/logger.config.js'
 
 class PublicJobSearchService {
   async searchForPublicPage(params: SearchPublicJobsParams) {
@@ -24,18 +25,18 @@ class PublicJobSearchService {
     const hydrateElapsedMs = performance.now() - hydrateStartedAt
     const totalElapsedMs = performance.now() - startedAt
 
-    console.log(
-      JSON.stringify({
-        tag: 'public_jobs_search_timing',
+    logger.debug(
+      {
         mode: 'lexical',
-        query: normalized.q,
+        query_length: (normalized.q ?? '').length,
         page: normalized.page,
         limit: normalized.limit,
         lexical_ms: Number(lexicalElapsedMs.toFixed(2)),
         hydrate_ms: Number(hydrateElapsedMs.toFixed(2)),
         total_hits: total,
         total_ms: Number(totalElapsedMs.toFixed(2))
-      })
+      },
+      'Public jobs search completed'
     )
 
     return {
@@ -71,12 +72,9 @@ class PublicJobSearchService {
         fallback: false
       }))
       .catch((error) => {
-        console.warn(
-          JSON.stringify({
-            tag: 'public_jobs_semantic_search_failed',
-            query: normalized.q,
-            error: error instanceof Error ? error.message : String(error)
-          })
+        logger.warn(
+          { err: error, query_length: (normalized.q ?? '').length },
+          'Public jobs semantic search failed; using fallback'
         )
 
         return {
@@ -109,11 +107,10 @@ class PublicJobSearchService {
     const totalElapsedMs = performance.now() - startedAt
     const scorePreview = this.buildScorePreview(pagedCandidates, jobs)
 
-    console.log(
-      JSON.stringify({
-        tag: 'public_jobs_search_timing',
+    logger.debug(
+      {
         mode: 'hybrid',
-        query: normalized.q,
+        query_length: (normalized.q ?? '').length,
         page: normalized.page,
         limit: normalized.limit,
         lexical_ms: Number(lexicalElapsedMs.toFixed(2)),
@@ -128,7 +125,8 @@ class PublicJobSearchService {
         semantic_rescue_count: rankingResult.semanticRescueCount,
         top_scores: scorePreview,
         total_ms: Number(totalElapsedMs.toFixed(2))
-      })
+      },
+      'Public jobs hybrid search completed'
     )
 
     return {

@@ -1,5 +1,6 @@
 import { Redis, RedisOptions } from 'ioredis'
 import env from './env.config.js'
+import logger from './logger.config.js'
 
 class RedisService {
   private static instance: Redis
@@ -13,31 +14,31 @@ class RedisService {
         port: env.REDIS_PORT,
         password: env.REDIS_PASSWORD,
         retryStrategy(times) {
-          console.log(`🔄 Redis reconnecting: attempt ${times}`)
+          logger.warn({ attempt: times }, 'Redis reconnecting')
           return Math.min(times * 50, RedisService.REDIS_RETRY_DELAY)
         },
         maxRetriesPerRequest: null
       }
+
       this.instance = new Redis(redisOptions)
       this.instance.on('connect', () => {
-        console.log('🚀 Redis: Connected to server');
+        logger.info('Redis connected')
       })
-
       this.instance.on('error', (err) => {
-        console.error('❌ Redis: Connection error:', err.message)
+        logger.error({ err }, 'Redis connection error')
       })
-
       this.instance.on('ready', () => {
-        console.log('✅ Redis: Ready to use');
+        logger.info('Redis ready')
       })
     }
 
     return this.instance
   }
+
   public static async closeConnection(): Promise<void> {
     if (this.instance) {
       await this.instance.quit()
-      console.log('💤 Redis: Connection closed')
+      logger.info('Redis connection closed')
     }
   }
 }
@@ -46,7 +47,7 @@ export default RedisService
 
 /*1 số lợi ích của việc (I) export class , thay vì (II) tạo đối tượng rồi mới export như databaseServices
 Cách (II) cũng rất phổ biến nhưng nó phù hợp với hệ thống nhỏ muốn triển khai nhanh vì vậy hãy xem qua
-1 số lợi ích của cách (I) vượt trội hơn 
+1 số lợi ích của cách (I) vượt trội hơn
 1. Kiểm soát thời điểm kết nối (Lazy Initialization)
 Cách Export Đối tượng: Khi bạn vừa import file đó vào ứng dụng, Node.js sẽ thực thi code và kết nối tới Redis ngay lập tức. Nếu lúc đó các biến môi trường (.env) chưa kịp load hoặc Database chưa sẵn sàng, ứng dụng có thể bị crash ngay khi vừa khởi động.
 

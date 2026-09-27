@@ -1,5 +1,6 @@
 import env from './env.config'
 import ElasticsearchConfig from './elasticsearch.config'
+import logger from './logger.config.js'
 
 const ELASTICSEARCH_BOOT_RETRY_ATTEMPTS = 10
 const ELASTICSEARCH_BOOT_RETRY_DELAY_MS = 3000
@@ -127,28 +128,23 @@ const ensureSearchIndex = async (index: string, mapping: object, readyTag: strin
       }
 
       if (attempt > 1) {
-        console.log(
-          JSON.stringify({
-            tag: readyTag,
-            index,
-            attempt
-          })
-        )
+        logger.info({ tag: readyTag, index, attempt }, 'Elasticsearch search index ready')
       }
 
       return
     } catch (error) {
       const isLastAttempt = attempt === ELASTICSEARCH_BOOT_RETRY_ATTEMPTS
 
-      console.warn(
-        JSON.stringify({
-          tag: 'public_jobs_search_index_waiting',
+      logger.warn(
+        {
+          tag: 'search_index_waiting',
           index,
           attempt,
           max_attempts: ELASTICSEARCH_BOOT_RETRY_ATTEMPTS,
           retry_in_ms: isLastAttempt ? 0 : ELASTICSEARCH_BOOT_RETRY_DELAY_MS,
-          error: error instanceof Error ? error.message : String(error)
-        })
+          err: error
+        },
+        'Elasticsearch search index initialization failed'
       )
 
       if (isLastAttempt) {

@@ -4,10 +4,31 @@ import { StatusCodes } from 'http-status-codes'
 import { AppError } from '~/errors/app-error.js'
 import UserMessages from '~/constants/messages/index.js'
 import env from '~/configs/env.config'
+import logger from '~/configs/logger.config.js'
 const isDev = env.BUILD_MODE === 'dev'
-const globalErrorHandle = (err: any, req: Request, res: Response, next: NextFunction) => {
+const globalErrorHandle = (err: any, req: Request, res: Response, _next: NextFunction) => {
   const isJsonParseError =
     err?.type === 'entity.parse.failed' || (err instanceof SyntaxError && (err as any).status === 400 && 'body' in err)
+  const statusCode =
+    err instanceof AppError
+      ? err.statusCode
+      : isJsonParseError
+        ? StatusCodes.BAD_REQUEST
+        : err instanceof ZodError
+          ? StatusCodes.UNPROCESSABLE_ENTITY
+          : StatusCodes.INTERNAL_SERVER_ERROR
+  const logContext = {
+    method: req.method,
+    path: req.path,
+    status_code: statusCode
+  }
+
+  if (statusCode >= 500) {
+    logger.error({ err, ...logContext }, 'Unhandled request error')
+  } else if (isDev) {
+    logger.debug(logContext, 'Request rejected')
+  }
+
   if (isJsonParseError) {
     return res.status(StatusCodes.BAD_REQUEST).json({
       status: 'fail',

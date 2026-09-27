@@ -19,6 +19,7 @@ import WalletTransaction from '~/models/schema/client/walletTransactions.schema.
 import Notification from '~/models/schema/client/notifications.schema.js'
 import AdminAuditLog from '~/models/schema/admin/adminAuditLogs.schema.js'
 import SystemSetting from '~/models/schema/system/systemSettings.schema.js'
+import logger from './logger.config.js'
 
 class DatabaseService {
   private client: MongoClient
@@ -32,10 +33,10 @@ class DatabaseService {
   async connect() {
     try {
       await this.db.command({ ping: 1 })
-      console.log('Connected successfully to MongoDB')
+      logger.info({ database: env.DB_NAME }, 'MongoDB connected')
       await setupDatabaseIndexes(this.db)
     } catch (error) {
-      console.log('Connection error:', error)
+      logger.error({ err: error }, 'MongoDB connection error')
       throw error
     }
   }

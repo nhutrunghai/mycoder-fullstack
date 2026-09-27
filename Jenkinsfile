@@ -66,6 +66,11 @@ spec:
       defaultValue: false,
       description: 'Build and deploy all services'
     )
+    booleanParam(
+      name: 'DEPLOY_INGRESS_CONTROLLER',
+      defaultValue: false,
+      description: 'Install or update the NGINX Ingress Controller infrastructure'
+    )
   }
 
   options {
@@ -300,11 +305,46 @@ spec:
             sh '''
               set -eu
               kubectl apply -f k8s/app/frontend/deployment.yaml
+              kubectl apply -f k8s/app/frontend/service.yaml
               kubectl -n "$K8S_NAMESPACE" set image deployment/mycoder-frontend \
                 frontend="docker.io/${DOCKERHUB_USERNAME}/${FRONTEND_IMAGE_NAME}:${BUILD_NUMBER}"
               kubectl -n "$K8S_NAMESPACE" rollout status deployment/mycoder-frontend --timeout=180s
             '''
           }
+        }
+      }
+    }
+
+    stage('Deploy NGINX Ingress Controller') {
+      when {
+        expression { params.DEPLOY_INGRESS_CONTROLLER }
+      }
+      steps {
+        container('kubectl') {
+          sh '''
+            set -eu
+            kubectl apply -f k8s/app/frontend/service.yaml
+            kubectl apply -f k8s/infra/nginx-ingress
+            kubectl -n nginx-ingress rollout status deployment/nginx-ingress --timeout=180s
+          '''
+        }
+      }
+    }
+
+    stage('Deploy JobGo Ingress') {
+      when {
+        anyOf {
+          expression { params.FULL_BUILD }
+          changeset 'k8s/app/ingress/**'
+          expression { params.DEPLOY_INGRESS_CONTROLLER }
+        }
+      }
+      steps {
+        container('kubectl') {
+          sh '''
+            set -eu
+            kubectl apply -f k8s/app/ingress/jobgo-ingress.yaml
+          '''
         }
       }
     }

@@ -1,4 +1,5 @@
 import env from '~/configs/env.config'
+import logger from '~/configs/logger.config.js'
 import { ChatIntent } from '~/constants/chat-intent'
 import { ChatIntentResult } from '~/services/chat/types/chat.type'
 import { RagChatRuntimeConfig } from '~/services/admin/system-setting.service'
@@ -29,13 +30,12 @@ class IntentRouterService {
     } catch (error) {
       const fallbackIntent = this.detectFallbackIntent(normalizedMessage)
 
-      console.warn(
-        JSON.stringify({
-          tag: 'intent_router_fallback',
-          message: normalizedMessage,
-          fallback_intent: fallbackIntent,
-          error: error instanceof Error ? error.message : String(error)
-        })
+      logger.warn(
+        {
+          err: error,
+          fallback_intent: fallbackIntent
+        },
+        'Intent router fell back to rule-based detection'
       )
 
       return {
@@ -115,7 +115,9 @@ class IntentRouterService {
   }
 
   private isPolicyQuestion(message: string) {
-    return /(luật|luat|quy định|quy dinh|chính sách|chinh sach|nghị định|nghi dinh|thông tư|thong tu|bảo hiểm|bao hiem|hợp đồng|hop dong|thử việc|thu viec|policy|regulation|legal)/i.test(message)
+    return /(luật|luat|quy định|quy dinh|chính sách|chinh sach|nghị định|nghi dinh|thông tư|thong tu|bảo hiểm|bao hiem|hợp đồng|hop dong|thử việc|thu viec|policy|regulation|legal)/i.test(
+      message
+    )
   }
 }
 

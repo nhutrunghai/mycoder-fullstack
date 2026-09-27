@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: mycoder-dev
+  labels:
+    app: mycoder-frontend
+    tier: web
+    env: dev
+spec:
+  type: ClusterIP
+  selector:
+    app: mycoder-frontend
+    tier: web
+    env: dev
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      protocol: TCP

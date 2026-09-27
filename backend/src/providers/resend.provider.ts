@@ -1,5 +1,6 @@
 import { CreateEmailOptions, Resend } from 'resend'
 import env from '~/configs/env.config.js'
+import logger from '~/configs/logger.config.js'
 class ResendProvider {
   private resend: Resend
   constructor() {
@@ -23,11 +24,14 @@ class ResendProvider {
       }))
       const { data, error } = await this.resend.batch.send(batchRequest)
       if (error) {
-        console.error('[RESEND_ERROR]', {
-          templateId,
-          recipients: batchRequest.map((item) => item.to),
-          error
-        })
+        logger.error(
+          {
+            err: error,
+            template_id: templateId,
+            recipient_count: batchRequest.length
+          },
+          'Resend batch request failed'
+        )
         throw error
       }
       results.push(data)
