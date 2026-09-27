@@ -10,7 +10,7 @@ metadata:
 data:
   # Development public URL exposed by the frontend NodePort.
   PORT: "4000"
-  BUILD_MODE: dev
+  NODE_ENV: development
   ALLOWED_ORIGINS: http://192.168.53.128:30080
   FRONTEND_URL: http://192.168.53.128:30080
 

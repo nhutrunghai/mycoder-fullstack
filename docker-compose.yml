@@ -19,7 +19,7 @@ services:
       - ./backend/.env
     environment:
       PORT: 4000
-      BUILD_MODE: production
+      NODE_ENV: production
       DB_URL: mongodb://mongo:27017/mycoder
       REDIS_HOST: redis
       REDIS_PORT: 6379

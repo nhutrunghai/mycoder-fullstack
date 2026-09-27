@@ -13,7 +13,6 @@ FROM node:20-bookworm-slim AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV BUILD_MODE=production
 
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force

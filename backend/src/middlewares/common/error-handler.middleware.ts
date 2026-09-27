@@ -5,7 +5,7 @@ import { AppError } from '~/errors/app-error.js'
 import UserMessages from '~/constants/messages/index.js'
 import env from '~/configs/env.config'
 import logger from '~/configs/logger.config.js'
-const isDev = env.BUILD_MODE === 'dev'
+const isDevelopment = env.NODE_ENV === 'development'
 const globalErrorHandle = (err: any, req: Request, res: Response, _next: NextFunction) => {
   const isJsonParseError =
     err?.type === 'entity.parse.failed' || (err instanceof SyntaxError && (err as any).status === 400 && 'body' in err)
@@ -25,7 +25,7 @@ const globalErrorHandle = (err: any, req: Request, res: Response, _next: NextFun
 
   if (statusCode >= 500) {
     logger.error({ err, ...logContext }, 'Unhandled request error')
-  } else if (isDev) {
+  } else if (isDevelopment) {
     logger.debug(logContext, 'Request rejected')
   }
 
@@ -51,7 +51,7 @@ const globalErrorHandle = (err: any, req: Request, res: Response, _next: NextFun
     message: UserMessages.SERVER_ERROR,
     stack: err.stack
   }
-  if (!isDev) {
+  if (!isDevelopment) {
     delete dataError.stack
   }
   if (err instanceof AppError) {

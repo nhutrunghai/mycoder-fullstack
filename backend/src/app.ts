@@ -34,8 +34,8 @@ export const createApp = async () => {
       },
       customLogLevel: (_req, res, err) => {
         if (err || res.statusCode >= 500) return 'error'
-        if (res.statusCode >= 400) return env.BUILD_MODE === 'dev' ? 'warn' : 'silent'
-        return env.BUILD_MODE === 'dev' ? 'debug' : 'silent'
+        if (res.statusCode >= 400) return env.NODE_ENV === 'development' ? 'warn' : 'silent'
+        return env.NODE_ENV === 'development' ? 'debug' : 'silent'
       }
     })
   )

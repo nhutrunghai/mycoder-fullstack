@@ -62,8 +62,8 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1, { message: 'Không tồn tại GOOGLE_CLIENT_ID' }),
   GOOGLE_CLIENT_SECRET: z.string().min(1, { message: 'Không tồn tại GOOGLE_CLIENT_SECRET' }),
   GOOGLE_REDIRECT_URL: z.url({ message: 'GOOGLE_REDIRECT_URL phải là một đường dẫn hợp lệ' }),
-  // BUILD_MODE
-  BUILD_MODE: z.enum(['dev', 'production', 'test']).default('dev'),
+  // Runtime environment
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   // ELASTICSEARCH
   ELASTICSEARCH_URL: z.string().min(1, { message: 'Không tồn tại ELASTICSEARCH_URL' }),
   PUBLIC_JOBS_SEARCH_INDEX: z.string().min(1, { message: 'PUBLIC_JOBS_SEARCH_INDEX không được rỗng' }),

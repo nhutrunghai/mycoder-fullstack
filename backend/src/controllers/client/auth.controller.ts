@@ -52,7 +52,7 @@ export const RegisterController = async (req: Request<ParamsDictionary, any, Reg
       verify_url: `${env.FRONTEND_URL}/verify-email?email_verify_token=${rawToken}`
     }
   }
-  if (env.BUILD_MODE === 'production') {
+  if (env.NODE_ENV === 'production') {
     await resendProvider.sendWithTemplate(TemplateResendId.VERIFY_EMAIL, [payloadSendVerify])
   }
   return res.status(StatusCodes.CREATED).json({
@@ -129,7 +129,7 @@ export const forgotPasswordController = async (
       }
     }
     // Thay template vẫn đang dùng template xác thực email
-    if (env.BUILD_MODE === 'production') {
+    if (env.NODE_ENV === 'production') {
       await resendProvider.sendWithTemplate(TemplateResendId.VERIFY_EMAIL, [payloadSendVerify])
     }
   }

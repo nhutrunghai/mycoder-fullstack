@@ -87,7 +87,7 @@ export const resendMailController = async (req: Request, res: Response<any, User
       verify_url: `${env.FRONTEND_URL}/verify-email?email_verify_token=${rawToken}`
     }
   }
-  if (env.BUILD_MODE === 'production') {
+  if (env.NODE_ENV === 'production') {
     await resendProvider.sendWithTemplate(TemplateResendId.VERIFY_EMAIL, [payloadSendVerify])
   }
   return res.status(StatusCodes.OK).json({
@@ -115,7 +115,7 @@ export const changePasswordController = async (req: Request, res: Response<any, 
       otpCode: otpCode
     }
   }
-  if (env.BUILD_MODE === 'production') {
+  if (env.NODE_ENV === 'production') {
     await resendProvider.sendWithTemplate(TemplateResendId.CHANGE_PASSWORD, [payloadSendVerify])
   }
   return res.status(StatusCodes.OK).json({

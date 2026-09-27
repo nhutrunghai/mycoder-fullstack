@@ -2,10 +2,10 @@ import { CorsOptions } from 'cors'
 import env from './env.config'
 import { AppError } from '~/errors/app-error'
 import { StatusCodes } from 'http-status-codes'
-const isDev = env.BUILD_MODE === 'dev'
+const isDevelopment = env.NODE_ENV === 'development'
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
-    if (isDev) return callback(null, true)
+    if (isDevelopment) return callback(null, true)
     if (!origin || env.ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true)
     } else {

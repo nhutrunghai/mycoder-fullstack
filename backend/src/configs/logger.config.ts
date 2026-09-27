@@ -1,9 +1,9 @@
 import pino from 'pino'
 
-const buildMode = process.env.BUILD_MODE ?? 'dev'
+const nodeEnv = process.env.NODE_ENV ?? 'development'
 
-const logLevelByBuildMode = {
-  dev: 'debug',
+const logLevelByNodeEnv = {
+  development: 'debug',
   production: 'info',
   test: 'silent'
 } as const
@@ -24,10 +24,10 @@ const serializeError = (error: unknown) => {
 }
 
 const logger = pino({
-  level: logLevelByBuildMode[buildMode as keyof typeof logLevelByBuildMode] ?? 'info',
+  level: logLevelByNodeEnv[nodeEnv as keyof typeof logLevelByNodeEnv] ?? 'info',
   base: {
     service: 'mycoder-backend',
-    build_mode: buildMode
+    node_env: nodeEnv
   },
   timestamp: pino.stdTimeFunctions.isoTime,
   serializers: {
