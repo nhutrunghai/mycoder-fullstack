@@ -51,6 +51,9 @@ export const createApp = async () => {
   app.use(express.urlencoded({ extended: true }))
   app.use(cookieParser())
   app.use('/api/uploadthing', uploadThingProvider.createExpressHandler())
+  app.get(`${BASE_PATH}/health`, (_req, res) => {
+    res.status(200).json({ status: 'ok', service: 'mycoder-backend' })
+  })
   app.get('/', (req, res) => {
     res.send('Hello World')
   })

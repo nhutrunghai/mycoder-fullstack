@@ -69,7 +69,7 @@ spec:
     booleanParam(
       name: 'DEPLOY_INGRESS_CONTROLLER',
       defaultValue: false,
-      description: 'Install or update the NGINX Ingress Controller infrastructure'
+      description: 'Update the installed NGINX Ingress Controller resources'
     )
   }
 
@@ -324,7 +324,9 @@ spec:
           sh '''
             set -eu
             kubectl apply -f k8s/app/frontend/service.yaml
-            kubectl apply -f k8s/infra/nginx-ingress
+            kubectl apply -f k8s/infra/nginx-ingress/30-configmap.yaml
+            kubectl apply -f k8s/infra/nginx-ingress/50-service.yaml
+            kubectl apply -f k8s/infra/nginx-ingress/60-deployment.yaml
             kubectl -n nginx-ingress rollout status deployment/nginx-ingress --timeout=180s
           '''
         }

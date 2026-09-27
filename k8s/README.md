@@ -32,8 +32,9 @@ k8s/
 5. Tren tung worker co the chay Elasticsearch, dat `vm.max_map_count=262144`, roi trien khai `infra/elasticsearch/statefulset.yaml`.
 6. Trien khai thu cong `app/embedding-api/pvc.yaml` mot lan. Jenkins se tao/cap nhat Deployment va Service embedding API sau khi build image dau tien. Init container se tai model `dangvantuan/vietnamese-document-embedding` vao PVC mot lan; cac lan Pod khoi dong sau dung lai model da luu.
 7. Build va push backend/frontend, thay placeholder image trong manifest neu chua de Jenkins cap nhat image, sau do trien khai backend va frontend.
-8. Chay Jenkins voi `DEPLOY_INGRESS_CONTROLLER=true` mot lan de cai controller NGINX. Controller dung NodePort `30080`; frontend Service phai la `ClusterIP` truoc khi chay buoc nay.
-9. Jenkins apply `app/ingress/jobgo-ingress.yaml` de route `/api` vao backend va `/` vao frontend. Giai doan chua co domain, controller cho phep Ingress khong co host va truy cap qua `http://192.168.53.128:30080`.
+8. Cluster admin chay mot lan `kubectl apply -f infra/nginx-ingress` de tao Namespace, CRD, RBAC, ServiceAccount va IngressClass cho NGINX. Controller dung NodePort `30080`; frontend Service phai la `ClusterIP` truoc buoc nay.
+9. Sau bootstrap, Jenkins co the chay voi `DEPLOY_INGRESS_CONTROLLER=true` de cap nhat ConfigMap, Service va Deployment cua controller. Jenkins khong co quyen sua ClusterRole, ClusterRoleBinding hay CRD.
+10. Jenkins apply `app/ingress/jobgo-ingress.yaml` de route `/api` vao backend va `/` vao frontend. Giai doan chua co domain, controller cho phep Ingress khong co host va truy cap qua `http://192.168.53.128:30080`.
 
 ## Luu y van hanh
 
