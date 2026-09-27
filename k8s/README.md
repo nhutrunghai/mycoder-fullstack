@@ -1,47 +1,47 @@
 # Kubernetes manifests
 
-Thu muc nay luu cau hinh Kubernetes cua MyCoder. Cac manifest chua duoc trien khai tu dong boi Jenkins, vi vay viec tao hoac thay doi ha tang can duoc kiem tra thu cong truoc khi them stage CI/CD.
+Thư mục này lưu cấu hình Kubernetes của MyCoder. Các manifest chưa được triển khai tự động bởi Jenkins, vì vậy việc tạo hoặc thay đổi hạ tầng cần được kiểm tra thủ công trước khi thêm stage CI/CD.
 
-## Cau truc
+## Cấu trúc
 
 ```text
 k8s/
   bootstrap/
     namespace.yaml                 # Namespace mycoder-dev
-    jenkins/                       # Jenkins, RBAC va local-path PVC cua Jenkins
+    jenkins/                       # Jenkins, RBAC và local-path PVC của Jenkins
   infra/
-    mongodb/values.yaml            # Helm values, chua mat khau that va bi git ignore
-    redis/statefulset.yaml         # Redis StatefulSet va Service noi bo
-    elasticsearch/statefulset.yaml # Elasticsearch StatefulSet va Service noi bo
-    nginx-ingress/                 # NGINX Ingress Controller va NodePort HTTP
+    mongodb/values.yaml            # Helm values, chứa mật khẩu thật và bị git ignore
+    redis/statefulset.yaml         # Redis StatefulSet và Service nội bộ
+    elasticsearch/statefulset.yaml # Elasticsearch StatefulSet và Service nội bộ
+    nginx-ingress/                 # NGINX Ingress Controller và NodePort HTTP
   app/
-    backend/                       # ConfigMap, Secret mau, Deployment, Service
-    frontend/                      # Deployment va Service
+    backend/                       # ConfigMap, Secret mẫu, Deployment, Service
+    frontend/                      # Deployment và Service
     embedding-api/                 # PVC model, Deployment, Service
     ingress/                       # Rule /api -> backend, / -> frontend
 ```
 
-`k8s/app/backend/secret.yaml` va `k8s/infra/mongodb/values.yaml` co du lieu nhay cam nen bi `.gitignore`. Chi commit `secret.example.yaml`; khong dua mat khau, API key hoac chuoi ket noi that vao Git.
+`k8s/app/backend/secret.yaml` và `k8s/infra/mongodb/values.yaml` có dữ liệu nhạy cảm nên bị `.gitignore`. Chỉ commit `secret.example.yaml`; không đưa mật khẩu, API key hoặc chuỗi kết nối thật vào Git.
 
-## Thu tu trien khai khi dung lai cluster
+## Thứ tự triển khai khi dựng lại cluster
 
-1. Tao namespace tu `bootstrap/namespace.yaml`.
-2. Tao Secret that `app/backend/secret.yaml` tu `secret.example.yaml`.
-3. Cai MongoDB bang Helm voi `infra/mongodb/values.yaml`.
-4. Trien khai `infra/redis/statefulset.yaml`.
-5. Tren tung worker co the chay Elasticsearch, dat `vm.max_map_count=262144`, roi trien khai `infra/elasticsearch/statefulset.yaml`.
-6. Trien khai thu cong `app/embedding-api/pvc.yaml` mot lan. Jenkins se tao/cap nhat Deployment va Service embedding API sau khi build image dau tien. Init container se tai model `dangvantuan/vietnamese-document-embedding` vao PVC mot lan; cac lan Pod khoi dong sau dung lai model da luu.
-7. Build va push backend/frontend, thay placeholder image trong manifest neu chua de Jenkins cap nhat image, sau do trien khai backend va frontend.
-8. Cluster admin chay mot lan `kubectl apply -f infra/nginx-ingress` de tao Namespace, CRD, RBAC, ServiceAccount va IngressClass cho NGINX. Controller dung NodePort `30080`; frontend Service phai la `ClusterIP` truoc buoc nay.
-9. Sau bootstrap, Jenkins co the chay voi `DEPLOY_INGRESS_CONTROLLER=true` de cap nhat ConfigMap, Service va Deployment cua controller. Jenkins khong co quyen sua ClusterRole, ClusterRoleBinding hay CRD.
-10. Jenkins apply `app/ingress/jobgo-ingress.yaml` de route `/api` vao backend va `/` vao frontend. Giai doan chua co domain, controller cho phep Ingress khong co host va truy cap qua `http://192.168.53.128:30080`.
+1. Tạo namespace từ `bootstrap/namespace.yaml`.
+2. Tạo Secret thật `app/backend/secret.yaml` từ `secret.example.yaml`.
+3. Cài MongoDB bằng Helm với `infra/mongodb/values.yaml`.
+4. Triển khai `infra/redis/statefulset.yaml`.
+5. Trên từng worker có thể chạy Elasticsearch, đặt `vm.max_map_count=262144`, rồi triển khai `infra/elasticsearch/statefulset.yaml`.
+6. Triển khai thủ công `app/embedding-api/pvc.yaml` một lần. Jenkins sẽ tạo/cập nhật Deployment và Service embedding API sau khi build image đầu tiên. Init container sẽ tải model `dangvantuan/vietnamese-document-embedding` vào PVC một lần; các lần Pod khởi động sau dùng lại model đã lưu.
+7. Build và push backend/frontend, thay placeholder image trong manifest nếu chưa để Jenkins cập nhật image, sau đó triển khai backend và frontend.
+8. Cluster admin chạy một lần `kubectl apply -f infra/nginx-ingress` để tạo Namespace, CRD, RBAC, ServiceAccount và IngressClass cho NGINX. Controller dùng NodePort `30080`; frontend Service phải là `ClusterIP` trước bước này.
+9. Sau bootstrap, Jenkins có thể chạy với `DEPLOY_INGRESS_CONTROLLER=true` để cập nhật ConfigMap, Service và Deployment của controller. Jenkins không có quyền sửa ClusterRole, ClusterRoleBinding hay CRD.
+10. Jenkins apply `app/ingress/jobgo-ingress.yaml` để route `/api` vào backend và `/` vào frontend. Giai đoạn chưa có domain, controller cho phép Ingress không có host và truy cập qua `http://192.168.53.128:30080`.
 
-## Luu y van hanh
+## Lưu ý vận hành
 
-- `local-path` tao volume cuc bo theo node. Cac workload dung PVC trong thu muc nay deu de mot replica va `ReadWriteOnce`; khong tang replica khi chua co storage dung chung.
-- Redis dung `REDIS_PASSWORD` lay tu `mycoder-backend-secret`, nen Secret phai ton tai truoc khi Redis chay.
-- Elasticsearch dang de `xpack.security.enabled=false` cho moi truong development noi bo. Khong giu cau hinh nay cho moi truong public hoac production.
-- Backend da tro toi cac Service noi bo `redis:6379`, `elasticsearch:9200` va `embedding-api:8000`.
-- Jenkinsfile build/push embedding API khi `embedding-api/**` thay doi, tao/cap nhat Deployment va Service, va khong quan ly PVC. Redis va Elasticsearch khong co stage tu dong.
-- NGINX Ingress Controller dung image `nginx/nginx-ingress:5.6.3`, co 2 replicas phan tan tren cac node khac nhau. Stage cai/cap nhat controller chi chay khi bat parameter `DEPLOY_INGRESS_CONTROLLER`; rule Ingress cua JobGo duoc apply trong pipeline app.
-- Giai doan hien tai chi expose HTTP qua NodePort `30080`; chua cau hinh domain, TLS, cert-manager hoac HTTPS.
+- `local-path` tạo volume cục bộ theo node. Các workload dùng PVC trong thư mục này đều để một replica và `ReadWriteOnce`; không tăng replica khi chưa có storage dùng chung.
+- Redis dùng `REDIS_PASSWORD` lấy từ `mycoder-backend-secret`, nên Secret phải tồn tại trước khi Redis chạy.
+- Elasticsearch đang để `xpack.security.enabled=false` cho môi trường development nội bộ. Không giữ cấu hình này cho môi trường public hoặc production.
+- Backend đã trỏ tới các Service nội bộ `redis:6379`, `elasticsearch:9200` và `embedding-api:8000`.
+- Jenkinsfile build/push embedding API khi `embedding-api/**` thay đổi, tạo/cập nhật Deployment và Service, và không quản lý PVC. Redis và Elasticsearch không có stage tự động.
+- NGINX Ingress Controller dùng image `nginx/nginx-ingress:5.6.3`, có 2 replicas phân tán trên các node khác nhau. Stage cài/cập nhật controller chỉ chạy khi bật parameter `DEPLOY_INGRESS_CONTROLLER`; rule Ingress của JobGo được apply trong pipeline app.
+- Giai đoạn hiện tại chỉ expose HTTP qua NodePort `30080`; chưa cấu hình domain, TLS, cert-manager hoặc HTTPS.
