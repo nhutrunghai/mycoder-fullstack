@@ -6,6 +6,7 @@ import LoginModal from '../components/auth/LoginModal.jsx'
 import PublicHeader from '../components/layout/PublicHeader.jsx'
 import UserAvatar from '../components/UserAvatar.jsx'
 import useCurrentUser from '../hooks/useCurrentUser.js'
+import { useFavoriteStore } from '../stores/useFavoriteStore.js'
 import { hasAccessToken } from '../config/api.js'
 import { applyToJob, loadJobDetail, loadOtherJobDetails, loadUserUploadedCvs, searchPublicJobs, withdrawAppliedJob } from '../data/apiClient.js'
 const locationOptions = [
@@ -29,6 +30,8 @@ export default function JobDetail() {
   const navigate = useNavigate()
   const session = useCurrentUser()
   const { refreshSession } = session
+  const favoriteIds = useFavoriteStore((state) => state.favoriteIds)
+  const toggleFavoriteInStore = useFavoriteStore((state) => state.toggle)
   const [jobs, setJobs] = useState([])
   const [job, setJob] = useState(null)
   const [isLoadingJob, setIsLoadingJob] = useState(true)
@@ -43,6 +46,7 @@ export default function JobDetail() {
   const [uploadedCvs, setUploadedCvs] = useState([])
   const [isLoadingCvs, setIsLoadingCvs] = useState(false)
   const [isApplying, setIsApplying] = useState(false)
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false)
   const [toast, setToast] = useState(null)
   const [applyForm, setApplyForm] = useState({
     cvId: '',
@@ -181,6 +185,7 @@ export default function JobDetail() {
   const alreadyWithdrawn = withdrawn || applicationStatus === 'withdrawn'
   const hasActiveApplication = hasApplied && !alreadyWithdrawn
   const actionJobId = job?.applyId || job?.backendId || job?.id
+  const isFavorite = favoriteIds.has(String(actionJobId || ''))
   const submitSearch = () => {
     const params = new URLSearchParams()
     if (keyword.trim()) params.set('q', keyword.trim())
@@ -205,6 +210,26 @@ export default function JobDetail() {
     }
 
     setApplyOpen(true)
+  }
+
+  const handleToggleFavorite = async () => {
+    if (!actionJobId || isTogglingFavorite) return
+
+    setIsTogglingFavorite(true)
+    try {
+      const saved = await toggleFavoriteInStore(actionJobId)
+      setToast({
+        type: 'success',
+        message: saved ? 'Đã lưu tin vào danh sách yêu thích.' : 'Đã bỏ lưu tin.',
+      })
+    } catch (error) {
+      setToast({
+        type: 'error',
+        message: !hasAccessToken() ? 'Vui lòng đăng nhập để lưu tin.' : error.message || 'Không thể cập nhật tin yêu thích.',
+      })
+    } finally {
+      setIsTogglingFavorite(false)
+    }
   }
 
   const handleInlineLoginSuccess = async (result) => {
@@ -433,6 +458,22 @@ export default function JobDetail() {
                   } ${isWithdrawing ? 'cursor-default opacity-70' : ''}`}
                 >
                   {hasActiveApplication ? (isWithdrawing ? 'Đang rút...' : 'Rút hồ sơ') : alreadyWithdrawn ? 'Ứng tuyển lại' : 'Ứng tuyển ngay'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleToggleFavorite()}
+                  disabled={isTogglingFavorite}
+                  aria-pressed={isFavorite}
+                  className={`inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border px-5 text-base font-semibold transition disabled:cursor-wait disabled:opacity-60 ${
+                    isFavorite
+                      ? 'border-blue-200 bg-blue-50 text-[#1e58b1] hover:bg-blue-100'
+                      : 'border-[#1e58b1] bg-white text-[#1e58b1] hover:bg-blue-50'
+                  }`}
+                >
+                  <span className="material-symbols-outlined !text-[21px]" style={{ fontVariationSettings: isFavorite ? "'FILL' 1" : "'FILL' 0" }}>
+                    {isFavorite ? 'favorite' : 'favorite_border'}
+                  </span>
+                  {isFavorite ? 'Đã lưu' : 'Lưu tin'}
                 </button>
               </div>
             </section>

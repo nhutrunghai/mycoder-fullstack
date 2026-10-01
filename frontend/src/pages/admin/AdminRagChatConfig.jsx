@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import AdminLayout from '../../components/AdminLayout.jsx'
+import AdminDrawer from '../../components/admin/AdminDrawer.jsx'
 import Toast from '../../components/Toast.jsx'
 import {
   getAdminRagChatConfig,
@@ -98,6 +99,7 @@ export default function AdminRagChatConfig() {
   const [saving, setSaving] = useState(false)
   const [rotating, setRotating] = useState(false)
   const [toast, setToast] = useState(null)
+  const [secretOpen, setSecretOpen] = useState(false)
   const [selectedSecretProvider, setSelectedSecretProvider] = useState('openai')
   const [configForm, setConfigForm] = useState({
     enabled: true,
@@ -205,6 +207,7 @@ export default function AdminRagChatConfig() {
       const result = await rotateAdminRagChatSecrets(body)
       setSecrets(result?.secrets || null)
       setSecretForm({ openai_api_key: '', gemini_api_key: '' })
+      setSecretOpen(false)
       setToast({ type: 'success', message: 'Đã cập nhật secret RAG Chat.' })
       await loadHealth()
     } catch (error) {
@@ -218,15 +221,15 @@ export default function AdminRagChatConfig() {
     <AdminLayout title="Cấu hình RAG Chat" subtitle="Quản lý trạng thái chạy, nhà cung cấp, model, API key và tình trạng kiểm tra hệ thống chat.">
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      <section className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Nhà cung cấp" value={health?.provider || config?.provider || 'N/A'} tone="text-indigo-700" />
+      <section className="admin-metrics mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Nhà cung cấp" value={health?.provider || config?.provider || 'N/A'} tone="text-teal-700" />
         <StatCard label="Trạng thái" value={health?.enabled ? 'Bật' : 'Tắt'} tone={health?.enabled ? 'text-emerald-700' : 'text-rose-700'} />
         <StatCard label="Key nhà cung cấp" value={health?.provider_configured ? 'Đã cấu hình' : 'Thiếu key'} tone={health?.provider_configured ? 'text-emerald-700' : 'text-rose-700'} />
         <StatCard label="Đánh giá CV" value={configForm.allow_cv_review ? 'Cho phép' : 'Tắt'} tone="text-slate-950" />
       </section>
 
       <section className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <form onSubmit={handleSaveConfig} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <form onSubmit={handleSaveConfig} className="admin-form-panel rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-[14px] font-extrabold text-slate-950">Cấu hình vận hành</h2>
           <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
             <label className="block"><span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Nhà cung cấp</span><select value={configForm.provider} onChange={(event) => { const provider = event.target.value; const [defaultModel] = textModelOptions[provider] || textModelOptions.openai; setConfigForm((current) => ({ ...current, provider, intent_model: defaultModel.value, chat_model: defaultModel.value })) }} className={inputClassName}><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>
@@ -244,34 +247,42 @@ export default function AdminRagChatConfig() {
             <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] font-semibold text-slate-700"><input type="checkbox" checked={configForm.allow_general_qa} onChange={(event) => setConfigForm((current) => ({ ...current, allow_general_qa: event.target.checked }))} /> Cho phép hỏi đáp ngoài phạm vi</label>
             <label className="block lg:col-span-2"><span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Thông báo bảo trì</span><textarea rows="4" value={configForm.maintenance_message} onChange={(event) => setConfigForm((current) => ({ ...current, maintenance_message: event.target.value }))} className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100" /></label>
           </div>
-          <button type="submit" disabled={saving || loading} className="mt-3 flex h-10 w-full items-center justify-center rounded-md bg-slate-950 px-3 text-[13px] font-extrabold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? 'Đang lưu...' : 'Lưu cấu hình'}</button>
+          <button type="submit" disabled={saving || loading} className="mt-3 flex h-10 w-full items-center justify-center rounded-md bg-teal-700 px-3 text-[13px] font-extrabold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? 'Đang lưu...' : 'Lưu cấu hình'}</button>
         </form>
 
         <div className="space-y-3">
-          <form onSubmit={handleRotateSecrets} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="admin-form-panel rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="text-[14px] font-extrabold text-slate-950">Cập nhật API key</h2>
             <p className="mt-1 text-[12px] font-medium text-slate-500">Chọn nhà cung cấp cần đổi key, sau đó nhập key mới.</p>
-            <div className="mt-3 space-y-3">
+            <div className="mt-4 rounded-md border border-slate-100 bg-slate-50 p-3 text-[12px] font-semibold text-slate-600">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">Provider đang chọn</p>
+              <p className="admin-secret-preview mt-1 min-w-0 max-w-full whitespace-normal break-all text-slate-800">{selectedSecretOption.label} · {secrets?.[selectedSecretOption.preview] || 'Chưa cấu hình'}</p>
+            </div>
+            <button type="button" onClick={() => setSecretOpen(true)} className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-slate-900 px-4 text-[13px] font-extrabold text-white transition hover:bg-slate-800"><span aria-hidden="true" className="material-symbols-outlined text-[18px]">key</span>Quản lý API key</button>
+          </div>
+
+          <AdminDrawer open={secretOpen} onClose={() => setSecretOpen(false)} title="Cập nhật API key RAG Chat" subtitle="Chọn provider và nhập key mới. Giá trị đầy đủ không được hiển thị lại sau khi lưu.">
+            <form onSubmit={handleRotateSecrets}>
               <div>
                 <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Nhà cung cấp</span>
                 <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
                   {secretProviderOptions.map((option) => (
-                    <button key={option.value} type="button" onClick={() => setSelectedSecretProvider(option.value)} className={`h-9 rounded-md text-[13px] font-extrabold transition ${selectedSecretProvider === option.value ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+                    <button key={option.value} type="button" onClick={() => setSelectedSecretProvider(option.value)} className={`h-10 rounded-md text-[13px] font-extrabold transition ${selectedSecretProvider === option.value ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
                       {option.label}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="rounded-md border border-slate-100 bg-slate-50 p-3 text-[12px] font-semibold text-slate-600">
+              <div className="mt-4 rounded-md border border-slate-100 bg-slate-50 p-3 text-[12px] font-semibold text-slate-600">
                 <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">API key hiện tại</p>
-                <p className="mt-1 break-all text-slate-700">{secrets?.[selectedSecretOption.preview] || 'Chưa cấu hình'}</p>
+                <p className="admin-secret-preview mt-1 min-w-0 max-w-full whitespace-normal break-all text-slate-700">{secrets?.[selectedSecretOption.preview] || 'Chưa cấu hình'}</p>
               </div>
-              <label className="block"><span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">API key mới</span><input type="password" value={secretForm[selectedSecretOption.field]} onChange={(event) => setSecretForm((current) => ({ ...current, [selectedSecretOption.field]: event.target.value }))} placeholder={`Nhập API key ${selectedSecretOption.label} mới`} className={inputClassName} /></label>
-              <button type="submit" disabled={rotating || loading} className="flex h-10 w-full items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-[13px] font-extrabold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">{rotating ? 'Đang cập nhật...' : `Cập nhật ${selectedSecretOption.label} API key`}</button>
-            </div>
-          </form>
+              <label className="mt-4 block"><span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">API key mới</span><input type="password" value={secretForm[selectedSecretOption.field]} onChange={(event) => setSecretForm((current) => ({ ...current, [selectedSecretOption.field]: event.target.value }))} placeholder={`Nhập API key ${selectedSecretOption.label} mới`} className={inputClassName} /></label>
+              <button type="submit" disabled={rotating || loading} className="mt-4 flex h-10 w-full items-center justify-center rounded-md bg-teal-700 px-3 text-[13px] font-extrabold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50">{rotating ? 'Đang cập nhật...' : `Cập nhật ${selectedSecretOption.label} API key`}</button>
+            </form>
+          </AdminDrawer>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="admin-data-panel rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-[14px] font-extrabold text-slate-950">Kiểm tra hệ thống</h2>

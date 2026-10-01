@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout.jsx'
+import AdminDrawer from '../../components/admin/AdminDrawer.jsx'
 import Toast from '../../components/Toast.jsx'
 import { adjustAdminWalletBalance, getAdminUsers, getAdminWalletTransactions } from '../../api/adminService.js'
 import { compactId, formatCurrencyVi as formatMoney, formatDateTimeVi as formatDateTime } from '../../utils/formatters.js'
@@ -118,7 +119,7 @@ function UserPickerModal({ open, onClose, onSelect }) {
           setUsers(data?.users ?? [])
         })
         .catch((err) => {
-          if (active) setError(err.message || 'Không thỒ tải danh sách người dùng.')
+          if (active) setError(err.message || 'Không thể tải danh sách người dùng.')
         })
         .finally(() => {
           if (active) setLoading(false)
@@ -136,7 +137,7 @@ function UserPickerModal({ open, onClose, onSelect }) {
       open={open}
       onClose={onClose}
       title="Chọn người dùng"
-      subtitle="Tìm và chọn nhanh user ngay trong màn giao dịch ví."
+      subtitle="Tìm kiếm và chọn người dùng cho giao dịch ví."
     >
       <div className="p-5">
         <label className="relative block">
@@ -159,9 +160,9 @@ function UserPickerModal({ open, onClose, onSelect }) {
               <button
                 type="button"
                 onClick={() => onSelect(user)}
-                className="h-9 shrink-0 rounded-md border border-indigo-200 bg-indigo-50 px-4 text-[12px] font-extrabold text-indigo-700 transition hover:bg-indigo-100"
+                className="h-9 shrink-0 rounded-md border border-teal-200 bg-teal-50 px-4 text-[12px] font-extrabold text-teal-700 transition hover:bg-teal-100"
               >
-                Chọn user này
+                Chọn người dùng này
               </button>
             </article>
           ))}
@@ -188,7 +189,17 @@ export default function AdminWalletTransactions() {
   const [submittingAdjust, setSubmittingAdjust] = useState(false)
   const [toast, setToast] = useState(null)
   const [selectedUserPreview, setSelectedUserPreview] = useState(location.state?.userPreview || null)
+  const [userSearchKeyword, setUserSearchKeyword] = useState(() => {
+    const p = location.state?.userPreview
+    return p ? (p.fullName || p.username || p.email || '') : ''
+  })
+  const [searchUsersList, setSearchUsersList] = useState([])
+  const [searchingUsers, setSearchingUsers] = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const searchContainerRef = useRef(null)
+
   const [isUserPickerOpen, setIsUserPickerOpen] = useState(false)
+  const [isAdjustOpen, setIsAdjustOpen] = useState(false)
   const [filters, setFilters] = useState({
     type: '',
     status: '',
@@ -202,19 +213,61 @@ export default function AdminWalletTransactions() {
   })
 
   useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  useEffect(() => {
     if (location.state?.userPreview?._id) {
       setSelectedUserPreview(location.state.userPreview)
+      setUserSearchKeyword(location.state.userPreview.fullName || location.state.userPreview.username || location.state.userPreview.email || '')
     }
   }, [location.state])
+
+  useEffect(() => {
+    if (!userSearchKeyword.trim() || selectedUserPreview) {
+      setSearchUsersList([])
+      return
+    }
+
+    let active = true
+    const timer = window.setTimeout(() => {
+      setSearchingUsers(true)
+      getAdminUsers({ page: 1, limit: 6, keyword: userSearchKeyword.trim() })
+        .then((data) => {
+          if (!active) return
+          setSearchUsersList(data?.users ?? [])
+        })
+        .catch(() => {
+          if (!active) return
+          setSearchUsersList([])
+        })
+        .finally(() => {
+          if (active) setSearchingUsers(false)
+        })
+    }, 250)
+
+    return () => {
+      active = false
+      window.clearTimeout(timer)
+    }
+  }, [userSearchKeyword, selectedUserPreview])
 
   useEffect(() => {
     let active = true
     setLoading(true)
 
+    const userIdToFilter = selectedUserPreview?._id || (/^[a-fA-F0-9]{24}$/.test(userSearchKeyword.trim()) ? userSearchKeyword.trim() : undefined)
+
     getAdminWalletTransactions({
       page: pagination.page,
       limit: pagination.limit,
-      userId: selectedUserPreview?._id || undefined,
+      userId: userIdToFilter,
       type: filters.type || undefined,
       status: filters.status || undefined,
       direction: filters.direction || undefined,
@@ -240,11 +293,11 @@ export default function AdminWalletTransactions() {
     return () => {
       active = false
     }
-  }, [filters.direction, filters.status, filters.type, pagination.limit, pagination.page, selectedTransaction?._id, selectedUserPreview?._id])
+  }, [filters.direction, filters.status, filters.type, pagination.limit, pagination.page, selectedTransaction?._id, selectedUserPreview?._id, userSearchKeyword])
 
   useEffect(() => {
     setPagination((current) => ({ ...current, page: 1 }))
-  }, [filters.direction, filters.status, filters.type, selectedUserPreview?._id])
+  }, [filters.direction, filters.status, filters.type, selectedUserPreview?._id, userSearchKeyword])
 
   const stats = useMemo(
     () => ({
@@ -262,7 +315,7 @@ export default function AdminWalletTransactions() {
   const handleSubmitAdjust = async (event) => {
     event.preventDefault()
     if (!selectedUserPreview?._id) {
-      setToast({ type: 'error', message: 'Hãy chọn user ngay trong màn này trước khi điều chỉnh ví.' })
+      setToast({ type: 'error', message: 'Hãy chọn người dùng trước khi điều chỉnh ví.' })
       return
     }
 
@@ -276,7 +329,7 @@ export default function AdminWalletTransactions() {
         : `Dieu chinh cong tien thu cong ${normalizedAmount.toLocaleString('vi-VN')} VND`)
 
     if (!/^[a-fA-F0-9]{24}$/.test(normalizedUserId)) {
-      setToast({ type: 'error', message: 'User dang chon khong hop le. Hay chon lai user truoc khi dieu chinh vi.' })
+      setToast({ type: 'error', message: 'Người dùng đang chọn không hợp lệ. Hãy chọn lại người dùng trước khi điều chỉnh ví.' })
       return
     }
 
@@ -302,6 +355,7 @@ export default function AdminWalletTransactions() {
 
       if (result?.transaction) setSelectedTransaction(result.transaction)
       setToast({ type: 'success', message: 'Đã điều chỉnh số dư ví thành công.' })
+      setIsAdjustOpen(false)
     } catch (error) {
       setToast({ type: 'error', message: error.message || 'Không thể điều chỉnh số dư ví.' })
     } finally {
@@ -327,143 +381,221 @@ export default function AdminWalletTransactions() {
       <Toast toast={toast} onClose={() => setToast(null)} />
       <UserPickerModal open={isUserPickerOpen} onClose={() => setIsUserPickerOpen(false)} onSelect={handlePickUser} />
 
-      <section className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="admin-metrics mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Thành công" value={stats.succeeded} tone="text-emerald-700" />
         <StatCard label="Nạp ví" value={stats.topup} tone="text-slate-950" />
-        <StatCard label="Mua quảng cáo" value={stats.promotion} tone="text-violet-700" />
+        <StatCard label="Mua quảng cáo" value={stats.promotion} tone="text-teal-700" />
         <StatCard label="Điều chỉnh ví" value={stats.adjusted} tone="text-amber-700" />
       </section>
 
-      <section className="mb-3 grid grid-cols-1 gap-3 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <form onSubmit={handleSubmitAdjust} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-3">
-            <h2 className="text-[14px] font-extrabold text-slate-950">Điều chỉnh số dư ví</h2>
-            <p className="mt-1 text-[12px] font-medium text-slate-500">Chọn user bằng popup preview ngay trong màn này, sau đó thực hiện cộng hoặc trừ tiền.</p>
-          </div>
-
-          <div className="space-y-3">
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">User đang chọn</p>
+      <section className="mb-3">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div><p className="text-sm font-extrabold text-slate-950">Bộ lọc giao dịch</p><p className="mt-1 text-xs font-medium text-slate-500">Lọc theo user, loại, chiều và trạng thái giao dịch.</p></div>
+          <button type="button" onClick={() => setIsAdjustOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-md bg-teal-700 px-4 text-[13px] font-extrabold text-white transition hover:bg-teal-800"><span aria-hidden="true" className="material-symbols-outlined text-[18px]">edit_square</span>Điều chỉnh ví</button>
+        </div>
+        {isAdjustOpen ? (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]">
+            <div className="max-h-[90vh] w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                <div>
+                  <h3 className="text-[16px] font-extrabold text-slate-950">Điều chỉnh số dư ví</h3>
+                  <p className="mt-0.5 text-[12px] font-medium text-slate-500">Chọn người dùng, nhập số tiền và ghi rõ lý do trước khi thực hiện.</p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setIsUserPickerOpen(true)}
-                  className="inline-flex h-8 items-center rounded-md border border-indigo-200 bg-indigo-50 px-3 text-[12px] font-extrabold text-indigo-700 transition hover:bg-indigo-100"
+                  onClick={() => setIsAdjustOpen(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
                 >
-                  Mở preview chọn user
+                  <span className="material-symbols-outlined text-[18px]">close</span>
                 </button>
               </div>
 
-              {selectedUserPreview ? (
-                <div className="mt-2">
-                  <p className="text-[13px] font-extrabold text-slate-900">
-                    {selectedUserPreview.fullName || selectedUserPreview.username || selectedUserPreview.email || 'Người dùng đã chọn'}
-                  </p>
-                  <p className="mt-1 text-[12px] font-medium text-slate-500">
-                    {selectedUserPreview.email || compactId(selectedUserPreview._id)} · {compactId(selectedUserPreview._id)}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
+              <form onSubmit={handleSubmitAdjust} className="max-h-[calc(90vh-76px)] overflow-y-auto p-5">
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Người dùng đang chọn</p>
+                      <button
+                        type="button"
+                        onClick={() => setIsUserPickerOpen(true)}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-[12px] font-extrabold text-teal-700 transition hover:bg-teal-100"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">person_search</span>
+                        {selectedUserPreview ? 'Đổi người dùng' : 'Chọn người dùng'}
+                      </button>
+                    </div>
+
+                    {selectedUserPreview ? (
+                      <div className="mt-2.5 rounded-lg border border-slate-200/80 bg-white p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-[13px] font-extrabold text-slate-900">
+                              {selectedUserPreview.fullName || selectedUserPreview.username || selectedUserPreview.email || 'Người dùng đã chọn'}
+                            </p>
+                            <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500">
+                              {selectedUserPreview.email || compactId(selectedUserPreview._id)} · <span className="font-mono">{compactId(selectedUserPreview._id)}</span>
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedUserPreview(null)}
+                            className="inline-flex h-7 shrink-0 items-center rounded-md border border-rose-200 bg-rose-50 px-2 text-[11px] font-extrabold text-rose-700 transition hover:bg-rose-100"
+                          >
+                            Bỏ chọn
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-center py-3">
+                        <p className="text-[12px] font-medium text-slate-500">Chưa có người dùng nào được chọn. Bấm "Chọn người dùng" để tìm kiếm.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-600">Số tiền (VNĐ)</span>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="VD: 50000"
+                        value={adjustForm.amount}
+                        onChange={(event) => setAdjustForm((current) => ({ ...current, amount: event.target.value }))}
+                        className={inputClassName}
+                        required
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-600">Chiều giao dịch</span>
+                      <select
+                        value={adjustForm.direction}
+                        onChange={(event) => setAdjustForm((current) => ({ ...current, direction: event.target.value }))}
+                        className={inputClassName}
+                      >
+                        {directionAdjustOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+
+                  <label className="block">
+                    <span className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-600">Mô tả lý do</span>
+                    <textarea
+                      rows="3"
+                      value={adjustForm.description}
+                      onChange={(event) => setAdjustForm((current) => ({ ...current, description: event.target.value }))}
+                      placeholder="Ví dụ: Điều chỉnh thủ công theo yêu cầu đối soát"
+                      className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                    />
+                  </label>
+
+                  <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
                     <button
                       type="button"
-                      onClick={() => setIsUserPickerOpen(true)}
-                      className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-white px-3 text-[12px] font-extrabold text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => setIsAdjustOpen(false)}
+                      className="h-10 rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-bold text-slate-700 transition hover:bg-slate-50"
                     >
-                      Đổi user
+                      Hủy
                     </button>
                     <button
-                      type="button"
-                      onClick={() => setSelectedUserPreview(null)}
-                      className="inline-flex h-8 items-center rounded-md border border-rose-200 bg-rose-50 px-3 text-[12px] font-extrabold text-rose-700 transition hover:bg-rose-100"
+                      type="submit"
+                      disabled={submittingAdjust || !selectedUserPreview?._id}
+                      className="flex h-10 items-center justify-center rounded-lg bg-teal-700 px-5 text-[13px] font-extrabold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
-                      Bỏ chọn
+                      {submittingAdjust ? 'Đang xử lý...' : 'Thực hiện điều chỉnh'}
                     </button>
                   </div>
                 </div>
-              ) : (
-                <div className="mt-2">
-                  <p className="text-[12px] font-medium leading-5 text-slate-500">Chưa có user nào được gắn. Bấm nút phía trên để mở màn preview chọn user.</p>
-                </div>
-              )}
+              </form>
             </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Số tiền</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={adjustForm.amount}
-                  onChange={(event) => setAdjustForm((current) => ({ ...current, amount: event.target.value }))}
-                  className={inputClassName}
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Chiều giao dịch</span>
-                <select
-                  value={adjustForm.direction}
-                  onChange={(event) => setAdjustForm((current) => ({ ...current, direction: event.target.value }))}
-                  className={inputClassName}
-                >
-                  {directionAdjustOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Mô tả</span>
-              <textarea
-                rows="4"
-                value={adjustForm.description}
-                onChange={(event) => setAdjustForm((current) => ({ ...current, description: event.target.value }))}
-                placeholder="Ví dụ: Điều chỉnh thủ công theo yêu cầu đối soát"
-                className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={submittingAdjust || !selectedUserPreview?._id}
-              className="flex h-10 w-full items-center justify-center rounded-md bg-slate-950 px-3 text-[13px] font-extrabold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              {submittingAdjust ? 'Đang xử lý...' : 'Thực hiện điều chỉnh'}
-            </button>
           </div>
-        </form>
+        ) : null}
 
-        <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_170px_170px_170px_110px]">
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">User đang lọc</p>
-              <div className="mt-1 flex items-center justify-between gap-2">
-                <p className="min-w-0 truncate text-[12px] font-bold text-slate-700">
-                  {selectedUserPreview
-                    ? selectedUserPreview.fullName || selectedUserPreview.username || selectedUserPreview.email || compactId(selectedUserPreview._id)
-                    : 'Tất cả user'}
-                </p>
-                <div className="flex gap-2">
+        <section className="admin-filter-bar rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_160px_160px_160px_100px]">
+            <div className="relative" ref={searchContainerRef}>
+              <div className="relative flex items-center">
+                <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3 text-[18px] text-slate-400">
+                  search
+                </span>
+                <input
+                  type="text"
+                  value={userSearchKeyword}
+                  onChange={(event) => {
+                    const val = event.target.value
+                    setUserSearchKeyword(val)
+                    setIsDropdownOpen(true)
+                    if (!val.trim()) {
+                      setSelectedUserPreview(null)
+                    }
+                  }}
+                  onFocus={() => {
+                    if (userSearchKeyword.trim() || searchUsersList.length > 0) {
+                      setIsDropdownOpen(true)
+                    }
+                  }}
+                  placeholder="Tìm theo tên người dùng, email hoặc mã ID..."
+                  className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-9 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-100"
+                />
+                {userSearchKeyword ? (
                   <button
                     type="button"
-                    onClick={() => setIsUserPickerOpen(true)}
-                    className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-extrabold text-slate-600 transition hover:bg-slate-50"
+                    onClick={() => {
+                      setUserSearchKeyword('')
+                      setSelectedUserPreview(null)
+                      setIsDropdownOpen(false)
+                    }}
+                    className="absolute right-2.5 flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+                    title="Xóa tìm kiếm"
                   >
-                    Chọn
+                    <span className="material-symbols-outlined text-[14px]">close</span>
                   </button>
-                  {selectedUserPreview ? (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedUserPreview(null)}
-                      className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-extrabold text-slate-600 transition hover:bg-slate-50"
-                    >
-                      Bỏ
-                    </button>
-                  ) : null}
-                </div>
+                ) : null}
               </div>
+
+              {isDropdownOpen && userSearchKeyword.trim() && !selectedUserPreview && (
+                <div className="absolute left-0 top-full z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-xl">
+                  {searchingUsers ? (
+                    <div className="flex items-center gap-2 px-3 py-2.5 text-[12px] text-slate-500">
+                      <span className="material-symbols-outlined animate-spin text-[16px] text-teal-600">progress_activity</span>
+                      Đang tìm người dùng...
+                    </div>
+                  ) : searchUsersList.length > 0 ? (
+                    searchUsersList.map((user) => (
+                      <button
+                        key={user._id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedUserPreview(user)
+                          setUserSearchKeyword(user.fullName || user.username || user.email || user._id)
+                          setIsDropdownOpen(false)
+                        }}
+                        className="flex w-full items-center justify-between gap-3 border-b border-slate-50 px-3 py-2 text-left transition hover:bg-teal-50/50 last:border-b-0"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-[13px] font-extrabold text-slate-900">
+                            {user.fullName || user.username || user.email || 'Người dùng'}
+                          </p>
+                          <p className="truncate text-[11px] font-medium text-slate-500">
+                            {user.email || 'Chưa có email'} · <span className="font-mono text-slate-400">{compactId(user._id)}</span>
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded border border-teal-200 bg-teal-50 px-2 py-0.5 text-[11px] font-extrabold text-teal-700">
+                          Lọc
+                        </span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-3 text-center text-[12px] text-slate-400">
+                      Không tìm thấy người dùng phù hợp
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <select value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))} className={inputClassName}>
@@ -490,7 +622,9 @@ export default function AdminWalletTransactions() {
             <button
               type="button"
               onClick={() => {
+                setUserSearchKeyword('')
                 setSelectedUserPreview(null)
+                setIsDropdownOpen(false)
                 setFilters({ type: '', status: '', direction: '' })
               }}
               className="h-10 rounded-md border border-slate-200 bg-white px-3 text-[13px] font-extrabold text-slate-600 transition hover:bg-slate-50"
@@ -498,15 +632,11 @@ export default function AdminWalletTransactions() {
               Đặt lại
             </button>
           </div>
-
-          <div className="mt-3 rounded-md border border-amber-100 bg-amber-50 px-3 py-2 text-[12px] font-medium text-amber-700">
-            Lưu ý: backend hiện chưa có filter thời gian trong API admin wallet transactions, nên màn này đang dùng đúng các filter backend hỗ trợ.
-          </div>
         </section>
       </section>
 
-      <div className="grid grid-cols-1 gap-3 2xl:grid-cols-[minmax(0,1fr)_430px]">
-        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <section>
+        <section className="admin-data-panel overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="hidden grid-cols-[minmax(0,1.05fr)_130px_110px_105px_120px_184px] bg-slate-50 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400 lg:grid">
             <span>Người dùng</span>
             <span>Loại</span>
@@ -520,7 +650,7 @@ export default function AdminWalletTransactions() {
             <article
               key={transaction._id}
               className={`border-t border-slate-100 px-4 py-3 text-[12px] transition hover:bg-slate-50 lg:grid lg:grid-cols-[minmax(0,1.05fr)_130px_110px_105px_120px_184px] lg:items-center lg:gap-3 ${
-                selectedTransaction?._id === transaction._id ? 'bg-indigo-50/60' : ''
+                selectedTransaction?._id === transaction._id ? 'bg-teal-50/60' : ''
               }`}
             >
               <div className="min-w-0">
@@ -593,11 +723,7 @@ export default function AdminWalletTransactions() {
           </div>
         </section>
 
-        <aside className="rounded-lg border border-slate-200 bg-white shadow-sm 2xl:sticky 2xl:top-[76px]">
-          <div className="flex h-11 items-center justify-between border-b border-slate-100 px-4">
-            <h2 className="text-[13px] font-extrabold text-slate-950">Chi tiết giao dịch</h2>
-          </div>
-
+        <AdminDrawer open={Boolean(selectedTransaction)} onClose={() => setSelectedTransaction(null)} title="Chi tiết giao dịch" subtitle={selectedTransaction ? `${typeLabelMap[selectedTransaction.type] || selectedTransaction.type} · ${selectedTransaction.user?.email || compactId(selectedTransaction.user_id)}` : ''} wide>
           {selectedTransaction ? (
             <div className="p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -627,15 +753,7 @@ export default function AdminWalletTransactions() {
                 <Field label="Cập nhật" value={formatDateTime(selectedTransaction.updated_at)} />
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsUserPickerOpen(true)}
-                  className="inline-flex h-8 items-center rounded-md border border-slate-200 bg-white px-3 text-[12px] font-extrabold text-slate-700 transition hover:bg-slate-50"
-                >
-                  Mở preview chọn user
-                </button>
-              </div>
+
 
               {selectedTransaction.description ? (
                 <div className="mt-3 rounded-md border border-slate-100 bg-slate-50 p-3">
@@ -644,19 +762,9 @@ export default function AdminWalletTransactions() {
                 </div>
               ) : null}
             </div>
-          ) : (
-            <div className="flex min-h-[420px] items-center justify-center p-6 text-center">
-              <div>
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                  <span className="material-symbols-outlined">account_balance_wallet</span>
-                </div>
-                <p className="mt-3 text-[13px] font-bold text-slate-600">Chọn một giao dịch để xem chi tiết.</p>
-                <p className="mt-1 text-[12px] font-medium text-slate-400">Thông tin số dư trước/sau và mô tả điều chỉnh sẽ hiển thị ở đây.</p>
-              </div>
-            </div>
-          )}
-        </aside>
-      </div>
+          ) : null}
+        </AdminDrawer>
+      </section>
     </AdminLayout>
   )
 }

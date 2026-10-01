@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../../components/AdminLayout.jsx'
+import AdminDrawer from '../../components/admin/AdminDrawer.jsx'
 import Toast from '../../components/Toast.jsx'
 import { compactId, formatDateVi as formatDate } from '../../utils/formatters.js'
 import { toSafeImageUrl } from '../../utils/safeUrl.js'
@@ -106,6 +107,7 @@ export default function AdminCompanies() {
   }, [companies])
 
   const handleOpenDetail = async (companyId) => {
+    setSelectedCompany(null)
     setDetailLoading(true)
     try {
       const [detail, jobsData, applicationsData] = await Promise.all([
@@ -150,7 +152,7 @@ export default function AdminCompanies() {
     <AdminLayout title="Doanh nghiệp" subtitle="Quản lý hồ sơ doanh nghiệp, trạng thái xác minh, tin tuyển dụng và hồ sơ ứng tuyển liên quan.">
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      <section className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="admin-metrics mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
           <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Đã xác minh</p>
           <p className="mt-2 text-2xl font-extrabold text-emerald-700">{stats.verified}</p>
@@ -169,7 +171,7 @@ export default function AdminCompanies() {
         </div>
       </section>
 
-      <section className="mb-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+      <section className="admin-filter-bar mb-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_180px]">
           <label className="relative md:col-span-2 xl:col-span-1">
             <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">search</span>
@@ -190,8 +192,8 @@ export default function AdminCompanies() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-3 2xl:grid-cols-[minmax(0,1fr)_400px]">
-        <section className="flex min-h-[560px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <section>
+        <section className="admin-data-panel flex min-h-[560px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="hidden grid-cols-[minmax(0,1.2fr)_180px_120px_110px_92px] bg-slate-50 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400 lg:grid">
             <span>Doanh nghiệp</span>
             <span>Website</span>
@@ -260,13 +262,10 @@ export default function AdminCompanies() {
           </div>
         </section>
 
-        <aside className="rounded-lg border border-slate-200 bg-white shadow-sm 2xl:sticky 2xl:top-[76px]">
-          <div className="flex h-11 items-center justify-between border-b border-slate-100 px-4">
-            <h2 className="text-[13px] font-extrabold text-slate-950">Chi tiết doanh nghiệp</h2>
-            {detailLoading ? <span className="text-[12px] font-bold text-slate-400">Đang tải</span> : null}
-          </div>
-
-          {selectedCompany ? (
+        <AdminDrawer open={Boolean(selectedCompany) || detailLoading} onClose={() => { setSelectedCompany(null); setDetailLoading(false) }} title="Chi tiết doanh nghiệp" subtitle={detailLoading ? 'Đang tải dữ liệu doanh nghiệp...' : selectedCompany?.company_name || 'Hồ sơ doanh nghiệp'} wide>
+          {detailLoading || !selectedCompany ? (
+            <div className="flex min-h-[360px] items-center justify-center text-sm font-semibold text-slate-400">Đang tải chi tiết...</div>
+          ) : (
             <div className="p-4">
               <div className="flex items-start gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-base font-extrabold text-slate-700 ring-1 ring-slate-200">
@@ -354,19 +353,9 @@ export default function AdminCompanies() {
                 </section>
               </div>
             </div>
-          ) : (
-            <div className="flex min-h-[420px] items-center justify-center p-6 text-center">
-              <div>
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                  <span className="material-symbols-outlined">apartment</span>
-                </div>
-                <p className="mt-3 text-[13px] font-bold text-slate-600">Chọn một doanh nghiệp để xem chi tiết.</p>
-                <p className="mt-1 text-[12px] font-medium text-slate-400">Thông tin chủ sở hữu, tin tuyển dụng và hồ sơ ứng tuyển sẽ hiển thị ở đây.</p>
-              </div>
-            </div>
           )}
-        </aside>
-      </div>
+        </AdminDrawer>
+      </section>
     </AdminLayout>
   )
 }

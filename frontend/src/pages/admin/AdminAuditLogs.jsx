@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../../components/AdminLayout.jsx'
+import AdminDrawer from '../../components/admin/AdminDrawer.jsx'
 import Toast from '../../components/Toast.jsx'
 import { getAdminAuditLogs, getAdminUsers } from '../../api/adminService.js'
 import { compactId, formatDateTimeVi as formatDateTime, toIsoString } from '../../utils/formatters.js'
@@ -62,7 +63,7 @@ function PickerModal({ open, onClose, onSelect }) {
                   <p className="truncate text-[13px] font-extrabold text-slate-950">{admin.fullName || admin.username || admin.email || 'Quản trị viên'}</p>
                   <p className="mt-1 truncate text-[12px] font-medium text-slate-500">{admin.email || 'Chưa có email'} · {compactId(admin._id)}</p>
                 </div>
-                <button type="button" onClick={() => onSelect(admin)} className="h-9 rounded-md border border-indigo-200 bg-indigo-50 px-4 text-[12px] font-extrabold text-indigo-700 transition hover:bg-indigo-100">Chọn admin</button>
+                <button type="button" onClick={() => onSelect(admin)} className="h-9 rounded-md border border-teal-200 bg-teal-50 px-4 text-[12px] font-extrabold text-teal-700 transition hover:bg-teal-100">Chọn admin</button>
               </div>
             ))}
             {!admins.length ? <div className="rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-[13px] font-semibold text-slate-400">{loading ? 'Đang tải quản trị viên...' : 'Không tìm thấy quản trị viên phù hợp.'}</div> : null}
@@ -148,14 +149,14 @@ export default function AdminAuditLogs() {
       <Toast toast={toast} onClose={() => setToast(null)} />
       <PickerModal open={isPickerOpen} onClose={() => setIsPickerOpen(false)} onSelect={selectAdmin} />
 
-      <section className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="admin-metrics mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Success</p><p className="mt-2 text-2xl font-extrabold text-emerald-700">{stats.success}</p></div>
         <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Failed</p><p className="mt-2 text-2xl font-extrabold text-rose-700">{stats.failed}</p></div>
-        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">SePay</p><p className="mt-2 text-2xl font-extrabold text-indigo-700">{stats.sepay}</p></div>
+        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">SePay</p><p className="mt-2 text-2xl font-extrabold text-teal-700">{stats.sepay}</p></div>
         <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">RAG Chat</p><p className="mt-2 text-2xl font-extrabold text-slate-950">{stats.rag}</p></div>
       </section>
 
-      <section className="mb-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="admin-filter-bar mb-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-[220px_180px_170px_170px_170px_120px_110px]">
           <div className="flex h-10 items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3">
             <p className="truncate text-[13px] font-bold text-slate-700">{selectedAdmin ? selectedAdmin.fullName || selectedAdmin.username || selectedAdmin.email : 'Tất cả admin'}</p>
@@ -178,14 +179,14 @@ export default function AdminAuditLogs() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-3 2xl:grid-cols-[minmax(0,1fr)_430px]">
-        <section className="flex min-h-[560px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <section>
+        <section className="admin-data-panel flex min-h-[560px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="hidden grid-cols-[160px_1.2fr_150px_110px_150px_96px] bg-slate-50 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400 lg:grid">
             <span>Admin</span><span>Hành động</span><span>Tài nguyên</span><span>Kết quả</span><span>Thời gian</span><span></span>
           </div>
           <div className="flex-1">
           {logs.map((log) => (
-            <article key={log._id} className={`border-t border-slate-100 px-4 py-3 text-[12px] transition lg:grid lg:grid-cols-[160px_1.2fr_150px_110px_150px_96px] lg:items-center lg:gap-3 ${selectedLog?._id === log._id ? 'bg-indigo-50/60' : 'hover:bg-slate-50'}`}>
+            <article key={log._id} className={`border-t border-slate-100 px-4 py-3 text-[12px] transition lg:grid lg:grid-cols-[160px_1.2fr_150px_110px_150px_96px] lg:items-center lg:gap-3 ${selectedLog?._id === log._id ? 'bg-teal-50/60' : 'hover:bg-slate-50'}`}>
               <div className="min-w-0"><p className="truncate font-extrabold text-slate-950">{log.admin_email || compactId(log.admin_id)}</p><p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">{compactId(log.admin_id)}</p></div>
               <div className="mt-3 min-w-0 lg:mt-0"><p className="truncate font-bold text-slate-800">{log.action}</p><p className="mt-0.5 truncate text-[11px] text-slate-500">{log.method || 'GET'} · {log.path || 'Chưa có path'}</p></div>
               <div className="mt-3 lg:mt-0"><span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-extrabold text-slate-700">{log.target_type || 'N/A'}</span></div>
@@ -205,8 +206,7 @@ export default function AdminAuditLogs() {
           </div>
         </section>
 
-        <aside className="rounded-lg border border-slate-200 bg-white shadow-sm 2xl:sticky 2xl:top-[76px]">
-          <div className="flex h-11 items-center justify-between border-b border-slate-100 px-4"><h2 className="text-[13px] font-extrabold text-slate-950">Chi tiết log</h2></div>
+        <AdminDrawer open={Boolean(selectedLog)} onClose={() => setSelectedLog(null)} title="Chi tiết audit log" subtitle={selectedLog ? `${selectedLog.method || 'GET'} · ${selectedLog.path || 'Không có path'}` : ''} wide>
           {selectedLog ? (
             <div className="p-4">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -224,17 +224,9 @@ export default function AdminAuditLogs() {
                 <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words text-[12px] font-medium leading-5 text-slate-600">{JSON.stringify(selectedLog.metadata || {}, null, 2)}</pre>
               </div>
             </div>
-          ) : (
-            <div className="flex min-h-[480px] items-center justify-center p-6 text-center">
-              <div>
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-400"><span className="material-symbols-outlined">history</span></div>
-                <p className="mt-3 text-[13px] font-bold text-slate-600">Chọn một audit log để xem chi tiết.</p>
-                <p className="mt-1 text-[12px] font-medium text-slate-400">Metadata thay đổi sẽ hiển thị tại đây.</p>
-              </div>
-            </div>
-          )}
-        </aside>
-      </div>
+          ) : null}
+        </AdminDrawer>
+      </section>
     </AdminLayout>
   )
 }

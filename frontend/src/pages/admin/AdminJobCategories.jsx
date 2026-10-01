@@ -6,6 +6,7 @@ import {
   updateAdminJobCategoryStatus,
 } from '../../api/adminService.js'
 import AdminLayout from '../../components/AdminLayout.jsx'
+import AdminDrawer from '../../components/admin/AdminDrawer.jsx'
 import Toast from '../../components/Toast.jsx'
 import { formatDateVi as formatDate } from '../../utils/formatters.js'
 
@@ -18,7 +19,7 @@ const emptyForm = {
   is_active: true,
 }
 
-const inputClassName = 'h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100'
+const inputClassName = 'h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100'
 
 function buildCategoryRows(categories, expandedIds) {
   const childrenMap = new Map()
@@ -55,6 +56,7 @@ export default function AdminJobCategories() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [formOpen, setFormOpen] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [toast, setToast] = useState(null)
   const [expandedIds, setExpandedIds] = useState(() => new Set())
@@ -97,6 +99,7 @@ export default function AdminJobCategories() {
 
   const handleEdit = (category) => {
     setEditingId(category._id)
+    setFormOpen(true)
     setForm({
       name: category.name || '',
       slug: category.slug || '',
@@ -110,6 +113,7 @@ export default function AdminJobCategories() {
   const handleReset = () => {
     setEditingId(null)
     setForm(emptyForm)
+    setFormOpen(false)
   }
 
   const handleSubmit = async (event) => {
@@ -159,8 +163,18 @@ export default function AdminJobCategories() {
     <AdminLayout title="Quản lý danh mục việc làm" subtitle="Tạo, chỉnh sửa và bật/tắt các category dùng cho tin tuyển dụng và recommender.">
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      <section className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="flex min-h-[560px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <section>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-extrabold text-slate-950">Cây danh mục</p>
+            <p className="mt-1 text-xs font-medium text-slate-500">{categories.length} danh mục đang được quản lý</p>
+          </div>
+          <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm); setFormOpen(true) }} className="inline-flex h-10 items-center gap-2 rounded-md bg-teal-700 px-4 text-[13px] font-extrabold text-white transition hover:bg-teal-800">
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">add</span>
+            Tạo danh mục
+          </button>
+        </div>
+        <div className="admin-data-panel flex min-h-[560px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="grid grid-cols-[minmax(0,1fr)_120px_100px_100px_110px] gap-3 bg-slate-50 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400">
             <span>Danh mục</span>
             <span>Slug</span>
@@ -210,26 +224,17 @@ export default function AdminJobCategories() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="h-fit rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-[14px] font-extrabold text-slate-950">{editingId ? 'Chỉnh sửa danh mục' : 'Tạo danh mục mới'}</h2>
-              <p className="mt-1 text-[12px] font-medium text-slate-500">{editingCategory ? `Đang sửa: ${editingCategory.name}` : 'Danh mục sẽ được dùng trong form đăng tin.'}</p>
-            </div>
-            {editingId ? <button type="button" onClick={handleReset} className="rounded-md border border-slate-200 px-2.5 py-1.5 text-[11px] font-extrabold text-slate-600">Hủy</button> : null}
-          </div>
-
-          <div className="mt-4 space-y-3">
+        <AdminDrawer open={formOpen} onClose={handleReset} title={editingId ? 'Chỉnh sửa danh mục' : 'Tạo danh mục mới'} subtitle={editingCategory ? `Đang sửa: ${editingCategory.name}` : 'Danh mục sẽ được dùng trong form đăng tin.'}>
+          <form id="admin-category-form" onSubmit={handleSubmit} className="space-y-3">
             <label className="block"><span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Tên danh mục</span><input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} className={inputClassName} /></label>
             <label className="block"><span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Slug</span><input value={form.slug} onChange={(event) => setForm((current) => ({ ...current, slug: event.target.value }))} placeholder="Để trống sẽ tự tạo từ tên" className={inputClassName} /></label>
             <label className="block"><span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Danh mục cha</span><select value={form.parent_id} onChange={(event) => setForm((current) => ({ ...current, parent_id: event.target.value }))} className={inputClassName}><option value="">Không có</option>{selectableParents.map((category) => <option key={category._id} value={category._id}>{category.name}</option>)}</select></label>
             <label className="block"><span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Thứ tự</span><input type="number" value={form.sort_order} onChange={(event) => setForm((current) => ({ ...current, sort_order: event.target.value }))} className={inputClassName} /></label>
             <label className="block"><span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Mô tả</span><textarea rows="3" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100" /></label>
             <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] font-semibold text-slate-700"><input type="checkbox" checked={form.is_active} onChange={(event) => setForm((current) => ({ ...current, is_active: event.target.checked }))} /> Đang bật</label>
-          </div>
-
-          <button type="submit" disabled={saving} className="mt-4 flex h-10 w-full items-center justify-center rounded-md bg-slate-950 px-3 text-[13px] font-extrabold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? 'Đang lưu...' : editingId ? 'Lưu thay đổi' : 'Tạo danh mục'}</button>
-        </form>
+            <button type="submit" disabled={saving} className="mt-4 flex h-10 w-full items-center justify-center rounded-md bg-teal-700 px-3 text-[13px] font-extrabold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? 'Đang lưu...' : editingId ? 'Lưu thay đổi' : 'Tạo danh mục'}</button>
+          </form>
+        </AdminDrawer>
       </section>
     </AdminLayout>
   )

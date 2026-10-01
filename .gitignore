@@ -29,3 +29,11 @@ coverage/
 # Kubernetes secrets and local values with real credentials.
 k8s/app/backend/secret.yaml
 k8s/infra/mongodb/values.yaml
+
+node_modules/
+.admin-screenshots/
+.local-run-logs/
+.playwright-mcp/
+package.json
+package-lock.json
+test_b64.txt

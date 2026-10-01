@@ -6,6 +6,7 @@ export const queryKeys = {
   },
   jobs: {
     search: (filters) => ['jobs', 'search', filters],
+    detail: (id) => ['jobs', 'detail', id],
   },
   wallet: {
     details: ['wallet', 'details'],

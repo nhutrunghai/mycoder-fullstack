@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import UserAvatar from './components/UserAvatar.jsx'
+import JobHoverPreview from './components/JobHoverPreview.jsx'
 import PublicHeader from './components/layout/PublicHeader.jsx'
 import useCurrentUser from './hooks/useCurrentUser.js'
 import { useFavoriteStore } from './stores/useFavoriteStore.js'
@@ -16,6 +17,44 @@ const CATEGORY_TONES = [
   { icon: 'cloud', ring: 'border-amber-100 bg-amber-50 text-amber-700', badge: 'bg-amber-500 text-white' },
   { icon: 'phone_iphone', ring: 'border-rose-100 bg-rose-50 text-rose-700', badge: 'bg-rose-500 text-white' },
 ]
+const DEFAULT_FOOTER_COLUMNS = [
+  {
+    title: 'Việc làm',
+    links: [
+      { label: 'Tìm việc', to: '/search-jobs' },
+      { label: 'Việc làm mới nhất', to: '/search-jobs' },
+      { label: 'Việc làm nổi bật', to: '/search-jobs' },
+      { label: 'AI Agent', to: '/ai-agent' },
+    ],
+  },
+  {
+    title: 'Ứng viên',
+    links: [
+      { label: 'Hồ sơ cá nhân', to: '/user/profile' },
+      { label: 'Việc đã ứng tuyển', to: '/jobs' },
+      { label: 'Việc yêu thích', to: '/favorites' },
+      { label: 'Quản lý CV', to: '/uploaded-cvs' },
+    ],
+  },
+  {
+    title: 'Nhà tuyển dụng',
+    links: [
+      { label: 'Đăng tin tuyển dụng', to: '/employer-post-job' },
+      { label: 'Quản lý tin tuyển dụng', to: '/employer-job-list' },
+      { label: 'Tìm hồ sơ ứng viên', to: '/employer-received-cv' },
+      { label: 'Gói quảng bá', to: '/employer-job-promotions' },
+    ],
+  },
+  {
+    title: 'Hỗ trợ',
+    links: [
+      { label: 'Trung tâm hỗ trợ', to: '#' },
+      { label: 'Góp ý cho MYCODER', to: '#' },
+      { label: 'Điều khoản sử dụng', to: '#' },
+      { label: 'Chính sách bảo mật', to: '#' },
+    ],
+  },
+]
 
 function JobCard({ job, favoriteSet, onToggleFavorite, animationDelay = '0ms' }) {
   const fav = favoriteSet.has(job.id)
@@ -26,7 +65,7 @@ function JobCard({ job, favoriteSet, onToggleFavorite, animationDelay = '0ms' })
         <div className="min-w-0 flex items-center gap-3">
           <UserAvatar src={job.avatar} name={job.company} className="h-10 w-10 border border-slate-50" textClassName="text-xs" />
           <div className="min-w-0">
-            <h4 className="truncate text-[14px] font-bold text-slate-800">{job.company}</h4>
+            <h4 className="truncate text-[15px] font-bold text-slate-800">{job.company}</h4>
             <p className="text-[11px] text-slate-400">{job.postedAt} • <span className="material-symbols-outlined !text-[11px]">location_on</span> {job.location}</p>
           </div>
         </div>
@@ -36,13 +75,11 @@ function JobCard({ job, favoriteSet, onToggleFavorite, animationDelay = '0ms' })
           </span>
         </button>
       </div>
-      <Link to={`/job-detail/${job.id}`} className="mb-3 block text-[17px] font-bold text-slate-900 transition-colors group-hover:text-primary hover:text-primary">
-        {job.title}
-      </Link>
-      <div className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-[#28a745]">
+      <JobHoverPreview job={job} className="text-slate-900 [&_a]:text-slate-900 [&_a:hover]:text-primary [&_a:focus]:text-primary" />
+      <div className="mb-2 flex items-center gap-1.5 text-[14px] font-bold text-[#28a745]">
         <span className="material-symbols-outlined !text-[16px]">payments</span> {job.salary}
       </div>
-      <p className="mb-3 text-[12px] leading-relaxed text-slate-600">
+      <p className="mb-3 text-[13px] leading-relaxed text-slate-600">
         <span className="font-semibold text-slate-700">Yêu cầu:</span> {job.requirements}
       </p>
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -53,11 +90,115 @@ function JobCard({ job, favoriteSet, onToggleFavorite, animationDelay = '0ms' })
             </span>
           ))}
         </div>
-        <Link to={`/job-detail/${job.id}`} className="inline-flex justify-center rounded-lg bg-[#007bff] px-3.5 py-2 text-[12px] font-bold text-white transition hover:bg-blue-700">
+        <Link to={`/job-detail/${job.id}`} className="inline-flex justify-center rounded-lg bg-[#007bff] px-3.5 py-2 text-[13px] font-bold text-white transition hover:bg-blue-700">
           Xem chi tiết
         </Link>
       </div>
     </article>
+  )
+}
+
+function PopularCategories({ featuredCategory, compactCategories, buildCategorySearchLink, className = '' }) {
+  return (
+    <section className={`soft-radius overflow-hidden border border-slate-100 bg-white shadow-sm ${className}`.trim()}>
+      <div className="border-b border-slate-100 bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_34%),linear-gradient(135deg,#ffffff,#f8fbff)] p-4">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h3 className="text-[15px] font-bold text-slate-800">Danh mục phổ biến</h3>
+          <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-blue-600">Hot</span>
+        </div>
+        <p className="text-[12px] leading-5 text-slate-500">Khám phá nhanh các nhóm việc làm đang có nhiều cơ hội.</p>
+      </div>
+
+      <div className="p-3">
+        {featuredCategory ? (
+          <Link to={buildCategorySearchLink(featuredCategory)} className="group mb-3 block rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-600 to-cyan-500 p-3 text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/18 backdrop-blur">
+                <span className="material-symbols-outlined !text-[20px]">rocket_launch</span>
+              </span>
+              <span className="rounded-full bg-white/18 px-2 py-1 text-[10px] font-bold">Top trend</span>
+            </div>
+            <p className="line-clamp-1 text-[14px] font-black">{featuredCategory.name}</p>
+            <div className="mt-1 flex items-center justify-between text-[11px] text-white/85">
+              <span>{featuredCategory.count ? `${featuredCategory.count} việc đang mở` : 'Khám phá ngay'}</span>
+              <span className="material-symbols-outlined !text-[16px] transition group-hover:translate-x-0.5">arrow_forward</span>
+            </div>
+          </Link>
+        ) : null}
+
+        <div className="grid grid-cols-2 gap-2">
+          {compactCategories.map((item, index) => {
+            const tone = CATEGORY_TONES[index % CATEGORY_TONES.length]
+
+            return (
+              <Link key={item.name} to={buildCategorySearchLink(item)} className={`group rounded-2xl border p-2.5 transition hover:-translate-y-0.5 hover:shadow-sm ${tone.ring}`}>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="material-symbols-outlined !text-[18px]">{tone.icon}</span>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${tone.badge}`}>{item.count || 'Go'}</span>
+                </div>
+                <p className="line-clamp-2 min-h-8 text-[13px] font-extrabold leading-4">{item.name}</p>
+              </Link>
+            )
+          })}
+        </div>
+
+        <Link to="/search-jobs" className="mt-3 flex items-center justify-center gap-1 rounded-xl border border-dashed border-slate-200 py-2 text-[13px] font-bold text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+          Xem tất cả danh mục
+          <span className="material-symbols-outlined !text-[15px]">chevron_right</span>
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+function FloatingQuickActions() {
+  const favoriteIds = useFavoriteStore((state) => state.favoriteIds)
+
+  return (
+    <div className="fixed bottom-5 right-3 z-40 flex flex-col gap-2 sm:right-5">
+      <Link
+        to="/favorites"
+        aria-label={`Việc yêu thích (${favoriteIds.size})`}
+        title="Việc yêu thích"
+        className="relative flex h-11 w-11 items-center justify-center rounded-full border border-slate-100 bg-white text-[#2b59ff] shadow-[0_8px_20px_-12px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:shadow-md"
+      >
+        <span className="material-symbols-outlined !text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+          favorite
+        </span>
+        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2b59ff] px-1 text-[10px] font-extrabold leading-none text-white">
+          {favoriteIds.size}
+        </span>
+      </Link>
+
+      <button
+        type="button"
+        aria-label="Kết nối"
+        title="Kết nối"
+        className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-100 bg-white text-[#2b59ff] shadow-[0_8px_20px_-12px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:shadow-md"
+      >
+        <span className="material-symbols-outlined !text-[22px]">person_add</span>
+      </button>
+
+      <button
+        type="button"
+        aria-label="Góp ý"
+        title="Góp ý"
+        className="flex h-14 w-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-slate-100 bg-white text-[#2b59ff] shadow-[0_8px_20px_-12px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:shadow-md"
+      >
+        <span className="material-symbols-outlined !text-[21px]">chat</span>
+        <span className="text-[9px] font-bold leading-none">Góp ý</span>
+      </button>
+
+      <button
+        type="button"
+        aria-label="Hỗ trợ"
+        title="Hỗ trợ"
+        className="flex h-14 w-11 flex-col items-center justify-center gap-0.5 rounded-xl border border-slate-100 bg-white text-[#2b59ff] shadow-[0_8px_20px_-12px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:shadow-md"
+      >
+        <span className="material-symbols-outlined !text-[21px]">support_agent</span>
+        <span className="text-[9px] font-bold leading-none">Hỗ trợ</span>
+      </button>
+    </div>
   )
 }
 
@@ -225,12 +366,17 @@ export default function App() {
       <PublicHeader session={session} />
 
       <main className="mx-auto max-w-[1440px] px-4 py-3 sm:px-6 sm:py-4">
-        <div className={`soft-radius mb-4 flex flex-col items-start justify-between gap-2 border border-slate-100 bg-white p-2.5 shadow-sm transition-all duration-300 sm:mb-6 sm:flex-row sm:items-center ${bannerOpen ? 'max-h-32 opacity-100 sm:max-h-28' : 'pointer-events-none max-h-0 overflow-hidden opacity-0'}`}>
-          <div className="flex items-start gap-2 text-sm sm:items-center sm:gap-3">
-            <span className="font-semibold text-orange-500">Tin hot:</span>
-            <span className="text-slate-600">{homeMeta?.hero?.announcement || 'Cập nhật việc làm mới mỗi ngày cho cộng đồng lập trình viên.'}</span>
+        <div className={`soft-radius mb-4 flex items-start gap-2 border border-slate-100 bg-white p-3 shadow-sm transition-all duration-300 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:p-2.5 ${bannerOpen ? 'max-h-32 opacity-100 sm:max-h-28' : 'pointer-events-none max-h-0 overflow-hidden opacity-0'}`}>
+          <div className="flex min-w-0 flex-1 items-start gap-2 text-[13px] leading-5 sm:flex-none sm:items-center sm:gap-3 sm:text-sm">
+            <span className="shrink-0 font-semibold text-orange-500">Tin hot:</span>
+            <span className="min-w-0 text-slate-600">{homeMeta?.hero?.announcement || 'Cập nhật việc làm mới mỗi ngày cho cộng đồng lập trình viên.'}</span>
           </div>
-          <button className="self-end text-slate-400 hover:text-slate-600 sm:self-auto" onClick={() => setBannerOpen(false)}>
+          <button
+            type="button"
+            aria-label="Đóng thông báo"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 sm:h-auto sm:w-auto sm:rounded-none sm:hover:bg-transparent"
+            onClick={() => setBannerOpen(false)}
+          >
             <span className="material-symbols-outlined text-sm">close</span>
           </button>
         </div>
@@ -249,7 +395,7 @@ export default function App() {
 
         <div className="mx-auto max-w-[1360px]">
           <div className="grid grid-cols-1 gap-8 pb-12 lg:grid-cols-12">
-            <aside className="order-2 space-y-4 lg:order-none lg:col-span-2 animate-fade-up" style={{ animationDelay: '70ms' }}>
+            <aside className="order-1 space-y-4 lg:order-none lg:col-span-2 animate-fade-up" style={{ animationDelay: '70ms' }}>
               <div className="soft-radius border border-slate-100 bg-white p-4 shadow-sm">
                 {isAuthenticated ? (
                   <>
@@ -268,11 +414,11 @@ export default function App() {
                         { label: 'Quản lý việc', to: '/dashboard' },
                       ].map((item, i) =>
                         item.to === '#' ? (
-                          <a key={item.label} className={`soft-radius flex items-center gap-3 px-3 py-2 text-[13px] font-medium transition-colors ${i === 0 ? 'bg-blue-50 font-semibold text-primary' : 'text-slate-600 hover:bg-slate-50'}`} href="#">
+                          <a key={item.label} className={`soft-radius flex items-center gap-3 px-3 py-2 text-[14px] font-medium transition-colors ${i === 0 ? 'bg-blue-50 font-semibold text-primary' : 'text-slate-600 hover:bg-slate-50'}`} href="#">
                             {item.label}
                           </a>
                         ) : (
-                          <Link key={item.label} className={`soft-radius flex items-center gap-3 px-3 py-2 text-[13px] font-medium transition-colors ${i === 0 ? 'bg-blue-50 font-semibold text-primary' : 'text-slate-600 hover:bg-slate-50'}`} to={item.to}>
+                          <Link key={item.label} className={`soft-radius flex items-center gap-3 px-3 py-2 text-[14px] font-medium transition-colors ${i === 0 ? 'bg-blue-50 font-semibold text-primary' : 'text-slate-600 hover:bg-slate-50'}`} to={item.to}>
                             {item.label}
                           </Link>
                         ),
@@ -300,66 +446,24 @@ export default function App() {
                 )}
               </div>
 
-              <div className="soft-radius overflow-hidden border border-slate-100 bg-white shadow-sm">
-                <div className="border-b border-slate-100 bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_34%),linear-gradient(135deg,#ffffff,#f8fbff)] p-4">
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <h3 className="text-[14px] font-bold text-slate-800">Danh mục phổ biến</h3>
-                    <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-blue-600">Hot</span>
-                  </div>
-                  <p className="text-[11px] leading-5 text-slate-500">Khám phá nhanh các nhóm việc làm đang có nhiều cơ hội.</p>
-                </div>
-
-                <div className="p-3">
-                  {featuredCategory ? (
-                    <Link to={buildCategorySearchLink(featuredCategory)} className="group mb-3 block rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-600 to-cyan-500 p-3 text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                      <div className="mb-3 flex items-start justify-between gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/18 backdrop-blur">
-                          <span className="material-symbols-outlined !text-[20px]">rocket_launch</span>
-                        </span>
-                        <span className="rounded-full bg-white/18 px-2 py-1 text-[10px] font-bold">Top trend</span>
-                      </div>
-                      <p className="line-clamp-1 text-[14px] font-black">{featuredCategory.name}</p>
-                      <div className="mt-1 flex items-center justify-between text-[11px] text-white/85">
-                        <span>{featuredCategory.count ? `${featuredCategory.count} việc đang mở` : 'Khám phá ngay'}</span>
-                        <span className="material-symbols-outlined !text-[16px] transition group-hover:translate-x-0.5">arrow_forward</span>
-                      </div>
-                    </Link>
-                  ) : null}
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {compactCategories.map((item, index) => {
-                      const tone = CATEGORY_TONES[index % CATEGORY_TONES.length]
-
-                      return (
-                        <Link key={item.name} to={buildCategorySearchLink(item)} className={`group rounded-2xl border p-2.5 transition hover:-translate-y-0.5 hover:shadow-sm ${tone.ring}`}>
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <span className="material-symbols-outlined !text-[18px]">{tone.icon}</span>
-                            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-black ${tone.badge}`}>{item.count || 'Go'}</span>
-                          </div>
-                          <p className="line-clamp-2 min-h-8 text-[12px] font-extrabold leading-4">{item.name}</p>
-                        </Link>
-                      )
-                    })}
-                  </div>
-
-                  <Link to="/search-jobs" className="mt-3 flex items-center justify-center gap-1 rounded-xl border border-dashed border-slate-200 py-2 text-[12px] font-bold text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
-                    Xem tất cả danh mục
-                    <span className="material-symbols-outlined !text-[15px]">chevron_right</span>
-                  </Link>
-                </div>
-              </div>
+              <PopularCategories
+                featuredCategory={featuredCategory}
+                compactCategories={compactCategories}
+                buildCategorySearchLink={buildCategorySearchLink}
+                className="hidden lg:block"
+              />
             </aside>
 
-            <div className="order-1 space-y-5 lg:order-none lg:col-span-7 animate-fade-up" style={{ animationDelay: '120ms' }}>
+            <div className="order-2 space-y-5 lg:order-none lg:col-span-7 animate-fade-up" style={{ animationDelay: '120ms' }}>
               <div className="soft-radius border border-slate-100 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center gap-2 text-sm font-bold text-primary">
+                <div className="mb-4 flex items-center gap-2 text-[15px] font-bold text-primary">
                   <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>work</span>
                   Tìm kiếm việc làm
                 </div>
                 <div className="relative mb-4 flex flex-col gap-2 sm:block">
                   <span className="material-symbols-outlined absolute left-4 top-[22px] -translate-y-1/2 text-slate-400 sm:top-1/2">search</span>
                   <input
-                    className="soft-radius w-full border border-slate-200 py-2.5 pl-11 pr-4 text-[14px] outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 sm:pr-32"
+                    className="soft-radius w-full border border-slate-200 py-2.5 pl-11 pr-4 text-[15px] outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 sm:pr-32"
                     placeholder="Tìm kiếm công việc, kỹ năng, công ty..."
                     type="text"
                     value={search}
@@ -371,12 +475,19 @@ export default function App() {
                       if (e.key === 'Enter') handleSearchNavigate()
                     }}
                   />
-                  <button type="button" onClick={handleSearchNavigate} className="h-10 rounded-md bg-[#2b59ff] px-4 text-xs font-bold text-white transition hover:bg-[#1f4bf1] sm:absolute sm:right-1.5 sm:top-1/2 sm:h-9 sm:-translate-y-1/2">
+                  <button type="button" onClick={handleSearchNavigate} className="h-10 rounded-md bg-[#2b59ff] px-4 text-[13px] font-bold text-white transition hover:bg-[#1f4bf1] sm:absolute sm:right-1.5 sm:top-1/2 sm:h-9 sm:-translate-y-1/2">
                     Tìm kiếm
                   </button>
                   {searchError ? <p className="mt-2 text-[12px] font-semibold text-rose-500 sm:absolute sm:left-0 sm:top-full">{searchError}</p> : null}
                 </div>
               </div>
+
+              <PopularCategories
+                featuredCategory={featuredCategory}
+                compactCategories={compactCategories}
+                buildCategorySearchLink={buildCategorySearchLink}
+                className="lg:hidden"
+              />
 
               <section>
                 <div className="soft-radius mb-5 overflow-hidden border border-[#cae5ff] bg-[linear-gradient(135deg,#eff8ff_0%,#f8fbff_45%,#ffffff_100%)] shadow-sm">
@@ -387,7 +498,7 @@ export default function App() {
                         Gợi ý nổi bật
                       </div>
                       <h2 className="text-[20px] font-black tracking-tight text-slate-900">Việc làm tốt nhất</h2>
-                      <p className="mt-1 text-[13px] text-slate-600">Những cơ hội được ưu tiên hiển thị nhằm phù hợp hơn với mục tiêu của bạn.</p>
+                      <p className="mt-1 text-[14px] leading-6 text-slate-600">Những cơ hội được ưu tiên hiển thị nhằm phù hợp hơn với mục tiêu của bạn.</p>
                     </div>
                   </div>
                 </div>
@@ -424,7 +535,7 @@ export default function App() {
                         Mới cập nhật
                       </div>
                       <h2 className="text-[20px] font-black tracking-tight text-slate-900">Việc làm mới nhất</h2>
-                      <p className="mt-1 text-[13px] text-slate-600">Cập nhật liên tục các tin đăng mới để bạn theo dõi và ứng tuyển nhanh hơn.</p>
+                      <p className="mt-1 text-[14px] leading-6 text-slate-600">Cập nhật liên tục các tin đăng mới để bạn theo dõi và ứng tuyển nhanh hơn.</p>
                     </div>
                   </div>
                 </div>
@@ -454,8 +565,8 @@ export default function App() {
             </div>
 
             <aside className="order-3 space-y-5 lg:order-none lg:col-span-3 animate-fade-up" style={{ animationDelay: '170ms' }}>
-              <div className="soft-radius border border-slate-100 bg-white p-6 shadow-sm lg:sticky lg:top-20">
-                <h2 className="mb-6 flex items-center gap-2 text-[16px] font-bold text-slate-800">
+              <div className="soft-radius border border-slate-100 bg-white p-6 shadow-sm">
+                <h2 className="mb-6 flex items-center gap-2 text-[18px] font-bold text-slate-800">
                   <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>trending_up</span>
                   Công việc nổi bật
                 </h2>
@@ -463,7 +574,7 @@ export default function App() {
                   {sidebarJobs.slice(0, 5).map((job, i) => (
                     <Link key={job.id} to={`/job-detail/${job.id}`} className="soft-radius flex cursor-pointer items-start gap-3 px-2 py-1.5 transition-all hover:bg-slate-50">
                       <span className="pt-0.5 text-[17px] font-bold text-primary">{i + 1}.</span>
-                      <p className="text-[13.5px] font-medium leading-6 text-slate-700">{job.title}</p>
+                      <p className="text-[14px] font-medium leading-6 text-slate-700">{job.title}</p>
                     </Link>
                   ))}
                   {!isLoadingJobs && sidebarJobs.length === 0 && (
@@ -476,6 +587,8 @@ export default function App() {
         </div>
       </main>
 
+      <FloatingQuickActions />
+
       <footer className="border-t border-slate-200 bg-slate-50 py-10 text-slate-600">
         <div className="mx-auto max-w-[1440px] px-6">
           <div className="mb-10 grid grid-cols-2 gap-x-8 gap-y-10 md:grid-cols-4 lg:grid-cols-6">
@@ -486,18 +599,34 @@ export default function App() {
               </div>
               <p className="mb-6 max-w-xs text-[13px] leading-relaxed text-slate-500">{homeMeta?.footer?.brandDescription || 'Nền tảng kết nối nhà tuyển dụng và developer chất lượng cao tại Việt Nam.'}</p>
             </div>
-            {(homeMeta?.footer?.columns || []).map((col) => (
+            {(homeMeta?.footer?.columns?.length ? homeMeta.footer.columns : DEFAULT_FOOTER_COLUMNS).map((col) => (
               <div key={col.title}>
                 <h4 className="mb-4 text-[13px] font-bold uppercase tracking-wider text-slate-900">{col.title}</h4>
                 <ul className="space-y-2.5 text-[13px]">
-                  {(col.links || []).map((link) => (
-                    <li key={link}>
-                      <a className="transition-colors hover:text-primary" href="#">{link}</a>
-                    </li>
-                  ))}
+                  {(col.links || []).map((link) => {
+                    const label = typeof link === 'string' ? link : link.label
+                    const to = typeof link === 'string' ? '#' : link.to
+
+                    return (
+                      <li key={label}>
+                        {to === '#' ? (
+                          <a className="transition-colors hover:text-primary" href="#">{label}</a>
+                        ) : (
+                          <Link className="transition-colors hover:text-primary" to={to}>{label}</Link>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
               </div>
             ))}
+          </div>
+          <div className="flex flex-col gap-3 border-t border-slate-200 pt-5 text-[12px] text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+            <span>© 2026 MYCODER. Kết nối đúng người, đúng cơ hội.</span>
+            <div className="flex items-center gap-4">
+              <a className="transition-colors hover:text-primary" href="#">Điều khoản</a>
+              <a className="transition-colors hover:text-primary" href="#">Bảo mật</a>
+            </div>
           </div>
         </div>
       </footer>

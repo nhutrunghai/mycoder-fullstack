@@ -35,37 +35,39 @@ export default function AdminLayout({ title, subtitle, children }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
+    <div className="admin-shell min-h-screen bg-[#f4f6f5] text-slate-900">
       {mobileNavOpen ? (
         <button
           type="button"
           aria-label="Đóng menu quản trị"
           onClick={() => setMobileNavOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-950/45 lg:hidden"
+          className="fixed inset-0 z-40 bg-[#172126]/45 lg:hidden"
         />
       ) : null}
 
       <aside
-        className={`fixed left-0 top-0 z-50 flex h-screen w-[232px] flex-col border-r border-slate-800 bg-slate-950 text-slate-100 transition-transform duration-200 lg:translate-x-0 ${
+        className={`fixed left-0 top-0 z-50 flex h-screen w-[232px] flex-col border-r border-[#334147] bg-[#202b30] text-[#eef5f3] transition-transform duration-200 lg:translate-x-0 ${
           mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:flex`}
       >
-        <div className="border-b border-white/10 px-3.5 py-3.5">
-          <Link to="/admin/dashboard" className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-800 text-slate-100 ring-1 ring-white/10">
-              <span className="material-symbols-outlined text-[19px]">admin_panel_settings</span>
+        <div className="admin-brand-block border-b border-white/10 px-3.5 py-3.5">
+          <Link to="/admin/dashboard" className="admin-brand-link group flex items-center gap-3 rounded-lg px-1.5 py-1 transition-colors hover:bg-white/[0.05]">
+            <span className="admin-brand-mark relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#314047] text-teal-200 ring-1 ring-white/10">
+              <span className="text-[19px] font-black tracking-[-0.08em]">M<span className="text-teal-400">.</span></span>
+              <span className="absolute -bottom-1 -right-1 h-2.5 w-2.5 rounded-full border-2 border-[#202b30] bg-teal-400" />
             </span>
-            <span>
-              <span className="block text-[12px] font-extrabold tracking-[0.17em] text-white">MYCODER</span>
-              <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-400">
-                Bảng quản trị
+            <span className="min-w-0">
+              <span className="block truncate text-[13px] font-extrabold tracking-[0.2em] text-white">MYCODER</span>
+              <span className="mt-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#9eb0ae]">
+                <span className="h-1 w-1 rounded-full bg-teal-400" />
+                Admin operations
               </span>
             </span>
           </Link>
         </div>
 
         <div className="px-2.5 py-3.5">
-          <p className="mb-2.5 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Quản lý</p>
+          <p className="mb-2.5 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#829594]">Quản lý</p>
           <nav className="space-y-1 text-[12.5px]">
             {navItems.map((item) => {
               const isActive = pathname === item.to || pathname.startsWith(`${item.to}/`)
@@ -73,18 +75,18 @@ export default function AdminLayout({ title, subtitle, children }) {
                 <Link
                   key={item.key}
                   to={item.to}
-                  className={`group relative flex items-center gap-2 rounded-md px-2 py-2 font-semibold transition-colors ${
-                    isActive ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-400 hover:bg-white/5 hover:text-slate-100'
+                  className={`group relative flex items-center gap-2 rounded-md px-2 py-2 font-normal transition-colors ${
+                    isActive ? 'bg-[#f5f8f7] text-[#1c2a2e] shadow-sm' : 'text-[#b4c4c3] hover:bg-[#2a383d] hover:text-white'
                   }`}
                 >
                   <span
                     className={`absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full ${
-                      isActive ? 'bg-indigo-500' : 'bg-transparent'
+                      isActive ? 'bg-teal-500' : 'bg-transparent'
                     }`}
                   />
                   <span
                     className={`flex h-[26px] w-[26px] items-center justify-center rounded-md ${
-                      isActive ? 'bg-slate-100 text-indigo-600' : 'bg-white/5 text-slate-400 group-hover:text-slate-100'
+                      isActive ? 'bg-teal-50 text-teal-700' : 'bg-white/[0.06] text-[#b4c4c3] group-hover:text-white'
                     }`}
                   >
                     <span className="material-symbols-outlined text-[17px]">{item.icon}</span>
@@ -96,21 +98,21 @@ export default function AdminLayout({ title, subtitle, children }) {
           </nav>
         </div>
 
-        <div className="mt-auto border-t border-white/10 p-2.5">
-          <div className="rounded-md border border-white/10 bg-white/[0.03] p-2.5">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-300">
-                <span className="material-symbols-outlined text-[17px]">verified_user</span>
+        <div className="mt-auto border-t border-white/10 p-3">
+          <div className="admin-account-card rounded-lg border border-white/10 bg-[#26343a] p-3 shadow-[0_14px_30px_-24px_rgba(0,0,0,0.8)]">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-[17px] font-black tracking-[-0.08em] text-teal-200 ring-1 ring-teal-300/10">
+                M<span className="text-teal-400">.</span>
               </span>
-              <span>
-                <span className="block text-[12px] font-bold text-slate-100">Quản trị viên</span>
-                <span className="block text-[10px] text-slate-500">Phiên được bảo vệ</span>
+              <span className="min-w-0">
+                <span className="block truncate text-[13px] font-extrabold text-[#f4f8f7]">Quản trị viên</span>
+                <span className="mt-0.5 block truncate text-[10px] font-semibold text-[#91a3a2]">Admin console</span>
               </span>
             </div>
             <button
               type="button"
               onClick={handleLogout}
-              className="mt-2 flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] text-[12px] font-extrabold text-slate-300 transition hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-200"
+              className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.04] text-[12px] font-extrabold text-[#d5e0de] transition hover:border-rose-400/30 hover:bg-rose-500/10 hover:text-rose-200"
             >
               <span className="material-symbols-outlined text-[17px]">logout</span>
               Đăng xuất
@@ -120,7 +122,7 @@ export default function AdminLayout({ title, subtitle, children }) {
       </aside>
 
       <div className="min-h-screen lg:ml-[232px]">
-        <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
+        <header className="sticky top-0 z-40 border-b border-[#dbe3e0] bg-white/90 backdrop-blur">
           <div className="flex min-h-[52px] items-center justify-between gap-3 px-3 py-2 sm:px-4">
             <div className="min-w-0">
               <div className="mb-1 flex items-center gap-2 lg:hidden">
@@ -128,7 +130,7 @@ export default function AdminLayout({ title, subtitle, children }) {
                   type="button"
                   aria-label="Mo menu quan tri"
                   onClick={() => setMobileNavOpen(true)}
-                  className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                  className="flex h-9 w-9 items-center justify-center rounded-md border border-[#d7e1de] bg-white text-slate-600 transition hover:bg-[#f5f8f7] hover:text-slate-900"
                 >
                   <span className="material-symbols-outlined text-[20px]">menu</span>
                 </button>
@@ -149,17 +151,17 @@ export default function AdminLayout({ title, subtitle, children }) {
                 </span>
                 <input
                   type="search"
-                  className="h-8 w-full rounded-md border border-slate-200 bg-slate-50 pl-8 pr-2.5 text-[12.5px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-100"
+                  className="h-8 w-full rounded-md border border-[#d7e1de] bg-[#f7f9f8] pl-8 pr-2.5 text-[12.5px] font-medium text-slate-800 outline-none transition focus:border-teal-600 focus:bg-white focus:ring-2 focus:ring-teal-100"
                   placeholder="Tìm nhanh trong hệ thống..."
                 />
               </label>
-              <div className="hidden h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-[12px] font-semibold text-slate-600 md:flex">
+              <div className="hidden h-8 items-center gap-1.5 rounded-md border border-[#d7e1de] bg-white px-2.5 text-[12px] font-semibold text-[#4d5d5c] md:flex">
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
                 Đang hoạt động
               </div>
               <button
                 type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-[#d7e1de] bg-white text-slate-500 transition hover:bg-[#f5f8f7] hover:text-slate-900"
               >
                 <span className="material-symbols-outlined text-[18px]">notifications</span>
               </button>
@@ -169,8 +171,8 @@ export default function AdminLayout({ title, subtitle, children }) {
 
         <main className="px-3 py-3 sm:px-4 sm:py-4">
           {subtitle ? (
-            <div className="mb-4 border-l-4 border-slate-300 pl-3">
-              <p className="max-w-3xl text-[12.5px] font-medium leading-5 text-slate-500">{subtitle}</p>
+            <div className="mb-4 border-l-4 border-[#b7d8d0] pl-3">
+              <p className="max-w-3xl text-[12.5px] font-medium leading-5 text-[#5f726f]">{subtitle}</p>
             </div>
           ) : null}
           {children}

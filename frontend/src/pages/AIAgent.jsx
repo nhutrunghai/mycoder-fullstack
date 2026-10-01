@@ -27,7 +27,7 @@ const QUICK_CHAT_PROMPTS = [
   {
     icon: 'work',
     title: 'Tìm job hợp CV',
-    description: 'Gợi ý các job phù hợp nhất dựa trên CV đã tải lên JobGo.',
+    description: 'Gợi ý các job phù hợp nhất dựa trên CV đã tải lên MYCODER.',
     prompt: 'Tìm job phù hợp với CV của tôi',
   },
   {
@@ -117,7 +117,7 @@ function buildWelcomeMessage() {
     id: 'welcome',
     role: 'assistant',
     content:
-      'Xin chào, tôi có thể giúp bạn tìm job IT phù hợp, giải thích các tin tuyển dụng vừa tìm được hoặc đánh giá CV đã tải lên JobGo.',
+      'Xin chào, tôi có thể giúp bạn tìm job IT phù hợp, giải thích các tin tuyển dụng vừa tìm được hoặc đánh giá CV đã tải lên MYCODER.',
     createdAt: new Date().toISOString(),
     sources: [],
   }
@@ -490,7 +490,7 @@ function EmptyChatHero({ onPromptClick, disabled }) {
         <p className="text-[13px] font-bold uppercase tracking-[0.22em] text-[#2489d2]">CHAT A.I+</p>
         <h2 className="mt-2 text-[34px] font-black tracking-tight text-slate-950 md:text-[46px]">Tôi có thể giúp gì cho bạn?</h2>
         <p className="mx-auto mt-3 max-w-2xl text-[15px] leading-7 text-slate-500">
-          Hỏi về job IT, tìm việc theo kỹ năng, so sánh tin tuyển dụng hoặc nhờ đánh giá CV đã tải lên JobGo.
+          Hỏi về job IT, tìm việc theo kỹ năng, so sánh tin tuyển dụng hoặc nhờ đánh giá CV đã tải lên MYCODER.
         </p>
 
         <div className="mt-8 grid gap-3 text-left sm:grid-cols-2">
@@ -890,28 +890,36 @@ export default function AIAgent() {
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#dff3ff_0%,#eef8ff_45%,#f8fbff_100%)] text-slate-900">
+    <div className="min-h-screen bg-[#f6f9fb] text-slate-900">
       <PublicHeader session={session} activeNav="/ai-agent" />
 
-      <main className="h-[calc(100vh-121px)] px-3 py-3 lg:h-[calc(100vh-57px)] md:px-4 md:py-4">
-        <div className="mx-auto h-full max-w-[1880px] rounded-[20px] border border-[#d8ebff] bg-white p-2 shadow-[0_20px_60px_-38px_rgba(36,137,210,0.45)] lg:p-4">
-          <div className="grid h-full grid-cols-1 gap-3 lg:grid-cols-[340px_minmax(0,1fr)]">
-            <aside className="hidden h-full min-h-0 overflow-hidden rounded-[16px] border border-slate-100 bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] lg:flex lg:flex-col">
-              <div className="border-b border-slate-100 px-6 pb-4 pt-6">
-                <h1 className="text-[22px] font-black tracking-[0.08em] text-slate-900">CHAT A.I+</h1>
+      <main className="h-[calc(100vh-121px)] lg:h-[calc(100vh-57px)]">
+        <div className="h-full bg-white">
+          <div className="grid h-full grid-cols-1 lg:grid-cols-[292px_minmax(0,1fr)]">
+            <aside className="hidden h-full min-h-0 overflow-hidden border-r border-slate-200 bg-[#f8fafb] lg:flex lg:flex-col">
+              <div className="border-b border-slate-100 px-5 pb-4 pt-5">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#e5f5f6] text-teal-700">
+                    <span className="material-symbols-outlined text-[18px]">neurology</span>
+                  </span>
+                  <div>
+                    <h1 className="text-[15px] font-extrabold tracking-[0.08em] text-slate-900">MYCODER AI</h1>
+                    <p className="mt-0.5 text-[11px] font-medium text-slate-500">Trợ lý nghề nghiệp</p>
+                  </div>
+                </div>
 
-                <div className="mt-6 flex items-center gap-3">
+                <div className="mt-5">
                   <button
                     type="button"
                     onClick={handleNewChat}
-                    className="flex h-11 flex-1 items-center justify-center rounded-full bg-gradient-to-r from-[#20c3d0] via-[#2489d2] to-[#2b59ff] text-[14px] font-bold text-white shadow-[0_16px_28px_-22px_rgba(36,137,210,0.95)] transition hover:brightness-110"
+                    className="flex h-10 w-full items-center justify-center rounded-lg bg-[#2b59ff] text-[13px] font-bold text-white shadow-sm transition hover:bg-[#1f4bf1]"
                   >
                     <span className="material-symbols-outlined mr-2 text-[18px]">add</span>
-                    New chat
+                    Cuộc trò chuyện mới
                   </button>
                   <button
                     type="button"
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800"
+                    className="hidden"
                     title="Tìm hội thoại"
                   >
                     <span className="material-symbols-outlined text-[18px]">search</span>
@@ -922,10 +930,8 @@ export default function AIAgent() {
               <div className="flex-1 overflow-y-auto">
                 <div className="border-b border-slate-100 px-6 py-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-[13px] text-slate-500">Your conversations</p>
-                    <button type="button" onClick={handleClearConversations} className="text-[13px] font-semibold text-[#2b59ff]">
-                      New Chat
-                    </button>
+                    <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-slate-400">Lịch sử trò chuyện</p>
+                    <span className="text-[11px] font-medium text-slate-400">{conversations.length}</span>
                   </div>
                 </div>
 
@@ -938,16 +944,16 @@ export default function AIAgent() {
                     conversations.map((conversation) => (
                       <div
                         key={conversation.id}
-                        className={`flex items-center gap-2 rounded-[14px] px-2 py-2 transition ${
+                        className={`group flex items-center gap-2 border-l-2 px-2 py-2 transition ${
                           activeSessionId === (conversation.sessionId || conversation.id)
-                            ? 'bg-[linear-gradient(90deg,rgba(32,195,208,0.1),rgba(43,89,255,0.1))] text-[#1e58b1] shadow-[inset_0_0_0_1px_rgba(36,137,210,0.12)]'
-                            : 'text-slate-700 hover:bg-blue-50'
+                            ? 'border-[#2b59ff] bg-blue-50 text-[#1e58b1]'
+                            : 'border-transparent text-slate-700 hover:bg-white'
                         }`}
                       >
                         <button
                           type="button"
                           onClick={() => handleSelectConversation(conversation)}
-                          className="flex min-w-0 flex-1 items-center gap-3 rounded-[12px] px-1 py-1 text-left text-[13px] font-medium"
+                          className="flex min-w-0 flex-1 items-center gap-3 px-1 py-1 text-left text-[13px] font-medium"
                         >
                           <span className="material-symbols-outlined text-[16px] text-[#2489d2]">forum</span>
                           <span className="min-w-0 flex-1 truncate">{conversation.title}</span>
@@ -957,7 +963,7 @@ export default function AIAgent() {
                           type="button"
                           onClick={(event) => handleDeleteConversation(conversation, event)}
                           disabled={deletingSessionId === (conversation.sessionId || conversation.id)}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-white/70 hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-white hover:text-rose-500 disabled:cursor-not-allowed disabled:opacity-50 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                           title="Xóa session"
                         >
                           <span className="material-symbols-outlined text-[16px]">delete</span>
@@ -976,10 +982,10 @@ export default function AIAgent() {
                 <button
                   type="button"
                   onClick={() => setSettingsOpen((prev) => !prev)}
-                  className="flex h-11 w-full items-center rounded-full border border-slate-200 bg-white px-4 text-[14px] font-medium text-slate-800 transition hover:bg-slate-50"
+                  className="flex h-11 w-full items-center rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-medium text-slate-800 transition hover:bg-slate-50"
                 >
                   <span className="material-symbols-outlined mr-2 text-[18px] text-slate-500">settings</span>
-                  Settings
+                  Ngữ cảnh CV
                   <span className="material-symbols-outlined ml-auto text-[18px] text-slate-400">
                     {settingsOpen ? 'expand_more' : 'chevron_right'}
                   </span>
@@ -1017,24 +1023,24 @@ export default function AIAgent() {
 
                 <button className="flex h-11 w-full items-center rounded-full border border-slate-200 bg-white px-2 text-[14px] font-medium text-slate-800 transition hover:bg-slate-50">
                   <UserAvatar src={profileAvatar} name={profileName} className="mr-3 h-8 w-8" textClassName="text-[11px]" />
-                  <span className="min-w-0 truncate">{isAuthenticated ? profileName : 'Khách JobGo'}</span>
+                  <span className="min-w-0 truncate">{isAuthenticated ? profileName : 'Khách MYCODER'}</span>
                 </button>
               </div>
             </aside>
 
-            <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[16px] border border-slate-100 bg-[linear-gradient(180deg,#ffffff_0%,#fafdff_100%)]">
-              <div className="border-b border-slate-100 px-3 py-2.5 lg:hidden">
+            <section className="flex h-full min-h-0 flex-col overflow-hidden bg-white">
+              <div className="border-b border-slate-200 px-3 py-2.5 lg:hidden">
                 <div className="flex items-center justify-between gap-2">
                   <button
                     type="button"
                     onClick={() => setMobileHistoryOpen(true)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700"
                     aria-label="Mở lịch sử chat"
                   >
                     <span className="material-symbols-outlined text-[22px]">menu</span>
                   </button>
                   <div className="min-w-0 flex-1 text-center">
-                    <h1 className="truncate text-[16px] font-black tracking-[0.08em] text-slate-900">CHAT A.I+</h1>
+                    <h1 className="truncate text-[15px] font-extrabold tracking-[0.08em] text-slate-900">MYCODER AI</h1>
                     <p className="truncate text-[11px] font-medium text-slate-500">
                       {activeResumeTitle ? `CV: ${activeResumeTitle}` : 'AI Agent hỗ trợ job và CV'}
                     </p>
@@ -1042,72 +1048,13 @@ export default function AIAgent() {
                   <button
                     type="button"
                     onClick={handleNewChat}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#20c3d0] via-[#2489d2] to-[#2b59ff] text-white"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#2b59ff] text-white transition hover:bg-[#1f4bf1]"
                     aria-label="Tạo chat mới"
                   >
                     <span className="material-symbols-outlined text-[20px]">add</span>
                   </button>
                 </div>
               </div>
-              <div className="hidden">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-[19px] font-black tracking-[0.08em] text-slate-900">CHAT A.I+</h1>
-                    <p className="mt-1 text-xs font-medium text-slate-500">AI Agent hỗ trợ job và CV</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleNewChat}
-                    className="inline-flex h-10 items-center rounded-full bg-gradient-to-r from-[#20c3d0] via-[#2489d2] to-[#2b59ff] px-3 text-xs font-bold text-white"
-                  >
-                    <span className="material-symbols-outlined mr-1 text-[17px]">add</span>
-                    New chat
-                  </button>
-                </div>
-
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {conversations.map((conversation) => {
-                    const sessionId = conversation.sessionId || conversation.id
-                    const active = activeSessionId === sessionId
-                    return (
-                      <button
-                        key={conversation.id}
-                        type="button"
-                        onClick={() => handleSelectConversation(conversation)}
-                        className={`inline-flex h-9 max-w-[220px] shrink-0 items-center gap-2 rounded-full px-3 text-xs font-bold ${
-                          active ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-[16px]">forum</span>
-                        <span className="truncate">{conversation.title}</span>
-                      </button>
-                    )
-                  })}
-                  {!conversations.length && (
-                    <span className="inline-flex h-9 shrink-0 items-center rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-500">
-                      Chưa có hội thoại
-                    </span>
-                  )}
-                </div>
-
-                {isAuthenticated && resumeOptions.length > 0 && (
-                  <label className="mt-3 block">
-                    <span className="sr-only">CV dùng cho đánh giá</span>
-                    <select
-                      value={selectedResumeId}
-                      onChange={(event) => setSelectedResumeId(event.target.value)}
-                      className="h-10 w-full rounded-full border border-slate-200 bg-white px-4 text-[13px] font-medium text-slate-700 outline-none"
-                    >
-                      {resumeOptions.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-              </div>
-
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-8 md:py-6">
                 <div className="mx-auto w-full max-w-[1320px] space-y-7 pb-6">
                   {isLoadingConversation && (
@@ -1142,10 +1089,10 @@ export default function AIAgent() {
                 </div>
               </div>
 
-              <footer className="shrink-0 border-t border-slate-100 bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] px-3 py-2.5 md:px-8 md:py-4">
-                <div className="mx-auto w-full max-w-[1320px]">
+              <footer className="shrink-0 bg-white px-3 py-3 md:px-8 md:py-4">
+                <div className="mx-auto w-full max-w-[820px]">
                   {chatError && <p className="mb-2 text-[13px] font-medium text-rose-600">{chatError}</p>}
-                  <div className="flex items-center gap-2 rounded-[14px] border border-slate-200 bg-white px-3 py-3 shadow-[0_16px_32px_-26px_rgba(36,137,210,0.45)] sm:gap-3 sm:px-4">
+                  <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 shadow-[0_8px_24px_-18px_rgba(15,23,42,0.35)] sm:gap-3 sm:px-4">
                     <div className="hidden h-10 w-10 items-center justify-center rounded-full bg-[#e7fbfd] text-[#20c3d0] sm:flex">
                       <span className="material-symbols-outlined text-[18px]">neurology</span>
                     </div>
@@ -1172,9 +1119,11 @@ export default function AIAgent() {
                       type="button"
                       onClick={handleSend}
                       disabled={isSending}
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-gradient-to-r from-[#20c3d0] via-[#2489d2] to-[#2b59ff] text-white shadow-[0_16px_28px_-20px_rgba(36,137,210,0.9)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 sm:h-12 sm:w-12"
+                      aria-label="Gửi tin nhắn"
+                      title="Gửi tin nhắn"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#2b59ff] transition hover:bg-slate-100 hover:text-[#1f4bf1] disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <span className="material-symbols-outlined text-[18px]">send</span>
+                      <span className="material-symbols-outlined text-[22px]">arrow_upward</span>
                     </button>
                   </div>
                 </div>
@@ -1213,10 +1162,10 @@ export default function AIAgent() {
                 handleNewChat()
                 setMobileHistoryOpen(false)
               }}
-              className="mb-4 flex h-11 items-center justify-center rounded-full bg-gradient-to-r from-[#20c3d0] via-[#2489d2] to-[#2b59ff] text-[14px] font-bold text-white"
+              className="mb-4 flex h-11 items-center justify-center rounded-lg bg-[#2b59ff] text-[14px] font-bold text-white transition hover:bg-[#1f4bf1]"
             >
               <span className="material-symbols-outlined mr-2 text-[18px]">add</span>
-              New chat
+              Chat mới
             </button>
 
             {isAuthenticated && resumeOptions.length > 0 && (
@@ -1237,9 +1186,13 @@ export default function AIAgent() {
             )}
 
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-[13px] font-bold text-slate-500">Your conversations</p>
-              <button type="button" onClick={handleClearConversations} className="text-[13px] font-semibold text-[#2b59ff]">
-                New Chat
+              <p className="text-[13px] font-bold text-slate-500">Lịch sử trò chuyện</p>
+              <button
+                type="button"
+                onClick={handleClearConversations}
+                className="rounded-md px-2 py-1 text-[12px] font-bold text-[#2b59ff] transition hover:bg-blue-50"
+              >
+                Chat mới
               </button>
             </div>
 

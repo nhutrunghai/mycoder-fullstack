@@ -14,6 +14,36 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.blog-featured-media {
+  height: 280px;
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .blog-featured-card {
+    display: flex;
+    height: auto;
+    min-height: 100%;
+    align-self: stretch;
+  }
+
+  .blog-featured-media {
+    height: auto;
+    width: 50%;
+    flex: 0 0 50%;
+  }
+
+  .blog-featured-media img {
+    height: 100%;
+  }
+
+  .blog-featured-content {
+    min-width: 0;
+    flex: 1 1 50%;
+    justify-content: flex-start;
+  }
+}
+
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   vertical-align: middle;
@@ -244,6 +274,20 @@ select.auth-input.auth-input-compact {
   border-radius: 16px;
 }
 
+.auth-brand-typewriter {
+  display: inline-block;
+  min-width: 7ch;
+  border-right: 0.08em solid currentColor;
+  animation: authTypewriterCaret 760ms step-end infinite;
+}
+
+.auth-shape-primary {
+  animation:
+    authShapeEnter 1800ms cubic-bezier(0.16, 1, 0.3, 1) both,
+    authShapeDrift 5.5s ease-in-out 1800ms infinite;
+  transform-origin: 70% 50%;
+}
+
 .wallet-top-up,
 .wallet-top-up input,
 .wallet-top-up button,
@@ -323,11 +367,51 @@ select.auth-input.auth-input-compact {
   }
 }
 
+@keyframes authTypewriterCaret {
+  0%,
+  100% {
+    border-color: currentColor;
+  }
+
+  50% {
+    border-color: transparent;
+  }
+}
+
+@keyframes authShapeEnter {
+  0% {
+    opacity: 0;
+    transform: translate3d(150px, -90px, 0) rotate(34deg) scale(0.72);
+  }
+
+  65% {
+    opacity: 1;
+    transform: translate3d(-10px, 8px, 0) rotate(20deg) scale(1.03);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(22deg) scale(1);
+  }
+}
+
+@keyframes authShapeDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(22deg) scale(1);
+  }
+
+  50% {
+    transform: translate3d(-12px, 10px, 0) rotate(20.5deg) scale(1.015);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .typewriter-title {
     border-right: 0;
     animation: none;
   }
+
 }
 
 .dashboard-copy-font {
@@ -363,6 +447,142 @@ select.auth-input.auth-input-compact {
   font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
+}
+
+/* Admin typography is intentionally denser and more readable than the public product UI. */
+.admin-shell {
+  font-family: 'IBM Plex Sans', 'Manrope', sans-serif;
+  font-size: 14px;
+  font-kerning: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-shell :where(button, input, select, textarea) {
+  font-family: inherit;
+}
+
+.admin-shell [class~='text-[10px]'] {
+  font-size: 11px !important;
+  line-height: 1.4;
+}
+
+.admin-shell [class~='text-[11px]'] {
+  font-size: 12px !important;
+  line-height: 1.45;
+}
+
+.admin-shell [class~='text-[12px]'] {
+  font-size: 13px !important;
+  line-height: 1.5;
+}
+
+.admin-shell [class~='text-[12.5px]'] {
+  font-size: 13px !important;
+  line-height: 1.5;
+}
+
+.admin-shell [class~='text-[13px]'] {
+  font-size: 14px !important;
+  line-height: 1.5;
+}
+
+.admin-shell [class~='text-[14px]'] {
+  font-size: 15px !important;
+  line-height: 1.5;
+}
+
+.admin-shell [class~='text-[15px]'] {
+  font-size: 16px !important;
+  line-height: 1.4;
+}
+
+.admin-shell [class~='text-xs'] {
+  font-size: 13px !important;
+  line-height: 1.45;
+}
+
+.admin-shell [class~='text-sm'] {
+  font-size: 14px !important;
+  line-height: 1.5;
+}
+
+.admin-shell :where(th, td) {
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-shell :where(input, select, textarea):focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.14);
+}
+
+.admin-shell [class~='bg-indigo-50'],
+.admin-shell [class~='bg-indigo-50/60'] {
+  background-color: #ecfdf5 !important;
+}
+
+.admin-shell [class~='bg-indigo-100'] {
+  background-color: #d1fae5 !important;
+}
+
+.admin-shell [class~='text-indigo-600'],
+.admin-shell [class~='text-indigo-700'] {
+  color: #0f766e !important;
+}
+
+.admin-shell [class~='border-indigo-200'] {
+  border-color: #99f6e4 !important;
+}
+
+.admin-shell .admin-metrics > div {
+  position: relative;
+  overflow: hidden;
+  border-color: #dbe3e0;
+}
+
+.admin-shell .admin-metrics > div::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: #0f766e;
+}
+
+.admin-shell .admin-metrics > div:nth-child(2)::before {
+  background: #059669;
+}
+
+.admin-shell .admin-metrics > div:nth-child(3)::before {
+  background: #d97706;
+}
+
+.admin-shell .admin-metrics > div:nth-child(4)::before {
+  background: #0f766e;
+}
+
+.admin-shell .admin-filter-bar {
+  border-color: #dbe3e0;
+  background: #fbfcfb;
+  box-shadow: 0 10px 24px -22px rgba(20, 41, 38, 0.52);
+}
+
+.admin-shell .admin-data-panel,
+.admin-shell .admin-detail-panel,
+.admin-shell .admin-form-panel {
+  border-color: #dbe3e0;
+  box-shadow: 0 14px 30px -27px rgba(20, 41, 38, 0.58);
+}
+
+.admin-shell .admin-secret-preview {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.admin-shell .admin-detail-panel {
+  border-top: 3px solid #0f766e;
+}
+
+.admin-shell .admin-form-panel {
+  border-top: 3px solid #0f766e;
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {

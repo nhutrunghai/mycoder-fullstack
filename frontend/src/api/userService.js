@@ -53,7 +53,7 @@ function normalizePublicProfile(profile = {}) {
   return {
     id: profile._id || profile.id || '',
     username: profile.username || '',
-    fullName: profile.fullName || profile.username || 'Người dùng JobGo',
+    fullName: profile.fullName || profile.username || 'Người dùng MYCODER',
     avatar: profile.avatar || '',
     bio: profile.bio || '',
     address: profile.address || '',

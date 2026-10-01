@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import JobHoverPreview from '../components/JobHoverPreview.jsx'
 import PublicHeader from '../components/layout/PublicHeader.jsx'
+import PublicFooter from '../components/layout/PublicFooter.jsx'
 import UserAvatar from '../components/UserAvatar.jsx'
 import useCurrentUser from '../hooks/useCurrentUser.js'
 import { useFavoriteStore } from '../stores/useFavoriteStore.js'
@@ -330,9 +332,7 @@ export default function SearchJobs() {
                   </button>
                 </div>
 
-                <Link to={`/job-detail/${job.id}`} className="mb-3 block text-[17px] font-bold text-[#0b7cff] transition-colors group-hover:text-blue-700 hover:text-blue-700">
-                  {job.title}
-                </Link>
+                <JobHoverPreview job={job} />
 
                 <div className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-[#28a745]">
                   <span className="material-symbols-outlined !text-[16px]">payments</span> {job.salary}
@@ -392,6 +392,7 @@ export default function SearchJobs() {
           </section>
         </div>
       </main>
+      <PublicFooter />
     </div>
   )
 }

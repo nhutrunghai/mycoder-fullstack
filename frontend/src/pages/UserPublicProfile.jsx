@@ -56,8 +56,8 @@ export default function UserPublicProfile() {
     }
   }, [id, isOwnProfile])
 
-  const displayName = profile?.fullName || profile?.username || 'Người dùng JobGo'
-  const handle = profile?.username ? `@${profile.username}` : '@jobgo-user'
+  const displayName = profile?.fullName || profile?.username || 'Người dùng MYCODER'
+  const handle = profile?.username ? `@${profile.username}` : '@mycoder-user'
   const visibleSkills = useMemo(() => (Array.isArray(profile?.skills) ? profile.skills.filter(Boolean) : []), [profile])
 
   const handleAvatarChange = async (event) => {

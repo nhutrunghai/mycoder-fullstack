@@ -150,7 +150,7 @@ export default function EmployerCompanyRegistration() {
                       minLength={2}
                       maxLength={100}
                       disabled={isSubmittingCompany}
-                      placeholder="Ví dụ: JobGo Studio"
+                      placeholder="Ví dụ: MYCODER Studio"
                       className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
                     />
                   </label>

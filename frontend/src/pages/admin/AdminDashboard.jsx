@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout.jsx'
 import {
   getAdminCompanies,
@@ -9,84 +9,95 @@ import {
 } from '../../api/adminService.js'
 import { queryKeys } from '../../lib/queryKeys.js'
 
-const metricToneMap = {
-  slate: 'border-slate-200 bg-white text-slate-900',
-  indigo: 'border-indigo-100 bg-indigo-50 text-indigo-950',
-  emerald: 'border-emerald-100 bg-emerald-50 text-emerald-950',
-  amber: 'border-amber-100 bg-amber-50 text-amber-950',
+const statusLabelMap = {
+  draft: 'Bản nháp',
+  open: 'Đang tuyển',
+  paused: 'Tạm dừng',
+  closed: 'Đã đóng',
+  expired: 'Hết hạn',
 }
 
-const statusLabelMap = {
-  draft: 'B\u1ea3n nh\u00e1p',
-  open: '\u0110ang tuy\u1ec3n',
-  paused: 'T\u1ea1m d\u1eebng',
-  closed: '\u0110\u00e3 \u0111\u00f3ng',
-  expired: 'H\u1ebft h\u1ea1n',
+const statusToneMap = {
+  draft: 'bg-slate-100 text-slate-600',
+  open: 'bg-emerald-50 text-emerald-700',
+  paused: 'bg-amber-50 text-amber-700',
+  closed: 'bg-rose-50 text-rose-700',
+  expired: 'bg-slate-100 text-slate-600',
 }
 
 function formatNumber(value) {
-  if (value === null || value === undefined || value === '') return '--'
   return new Intl.NumberFormat('vi-VN').format(Number(value) || 0)
 }
 
 function formatDate(value) {
-  if (!value) return 'Ch\u01b0a c\u00f3'
+  if (!value) return 'Chưa cập nhật'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Ch\u01b0a c\u00f3'
+  if (Number.isNaN(date.getTime())) return 'Chưa cập nhật'
   return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
 }
 
-function percent(part, total) {
-  if (!total) return 0
-  return Math.min(100, Math.round((Number(part || 0) / Number(total)) * 100))
-}
-
-function MiniTrend({ values, color = '#4f46e5' }) {
-  const points = values.map((value, index) => {
-    const x = 8 + index * (104 / Math.max(values.length - 1, 1))
-    const y = 42 - (Number(value) / Math.max(...values, 1)) * 28
-    return `${x},${y}`
-  })
-
+function MetricCard({ label, value, detail, icon, accent, to }) {
   return (
-    <svg viewBox="0 0 120 48" className="h-12 w-full" aria-hidden="true">
-      <polyline fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" points={points.join(' ')} />
-      <line x1="8" y1="42" x2="112" y2="42" stroke="#e2e8f0" strokeWidth="1" />
-    </svg>
-  )
-}
-
-function MetricCard({ label, value, hint, icon, tone = 'slate', progress }) {
-  return (
-    <article className={`rounded-lg border p-3.5 shadow-sm ${metricToneMap[tone] || metricToneMap.slate}`}>
+    <Link
+      to={to}
+      className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition duration-150 hover:-translate-y-0.5 hover:border-[#b7d8d0] hover:shadow-[0_16px_30px_-24px_rgba(20,41,38,0.38)] focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+    >
+      <span className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] opacity-55">{label}</p>
-          <p className="mt-2 text-[28px] font-extrabold leading-none tracking-tight">{formatNumber(value)}</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">{label}</p>
+          <p className="mt-2 text-[30px] font-extrabold leading-none text-slate-950">{formatNumber(value)}</p>
         </div>
-        <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white/70 text-slate-700 ring-1 ring-black/5">
-          <span className="material-symbols-outlined text-[18px]">{icon}</span>
+        <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${accent.replace('bg-', 'bg-').replace('-500', '-50')} text-slate-700`}>
+          <span className="material-symbols-outlined text-[21px]" aria-hidden="true">{icon}</span>
         </span>
       </div>
-      <div className="mt-3">
-        <div className="h-1.5 overflow-hidden rounded-full bg-black/5">
-          <div className="h-full rounded-full bg-current opacity-55" style={{ width: `${progress ?? 48}%` }} />
-        </div>
-        <p className="mt-2 text-[11px] font-semibold opacity-60">{hint}</p>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <p className="text-[12px] font-semibold text-slate-500">{detail}</p>
+        <span className="material-symbols-outlined text-[17px] text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-slate-800" aria-hidden="true">
+          arrow_forward
+        </span>
       </div>
-    </article>
+    </Link>
   )
 }
 
-function Panel({ title, action, children, className = '' }) {
+function Panel({ title, description, action, children, className = '' }) {
   return (
     <section className={`rounded-lg border border-slate-200 bg-white shadow-sm ${className}`}>
-      <div className="flex h-11 items-center justify-between gap-3 border-b border-slate-100 px-4">
-        <h2 className="text-[13px] font-extrabold tracking-tight text-slate-950">{title}</h2>
-        {action ? <div className="text-[12px] font-bold text-slate-500">{action}</div> : null}
+      <div className="flex min-h-16 items-start justify-between gap-4 border-b border-slate-100 px-4 py-3.5">
+        <div className="min-w-0">
+          <h2 className="text-[15px] font-extrabold text-slate-950">{title}</h2>
+          {description ? <p className="mt-1 text-[12px] font-medium leading-5 text-slate-500">{description}</p> : null}
+        </div>
+        {action}
       </div>
-      <div className="p-4">{children}</div>
+      {children}
     </section>
+  )
+}
+
+function EmptyState({ message }) {
+  return (
+    <div className="px-4 py-10 text-center text-[13px] font-semibold text-slate-400">
+      {message}
+    </div>
+  )
+}
+
+function ProgressRow({ label, current, total, tone = 'bg-slate-800' }) {
+  const percentage = total ? Math.min(100, Math.round((Number(current) / Number(total)) * 100)) : 0
+
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between gap-3 text-[12px]">
+        <span className="font-semibold text-slate-600">{label}</span>
+        <span className="font-extrabold text-slate-900">{percentage}%</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className={`h-full rounded-full ${tone}`} style={{ width: `${percentage}%` }} />
+      </div>
+    </div>
   )
 }
 
@@ -111,183 +122,195 @@ export default function AdminDashboard() {
     queryKey: queryKeys.dashboard.admin.blockedJobs,
     queryFn: () => getAdminJobs({ page: 1, limit: 4, moderation_status: 'blocked' }),
   })
-  const summary = summaryQuery.data || null
+
+  const summary = summaryQuery.data || {}
   const users = usersQuery.data?.users ?? []
   const companies = companiesQuery.data?.companies ?? []
   const jobs = jobsQuery.data?.jobs ?? []
   const blockedJobs = blockedJobsQuery.data?.jobs ?? []
-  const loading = [
-    summaryQuery,
-    usersQuery,
-    companiesQuery,
-    jobsQuery,
-    blockedJobsQuery,
-  ].some((query) => query.isPending || query.isFetching)
+  const isLoading = [summaryQuery, usersQuery, companiesQuery, jobsQuery, blockedJobsQuery].some(
+    (query) => query.isPending || query.isFetching,
+  )
 
-  const derived = useMemo(() => {
-    const totalUsers = summary?.total_users || 0
-    const totalCompanies = summary?.total_companies || 0
-    const totalJobs = summary?.total_jobs || 0
-    const openJobs = summary?.open_jobs || 0
-    const unverifiedUsers = summary?.unverified_users || 0
-    const unverifiedCompanies = summary?.unverified_companies || 0
-    const totalApplications = summary?.total_applications || 0
-
-    return {
-      health: Math.max(0, 100 - Math.round((percent(unverifiedUsers, totalUsers) + percent(unverifiedCompanies, totalCompanies)) / 2)),
-      openJobRate: percent(openJobs, totalJobs),
-      userVerifyRate: 100 - percent(unverifiedUsers, totalUsers),
-      companyVerifyRate: 100 - percent(unverifiedCompanies, totalCompanies),
-      trend: [
-        Math.max(1, Math.round(totalUsers * 0.38)),
-        Math.max(2, Math.round(totalCompanies * 1.8)),
-        Math.max(3, Math.round(totalJobs * 0.45)),
-        Math.max(4, Math.round(totalApplications * 8 + 8)),
-        Math.max(5, Math.round(openJobs * 0.62 + 12)),
-        Math.max(6, Math.round(totalJobs * 0.7 + 18)),
-      ],
-    }
-  }, [summary])
+  const totalUsers = Number(summary.total_users) || 0
+  const totalCompanies = Number(summary.total_companies) || 0
+  const totalJobs = Number(summary.total_jobs) || 0
+  const unverifiedUsers = Number(summary.unverified_users) || 0
+  const unverifiedCompanies = Number(summary.unverified_companies) || 0
+  const openJobs = Number(summary.open_jobs) || 0
+  const derived = {
+    pendingReviews: unverifiedUsers + unverifiedCompanies + blockedJobs.length,
+    verifiedUsers: Math.max(0, totalUsers - unverifiedUsers),
+    verifiedCompanies: Math.max(0, totalCompanies - unverifiedCompanies),
+    openJobs,
+    totalJobs,
+    totalUsers,
+    totalCompanies,
+    unverifiedUsers,
+    unverifiedCompanies,
+  }
 
   return (
     <AdminLayout
-      title={'T\u1ed5ng quan'}
-      subtitle={'T\u1ed5ng quan v\u1eadn h\u00e0nh h\u1ec7 th\u1ed1ng t\u1eeb d\u1eef li\u1ec7u ng\u01b0\u1eddi d\u00f9ng, doanh nghi\u1ec7p, tin tuy\u1ec3n d\u1ee5ng v\u00e0 h\u1ed3 s\u01a1 \u1ee9ng tuy\u1ec3n.'}
+      title="Tổng quan"
+      subtitle="Theo dõi số liệu vận hành, các mục cần kiểm duyệt và thay đổi mới nhất trong hệ thống."
     >
-      <section className="mb-4 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.35fr)_360px]">
-        <div className="rounded-lg border border-slate-200 bg-slate-950 p-4 text-white shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <section className="mb-4 grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="rounded-lg bg-[#1d292d] px-5 py-5 text-white shadow-[0_18px_36px_-28px_rgba(20,41,38,0.62)] sm:px-6">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-slate-400">{'Trung t\u00e2m \u0111i\u1ec1u h\u00e0nh'}</p>
-              <h2 className="mt-2 text-2xl font-extrabold tracking-tight">{'B\u1ea3ng \u0111i\u1ec1u h\u00e0nh qu\u1ea3n tr\u1ecb'}</h2>
-              <p className="mt-2 max-w-2xl text-[13px] font-medium leading-5 text-slate-400">
-                {'Theo d\u00f5i ng\u01b0\u1eddi d\u00f9ng, doanh nghi\u1ec7p, tin tuy\u1ec3n d\u1ee5ng v\u00e0 h\u00e0ng \u0111\u1ee3i ki\u1ec3m duy\u1ec7t trong m\u1ed9t m\u00e0n h\u00ecnh.'}
+              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                Trung tâm vận hành
+              </div>
+              <h2 className="mt-3 text-[24px] font-extrabold leading-tight">Bảng điều hành quản trị</h2>
+              <p className="mt-2 max-w-2xl text-[13px] leading-5 text-slate-400">
+                Ưu tiên xử lý các tài khoản, doanh nghiệp và tin tuyển dụng đang cần kiểm duyệt.
               </p>
             </div>
-            <div className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-left sm:text-right">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{'S\u1ee9c kh\u1ecfe h\u1ec7 th\u1ed1ng'}</p>
-              <p className="mt-1 text-2xl font-extrabold text-emerald-300">{derived.health}%</p>
+            <div className="rounded-lg border border-white/10 bg-white/[0.06] px-4 py-3 sm:min-w-36 sm:text-right">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Mục cần xử lý</p>
+              <p className="mt-1 text-[28px] font-extrabold leading-none text-white">{formatNumber(derived.pendingReviews)}</p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-md bg-white/[0.04] p-3 ring-1 ring-white/10">
-              <p className="text-[11px] font-semibold text-slate-400">{'T\u1ef7 l\u1ec7 tin \u0111ang tuy\u1ec3n'}</p>
-              <p className="mt-1 text-xl font-extrabold">{derived.openJobRate}%</p>
-            </div>
-            <div className="rounded-md bg-white/[0.04] p-3 ring-1 ring-white/10">
-              <p className="text-[11px] font-semibold text-slate-400">{'Ng\u01b0\u1eddi d\u00f9ng \u0111\u00e3 x\u00e1c minh'}</p>
-              <p className="mt-1 text-xl font-extrabold">{derived.userVerifyRate}%</p>
-            </div>
-            <div className="rounded-md bg-white/[0.04] p-3 ring-1 ring-white/10">
-              <p className="text-[11px] font-semibold text-slate-400">{'Doanh nghi\u1ec7p \u0111\u00e3 x\u00e1c minh'}</p>
-              <p className="mt-1 text-xl font-extrabold">{derived.companyVerifyRate}%</p>
-            </div>
+
+          <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <Link to="/admin/users" className="rounded-lg bg-white/[0.06] p-3 ring-1 ring-white/10 transition hover:bg-white/10">
+              <p className="text-[11px] font-semibold text-slate-400">Ứng viên chờ xác minh</p>
+              <p className="mt-1.5 text-[21px] font-extrabold">{formatNumber(derived.unverifiedUsers)}</p>
+            </Link>
+            <Link to="/admin/companies" className="rounded-lg bg-white/[0.06] p-3 ring-1 ring-white/10 transition hover:bg-white/10">
+              <p className="text-[11px] font-semibold text-slate-400">Doanh nghiệp chờ duyệt</p>
+              <p className="mt-1.5 text-[21px] font-extrabold">{formatNumber(derived.unverifiedCompanies)}</p>
+            </Link>
+            <Link to="/admin/jobs" className="rounded-lg bg-white/[0.06] p-3 ring-1 ring-white/10 transition hover:bg-white/10">
+              <p className="text-[11px] font-semibold text-slate-400">Tin bị chặn gần đây</p>
+              <p className="mt-1.5 text-[21px] font-extrabold">{formatNumber(blockedJobs.length)}</p>
+            </Link>
           </div>
         </div>
 
-        <Panel title={'T\u00edn hi\u1ec7u v\u1eadn h\u00e0nh'} action={loading ? '\u0110ang t\u1ea3i' : 'Tr\u1ef1c ti\u1ebfp'}>
-          <MiniTrend values={derived.trend} />
-          <div className="mt-3 grid grid-cols-1 gap-2 text-[12px] sm:grid-cols-2">
-            <div className="rounded-md bg-slate-50 p-3">
-              <p className="font-bold text-slate-500">{'\u1ee8ng tuy\u1ec3n'}</p>
-              <p className="mt-1 text-lg font-extrabold text-slate-950">{formatNumber(summary?.total_applications)}</p>
-            </div>
-            <div className="rounded-md bg-slate-50 p-3">
-              <p className="font-bold text-slate-500">{'Tin b\u1ecb ch\u1eb7n'}</p>
-              <p className="mt-1 text-lg font-extrabold text-slate-950">{formatNumber(blockedJobs.length)}</p>
+        <Panel
+          title="Trạng thái hệ thống"
+          description={isLoading ? 'Đang đồng bộ dữ liệu...' : 'Dữ liệu từ các API quản trị.'}
+          action={<span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Đang hoạt động</span>}
+        >
+          <div className="space-y-4 p-4">
+            <ProgressRow label="Ứng viên đã xác minh" current={derived.verifiedUsers} total={derived.totalUsers} tone="bg-teal-600" />
+            <ProgressRow label="Doanh nghiệp đã xác minh" current={derived.verifiedCompanies} total={derived.totalCompanies} tone="bg-emerald-500" />
+            <ProgressRow label="Tin đang tuyển" current={derived.openJobs} total={derived.totalJobs} tone="bg-amber-500" />
+            <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-[12px] font-medium leading-5 text-slate-500">
+              Tỷ lệ được tính từ dữ liệu tổng hợp hiện có, không mô phỏng xu hướng theo thời gian.
             </div>
           </div>
         </Panel>
       </section>
 
-      <section className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-4">
-        <MetricCard label={'Ng\u01b0\u1eddi d\u00f9ng'} value={summary?.total_users} hint={`${formatNumber(summary?.unverified_users)} ch\u01b0a x\u00e1c minh`} icon="group" tone="indigo" progress={derived.userVerifyRate} />
-        <MetricCard label={'Doanh nghi\u1ec7p'} value={summary?.total_companies} hint={`${formatNumber(summary?.unverified_companies)} c\u1ea7n duy\u1ec7t`} icon="apartment" tone="emerald" progress={derived.companyVerifyRate} />
-        <MetricCard label={'Tin tuy\u1ec3n d\u1ee5ng'} value={summary?.total_jobs} hint={`${formatNumber(summary?.open_jobs)} \u0111ang m\u1edf`} icon="work" tone="amber" progress={derived.openJobRate} />
-        <MetricCard label={'H\u1ed3 s\u01a1 \u1ee9ng tuy\u1ec3n'} value={summary?.total_applications} hint={'T\u1ed5ng h\u1ed3 s\u01a1 \u0111\u00e3 ghi nh\u1eadn'} icon="assignment_ind" tone="slate" progress={Math.min(100, (summary?.total_applications || 0) * 12)} />
+      <section className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+        <MetricCard label="Người dùng" value={summary.total_users} detail={`${formatNumber(summary.unverified_users)} chưa xác minh`} icon="group" accent="bg-teal-600" to="/admin/users" />
+        <MetricCard label="Doanh nghiệp" value={summary.total_companies} detail={`${formatNumber(summary.unverified_companies)} cần duyệt`} icon="apartment" accent="bg-emerald-500" to="/admin/companies" />
+        <MetricCard label="Tin tuyển dụng" value={summary.total_jobs} detail={`${formatNumber(summary.open_jobs)} đang tuyển`} icon="work" accent="bg-amber-500" to="/admin/jobs" />
+        <MetricCard label="Hồ sơ ứng tuyển" value={summary.total_applications} detail="Tổng hồ sơ đã ghi nhận" icon="assignment_ind" accent="bg-cyan-700" to="/admin/jobs" />
       </section>
 
-      <section className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.35fr)_360px]">
-        <Panel title={'Tin tuy\u1ec3n d\u1ee5ng m\u1edbi nh\u1ea5t'} action={`${jobs.length} b\u1ea3n ghi`}>
-          <div className="overflow-hidden rounded-md border border-slate-100">
-            <div className="hidden grid-cols-[minmax(0,1.2fr)_150px_110px_90px] bg-slate-50 px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400 md:grid">
-              <span>{'Tin tuy\u1ec3n d\u1ee5ng'}</span>
-              <span>{'Doanh nghi\u1ec7p'}</span>
-              <span>{'Tr\u1ea1ng th\u00e1i'}</span>
-              <span>{'C\u1eadp nh\u1eadt'}</span>
-            </div>
-            {jobs.map((job) => (
-              <div key={job._id} className="border-t border-slate-100 px-3 py-2.5 text-[12px] md:grid md:grid-cols-[minmax(0,1.2fr)_150px_110px_90px] md:items-center md:gap-3">
-                <div className="min-w-0">
-                  <p className="truncate font-bold text-slate-950">{job.title}</p>
-                  <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">
-                    {job.level || 'Ch\u01b0a c\u00f3 c\u1ea5p b\u1eadc'} {'\u00b7'} {job.location || 'Ch\u01b0a c\u00f3 \u0111\u1ecba \u0111i\u1ec3m'}
-                  </p>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2 md:mt-0 md:contents">
-                  <p className="truncate font-semibold text-slate-600">{job.company?.company_name || 'Ch\u01b0a c\u00f3 doanh nghi\u1ec7p'}</p>
-                  <span className="w-fit rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-600">
-                    {statusLabelMap[job.status] || job.status || 'Ch\u01b0a r\u00f5'}
-                  </span>
-                  <p className="font-semibold text-slate-500">{formatDate(job.updated_at)}</p>
-                </div>
+      <section className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.35fr)_340px]">
+        <Panel
+          title="Tin tuyển dụng mới nhất"
+          description="Các bản ghi được cập nhật gần đây."
+          action={<Link to="/admin/jobs" className="inline-flex min-h-8 items-center gap-1 text-[12px] font-bold text-slate-600 transition hover:text-slate-950">Xem tất cả <span className="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_forward</span></Link>}
+        >
+          <div className="overflow-x-auto">
+            <div className="min-w-[660px]">
+              <div
+                className="grid gap-3 bg-slate-50 px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400"
+                style={{ gridTemplateColumns: 'minmax(0, 1.4fr) minmax(130px, 0.9fr) 100px 94px' }}
+              >
+                <span>Tin tuyển dụng</span>
+                <span>Doanh nghiệp</span>
+                <span>Trạng thái</span>
+                <span>Cập nhật</span>
               </div>
-            ))}
-            {!jobs.length ? <div className="px-3 py-6 text-center text-[13px] font-semibold text-slate-400">{'Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u tin tuy\u1ec3n d\u1ee5ng.'}</div> : null}
+              {jobs.map((job) => (
+                <Link
+                  key={job._id}
+                  to="/admin/jobs"
+                  className="grid gap-3 border-t border-slate-100 px-4 py-3 text-[12px] transition hover:bg-slate-50"
+                  style={{ gridTemplateColumns: 'minmax(0, 1.4fr) minmax(130px, 0.9fr) 100px 94px' }}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-extrabold text-slate-900">{job.title}</p>
+                    <p className="mt-1 truncate text-[11px] font-medium text-slate-500">{job.level || 'Chưa có cấp bậc'} · {job.location || 'Chưa có địa điểm'}</p>
+                  </div>
+                  <p className="truncate self-center font-semibold text-slate-600">{job.company?.company_name || 'Chưa có doanh nghiệp'}</p>
+                  <span className={`w-fit self-center rounded-full px-2.5 py-1 text-[10px] font-bold ${statusToneMap[job.status] || 'bg-slate-100 text-slate-600'}`}>
+                    {statusLabelMap[job.status] || job.status || 'Chưa rõ'}
+                  </span>
+                  <p className="self-center font-semibold text-slate-500">{formatDate(job.updated_at)}</p>
+                </Link>
+              ))}
+              {!jobs.length ? <EmptyState message="Chưa có dữ liệu tin tuyển dụng." /> : null}
+            </div>
           </div>
         </Panel>
 
         <div className="space-y-3">
-          <Panel title={'H\u00e0ng \u0111\u1ee3i ki\u1ec3m duy\u1ec7t'} action={blockedJobs.length ? 'C\u1ea7n xem' : '\u1ed4n \u0111\u1ecbnh'}>
-            <div className="space-y-2">
+          <Panel
+            title="Hàng đợi kiểm duyệt"
+            description="Tin tuyển dụng bị chặn gần đây."
+            action={<Link to="/admin/jobs" className="text-[12px] font-bold text-slate-600 transition hover:text-slate-950">Mở danh sách</Link>}
+          >
+            <div className="space-y-2 p-3">
               {blockedJobs.map((job) => (
-                <div key={job._id} className="rounded-md border border-rose-100 bg-rose-50/60 p-3">
-                  <p className="truncate text-[13px] font-extrabold text-slate-950">{job.title}</p>
-                  <p className="mt-1 truncate text-[11px] font-semibold text-rose-700">{job.blocked_reason || '\u0110\u00e3 b\u1ecb ch\u1eb7n b\u1edfi qu\u1ea3n tr\u1ecb vi\u00ean'}</p>
-                </div>
+                <Link key={job._id} to="/admin/jobs" className="block rounded-lg border border-rose-100 bg-rose-50/70 p-3 transition hover:border-rose-200 hover:bg-rose-50">
+                  <p className="truncate text-[12px] font-extrabold text-slate-900">{job.title}</p>
+                  <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-4 text-rose-700">{job.blocked_reason || 'Đã bị chặn bởi quản trị viên.'}</p>
+                </Link>
               ))}
-              {!blockedJobs.length ? (
-                <div className="rounded-md border border-emerald-100 bg-emerald-50 p-3 text-[12px] font-bold text-emerald-800">
-                  {'Kh\u00f4ng c\u00f3 tin b\u1ecb ch\u1eb7n trong danh s\u00e1ch m\u1edbi nh\u1ea5t.'}
-                </div>
-              ) : null}
+              {!blockedJobs.length ? <div className="rounded-lg bg-emerald-50 px-3 py-4 text-[12px] font-bold text-emerald-800">Không có tin bị chặn trong danh sách gần đây.</div> : null}
             </div>
           </Panel>
 
-          <Panel title={'Doanh nghi\u1ec7p m\u1edbi'}>
-            <div className="space-y-2">
+          <Panel
+            title="Doanh nghiệp mới"
+            action={<Link to="/admin/companies" className="text-[12px] font-bold text-slate-600 transition hover:text-slate-950">Xem tất cả</Link>}
+          >
+            <div className="divide-y divide-slate-100 px-3">
               {companies.slice(0, 4).map((company) => (
-                <div key={company._id} className="flex flex-col gap-2 rounded-md border border-slate-100 p-2.5 sm:flex-row sm:items-center sm:justify-between">
+                <Link key={company._id} to="/admin/companies" className="flex items-center justify-between gap-3 py-3 transition hover:bg-slate-50">
                   <div className="min-w-0">
-                    <p className="truncate text-[12px] font-extrabold text-slate-950">{company.company_name}</p>
-                    <p className="mt-0.5 text-[11px] font-semibold text-slate-400">{formatDate(company.updated_at || company.created_at)}</p>
+                    <p className="truncate text-[12px] font-extrabold text-slate-900">{company.company_name}</p>
+                    <p className="mt-1 text-[11px] font-medium text-slate-500">{formatDate(company.updated_at || company.created_at)}</p>
                   </div>
-                  <span className={`w-fit rounded-full px-2 py-1 text-[10px] font-extrabold ${company.verified ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                    {company.verified ? '\u0110\u00e3 x\u00e1c minh' : 'Ch\u1edd duy\u1ec7t'}
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${company.verified ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                    {company.verified ? 'Đã xác minh' : 'Chờ duyệt'}
                   </span>
-                </div>
+                </Link>
               ))}
+              {!companies.length ? <EmptyState message="Chưa có dữ liệu doanh nghiệp." /> : null}
             </div>
           </Panel>
         </div>
       </section>
 
       <section className="mt-3">
-        <Panel title={'Ng\u01b0\u1eddi d\u00f9ng c\u1eadp nh\u1eadt g\u1ea7n \u0111\u00e2y'} action={`${users.length} ng\u01b0\u1eddi d\u00f9ng`}>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-5">
+        <Panel
+          title="Người dùng cập nhật gần đây"
+          description="Các tài khoản mới nhất từ API quản trị."
+          action={<Link to="/admin/users" className="inline-flex min-h-8 items-center gap-1 text-[12px] font-bold text-slate-600 transition hover:text-slate-950">Xem tất cả <span className="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_forward</span></Link>}
+        >
+          <div className="grid grid-cols-1 divide-y divide-slate-100 md:grid-cols-2 md:divide-x md:divide-y-0 xl:grid-cols-5">
             {users.map((user) => (
-              <div key={user._id} className="rounded-md border border-slate-100 bg-slate-50 p-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-[12px] font-extrabold text-slate-700 ring-1 ring-slate-200">
-                    {(user.fullName || user.email || 'U').slice(0, 1).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-[12px] font-extrabold text-slate-950">{user.fullName || user.username || 'Ng\u01b0\u1eddi d\u00f9ng'}</p>
-                    <p className="truncate text-[11px] font-medium text-slate-500">{user.email}</p>
-                  </div>
-                </div>
-              </div>
+              <Link key={user._id} to="/admin/users" className="flex min-w-0 items-center gap-2.5 p-3 transition hover:bg-slate-50">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[13px] font-extrabold text-slate-700">
+                  {(user.fullName || user.email || 'U').slice(0, 1).toUpperCase()}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[12px] font-extrabold text-slate-900">{user.fullName || user.username || 'Người dùng'}</span>
+                  <span className="mt-0.5 block truncate text-[11px] font-medium text-slate-500">{user.email || 'Chưa có email'}</span>
+                </span>
+              </Link>
             ))}
+            {!users.length ? <div className="md:col-span-2 xl:col-span-5"><EmptyState message="Chưa có dữ liệu người dùng." /></div> : null}
           </div>
         </Panel>
       </section>

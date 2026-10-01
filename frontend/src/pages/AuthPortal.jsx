@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { forgotPassword, login, register, resetPassword } from '../api/authService.js'
 import Toast from '../components/Toast.jsx'
@@ -9,7 +9,7 @@ const authContent = {
     label: 'Đăng nhập',
     heading: 'Trang đăng nhập',
     description:
-      'Đăng nhập để quản lý việc đã ứng tuyển, lưu job yêu thích và theo dõi tin nhắn với nhà tuyển dụng.',
+      'Đăng nhập để tìm kiếm việc làm, lưu cơ hội phù hợp, gửi hồ sơ và theo dõi quá trình ứng tuyển.',
     submit: 'Đăng nhập',
     helper: 'Chưa có tài khoản?',
     helperCta: 'Đăng ký ngay',
@@ -60,9 +60,93 @@ const authContent = {
 }
 
 const trustStats = [
-  { value: '32k+', label: 'Ứng viên công nghệ' },
-  { value: '1.2k+', label: 'Job mới mỗi tuần' },
+  { value: 32000, label: 'Ứng viên công nghệ' },
+  { value: 1200, label: 'Việc làm mới mỗi tuần' },
 ]
+
+function AnimatedBrand() {
+  const brand = 'MYCODER'
+  const [typedBrand, setTypedBrand] = useState('')
+
+  useEffect(() => {
+    let index = 0
+    let isDeleting = false
+    let timer
+
+    const type = () => {
+      if (isDeleting) {
+        index = Math.max(0, index - 1)
+      } else {
+        index = Math.min(brand.length, index + 1)
+      }
+
+      setTypedBrand(brand.slice(0, index))
+
+      if (!isDeleting && index === brand.length) {
+        isDeleting = true
+        timer = window.setTimeout(type, 2600)
+        return
+      }
+
+      if (isDeleting && index === 0) {
+        isDeleting = false
+        timer = window.setTimeout(type, 850)
+        return
+      }
+
+      timer = window.setTimeout(type, isDeleting ? 60 : 125)
+    }
+
+    timer = window.setTimeout(type, 300)
+
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  return (
+    <span className="auth-brand-typewriter" aria-label={brand}>
+      {typedBrand || '\u00a0'}
+    </span>
+  )
+}
+
+function AnimatedCounter({ value }) {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    const duration = 1500
+    let animationFrame
+    let replayTimer
+
+    const animate = () => {
+      const startedAt = performance.now()
+
+      const update = (timestamp) => {
+        const progress = Math.min((timestamp - startedAt) / duration, 1)
+        const easedProgress = 1 - (1 - progress) ** 3
+        setCount(Math.round(value * easedProgress))
+        if (progress < 1) {
+          animationFrame = window.requestAnimationFrame(update)
+        } else {
+          replayTimer = window.setTimeout(() => {
+            setCount(0)
+            animate()
+          }, 6500)
+        }
+      }
+
+      animationFrame = window.requestAnimationFrame(update)
+    }
+
+    animate()
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame)
+      window.clearTimeout(replayTimer)
+    }
+  }, [value])
+
+  return <>{count.toLocaleString('vi-VN')}+</>
+}
 
 function PasswordInput({ name, placeholder }) {
   const [visible, setVisible] = useState(false)
@@ -243,7 +327,7 @@ function AuthPortal({ mode }) {
       <Toast toast={toast} onClose={() => setToast(null)} />
       <div className="relative mx-auto min-h-screen max-w-[1440px] px-5 py-6 md:px-8">
         <div className="pointer-events-none absolute right-[-180px] top-[-120px] h-[420px] w-[420px] rotate-[18deg] rounded-[48px] border border-sky-300/40 bg-sky-400/18" />
-        <div className="pointer-events-none absolute right-[8%] top-[6%] h-[540px] w-[420px] rotate-[22deg] rounded-[56px] bg-[linear-gradient(180deg,rgba(14,165,233,0.95),rgba(37,99,235,0.92))]" />
+        <div className="auth-shape-primary pointer-events-none absolute right-[8%] top-[6%] h-[540px] w-[420px] rotate-[22deg] rounded-[56px] bg-[linear-gradient(180deg,rgba(14,165,233,0.95),rgba(37,99,235,0.92))]" />
         <div className="pointer-events-none absolute right-[16%] top-[14%] h-[520px] w-[360px] rotate-[22deg] rounded-[48px] border border-white/30 bg-sky-200/12" />
         <div className="pointer-events-none absolute right-[5%] top-[18%] h-[420px] w-[280px] rotate-[22deg] rounded-[40px] border border-white/25 bg-white/8" />
 
@@ -262,12 +346,12 @@ function AuthPortal({ mode }) {
               <span className="material-symbols-outlined !text-[38px] md:!text-[46px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                 code
               </span>
-              MYCODER
+              <AnimatedBrand />
             </div>
             <h1 className="max-w-[460px] text-[40px] font-black leading-[1.05] tracking-tight text-slate-950 md:text-[56px]">
               {content.heading}
             </h1>
-            <p className="mt-4 hidden text-lg font-medium text-sky-700 lg:block">Từ A-Z</p>
+            <p className="mt-4 hidden text-lg font-medium text-sky-700 lg:block">Tìm việc phù hợp. Kết nối đúng cơ hội.</p>
             <p className="mt-8 hidden max-w-[440px] text-[15px] leading-7 text-slate-600 lg:block">{content.description}</p>
 
             <div className="mt-10 hidden flex-wrap gap-3 lg:flex">
@@ -276,13 +360,13 @@ function AuthPortal({ mode }) {
                   key={item.label}
                   className="auth-stat-card border border-white/80 bg-white/80 px-4 py-3 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.55)] backdrop-blur"
                 >
-                  <p className="text-xl font-black text-slate-950">{item.value}</p>
+                  <p className="text-xl font-black text-slate-950"><AnimatedCounter value={item.value} /></p>
                   <p className="text-sm text-slate-500">{item.label}</p>
                 </article>
               ))}
             </div>
 
-            <div className="mt-10 hidden text-xs leading-6 text-slate-500 lg:block">
+            <div className="mt-10 hidden text-[14px] font-medium leading-7 text-slate-600 lg:block">
               <p>Website: mycoder.vn</p>
               <p>Liên hệ: support@mycoder.vn</p>
               <p>Facebook: facebook.com/mycoder.vn</p>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout.jsx'
+import AdminDrawer from '../../components/admin/AdminDrawer.jsx'
 import Toast from '../../components/Toast.jsx'
 import { getAdminJobDetail, getAdminJobs, updateAdminJobModerationStatus } from '../../api/adminService.js'
 import { compactId, formatDateVi as formatDate } from '../../utils/formatters.js'
@@ -173,6 +174,7 @@ export default function AdminJobs() {
   }, [jobs])
 
   const handleOpenDetail = async (jobId) => {
+    setSelectedJob(null)
     setDetailLoading(true)
     try {
       const detail = await getAdminJobDetail(jobId)
@@ -224,7 +226,7 @@ export default function AdminJobs() {
     <AdminLayout title="Tin tuyển dụng" subtitle="Quản lý danh sách tin, trạng thái hiển thị và thao tác kiểm duyệt tin tuyển dụng.">
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      <section className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="admin-metrics mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
           <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Đang tuyển</p>
           <p className="mt-2 text-2xl font-extrabold text-emerald-700">{stats.open}</p>
@@ -243,7 +245,7 @@ export default function AdminJobs() {
         </div>
       </section>
 
-      <section className="mb-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+      <section className="admin-filter-bar mb-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_160px_170px_110px]">
           <label className="relative md:col-span-2 xl:col-span-1">
             <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">search</span>
@@ -281,8 +283,8 @@ export default function AdminJobs() {
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-3 2xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <section>
+        <section className="admin-data-panel overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="hidden grid-cols-[minmax(0,1.2fr)_170px_120px_145px_140px] bg-slate-50 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400 lg:grid">
             <span>Tin tuyển dụng</span>
             <span>Doanh nghiệp</span>
@@ -301,7 +303,7 @@ export default function AdminJobs() {
                   visibilityState.isBlocked
                     ? 'border-rose-100 bg-rose-50/45 hover:bg-rose-50'
                     : isSelected
-                      ? 'border-slate-100 bg-indigo-50/60'
+                      ? 'border-slate-100 bg-teal-50/60'
                       : 'border-slate-100 hover:bg-slate-50'
                 } lg:grid lg:grid-cols-[minmax(0,1.2fr)_170px_120px_145px_140px] lg:items-center lg:gap-3`}
               >
@@ -334,7 +336,7 @@ export default function AdminJobs() {
                   </button>
                   <Link
                     to={buildPromotionLink(job)}
-                    className={`${listActionClassName} border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100`}
+                    className={`${listActionClassName} border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100`}
                   >
                     Quảng cáo
                   </Link>
@@ -374,13 +376,10 @@ export default function AdminJobs() {
           </div>
         </section>
 
-        <aside className="rounded-lg border border-slate-200 bg-white shadow-sm 2xl:sticky 2xl:top-[76px]">
-          <div className="flex h-11 items-center justify-between border-b border-slate-100 px-4">
-            <h2 className="text-[13px] font-extrabold text-slate-950">Chi tiết tin tuyển dụng</h2>
-            {detailLoading ? <span className="text-[12px] font-bold text-slate-400">Đang tải</span> : null}
-          </div>
-
-          {selectedJob ? (
+        <AdminDrawer open={Boolean(selectedJob) || detailLoading} onClose={() => { setSelectedJob(null); setDetailLoading(false); setBlockedReason('') }} title="Chi tiết tin tuyển dụng" subtitle={detailLoading ? 'Đang tải dữ liệu tin tuyển dụng...' : selectedJob?.company?.company_name || 'Kiểm duyệt và thông tin tin tuyển dụng'} wide>
+          {detailLoading || !selectedJob ? (
+            <div className="flex min-h-[360px] items-center justify-center text-sm font-semibold text-slate-400">Đang tải chi tiết...</div>
+          ) : (
             <div className="p-4">
               <h3 className="text-lg font-extrabold leading-6 text-slate-950">{selectedJob.title}</h3>
               <p className="mt-1 text-[12px] font-medium text-slate-500">{selectedJob.company?.company_name || 'Chưa có doanh nghiệp'}</p>
@@ -457,24 +456,14 @@ export default function AdminJobs() {
               </div>
               <Link
                 to={buildPromotionLink(selectedJob)}
-                className="mt-2 flex h-9 items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 px-3 text-[12px] font-extrabold text-indigo-700 transition hover:bg-indigo-100"
+                className="mt-2 flex h-9 items-center justify-center rounded-md border border-teal-200 bg-teal-50 px-3 text-[12px] font-extrabold text-teal-700 transition hover:bg-teal-100"
               >
                 Quản lý quảng cáo của tin này
               </Link>
             </div>
-          ) : (
-            <div className="flex min-h-[420px] items-center justify-center p-6 text-center">
-              <div>
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                  <span className="material-symbols-outlined">work</span>
-                </div>
-                <p className="mt-3 text-[13px] font-bold text-slate-600">Chọn một tin tuyển dụng để xem chi tiết.</p>
-                <p className="mt-1 text-[12px] font-medium text-slate-400">Thông tin kiểm duyệt và nội dung tin sẽ hiển thị ở đây.</p>
-              </div>
-            </div>
           )}
-        </aside>
-      </div>
+        </AdminDrawer>
+      </section>
     </AdminLayout>
   )
 }

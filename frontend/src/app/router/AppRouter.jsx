@@ -15,6 +15,8 @@ const JobDetail = lazy(() => import('../../pages/JobDetail.jsx'))
 const Favorites = lazy(() => import('../../pages/Favorites.jsx'))
 const SearchJobs = lazy(() => import('../../pages/SearchJobs.jsx'))
 const AIAgent = lazy(() => import('../../pages/AIAgent.jsx'))
+const Blog = lazy(() => import('../../pages/Blog.jsx'))
+const Tools = lazy(() => import('../../pages/Tools.jsx'))
 const UserProfileEdit = lazy(() => import('../../pages/UserProfileEdit.jsx'))
 const UserPublicProfile = lazy(() => import('../../pages/UserPublicProfile.jsx'))
 const UserSettings = lazy(() => import('../../pages/UserSettings.jsx'))
@@ -60,6 +62,8 @@ export default function AppRouter() {
         <Route path="/job-detail/:id" element={<JobDetail />} />
         <Route path="/search-jobs" element={<SearchJobs />} />
         <Route path="/ai-agent" element={<AIAgent />} />
+        <Route path="/blog" element={<Blog />} />
+        <Route path="/tools" element={<Tools />} />
         <Route path="/user/profile/:id" element={<UserPublicProfile />} />
 
         <Route path="/dashboard" element={protectedPage(<Dashboard />)} />
