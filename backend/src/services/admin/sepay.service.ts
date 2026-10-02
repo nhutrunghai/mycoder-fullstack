@@ -121,17 +121,46 @@ class AdminSePayService {
         updated_at: { $gte: oneDayAgo }
       }),
       databaseService.walletTopUpOrders
-        .find(
-          {},
+        .aggregate([
+          { $sort: { updated_at: -1 } },
+          { $limit: recentLimit },
           {
-            projection: {
+            $lookup: {
+              from: databaseService.users.collectionName,
+              localField: 'user_id',
+              foreignField: '_id',
+              as: 'user'
+            }
+          },
+          {
+            $unwind: {
+              path: '$user',
+              preserveNullAndEmptyArrays: true
+            }
+          },
+          {
+            $project: {
               webhook_payload: 0,
               provider_payload: 0
             }
+          },
+          {
+            $addFields: {
+              user_id: {
+                $cond: [
+                  { $ifNull: ['$user._id', false] },
+                  {
+                    _id: '$user._id',
+                    fullName: '$user.fullName',
+                    username: '$user.username',
+                    email: '$user.email'
+                  },
+                  '$user_id'
+                ]
+              }
+            }
           }
-        )
-        .sort({ updated_at: -1 })
-        .limit(recentLimit)
+        ])
         .toArray(),
       databaseService.walletTopUpOrders.findOne(
         {

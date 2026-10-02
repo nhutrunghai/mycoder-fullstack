@@ -1,8 +1,9 @@
 import { Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
 import { ObjectId } from 'mongodb'
-import { JobModerationStatus, JobStatus } from '~/constants/enums.js'
+import { AdminAuditAction, AdminAuditTargetType, JobModerationStatus, JobStatus } from '~/constants/enums.js'
 import { AdminJobLocals } from '~/types/http/response.type.js'
+import adminAuditLogService from '~/services/admin/audit-log.service.js'
 import adminJobService from '~/services/admin/job.service.js'
 
 export const getAdminJobsController = async (req: Request, res: Response) => {
@@ -120,6 +121,25 @@ export const updateAdminJobModerationStatusController = async (
           blockedReason,
           adminUserId: currentAdmin!._id as ObjectId
         })
+
+  if (currentAdmin?._id) {
+    await adminAuditLogService.create({
+      req,
+      adminId: currentAdmin._id as ObjectId,
+      adminEmail: currentAdmin.email,
+      action: AdminAuditAction.JOB_MODERATION_UPDATE,
+      targetType: AdminAuditTargetType.JOB,
+      targetId: targetJob._id,
+      statusCode: StatusCodes.OK,
+      success: true,
+      metadata: {
+        job_title: targetJob.title,
+        previous_status: targetJob.moderation_status,
+        new_status: moderationStatus,
+        blocked_reason: blockedReason || null
+      }
+    })
+  }
 
   return res.status(StatusCodes.OK).json({
     status: 'success',

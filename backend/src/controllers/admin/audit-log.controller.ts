@@ -6,20 +6,37 @@ import adminAuditLogService from '~/services/admin/audit-log.service.js'
 export const getAdminAuditLogsController = async (req: Request, res: Response) => {
   const page = Number(req.query.page || 1)
   const limit = Number(req.query.limit || 10)
-  const adminId = typeof req.query.adminId === 'string' ? new ObjectId(req.query.adminId) : undefined
-  const action = typeof req.query.action === 'string' ? req.query.action : undefined
-  const targetType = typeof req.query.targetType === 'string' ? req.query.targetType : undefined
+  const keyword = typeof req.query.keyword === 'string' ? req.query.keyword.trim() : undefined
+
+  const rawAdminId = req.query.adminId || req.query.admin_id
+  const adminId =
+    typeof rawAdminId === 'string' && /^[a-fA-F0-9]{24}$/.test(rawAdminId) ? new ObjectId(rawAdminId) : undefined
+
+  const action = typeof req.query.action === 'string' && req.query.action ? req.query.action : undefined
+
+  const rawTargetType = req.query.targetType || req.query.target_type
+  const targetType = typeof rawTargetType === 'string' && rawTargetType ? rawTargetType : undefined
+
+  const rawTargetId = req.query.targetId || req.query.target_id
   const targetId =
-    typeof req.query.targetId === 'string'
-      ? /^[a-fA-F0-9]{24}$/.test(req.query.targetId)
-        ? new ObjectId(req.query.targetId)
-        : req.query.targetId
+    typeof rawTargetId === 'string' && rawTargetId
+      ? /^[a-fA-F0-9]{24}$/.test(rawTargetId)
+        ? new ObjectId(rawTargetId)
+        : rawTargetId
       : undefined
-  const success = typeof req.query.success === 'boolean' ? req.query.success : undefined
-  const fromDate = typeof req.query.fromDate === 'string' ? new Date(req.query.fromDate) : undefined
-  const toDate = typeof req.query.toDate === 'string' ? new Date(req.query.toDate) : undefined
+
+  const success =
+    req.query.success === 'true'
+      ? true
+      : req.query.success === 'false'
+        ? false
+        : undefined
+
+  const fromDate = typeof req.query.fromDate === 'string' && req.query.fromDate ? new Date(req.query.fromDate) : undefined
+  const toDate = typeof req.query.toDate === 'string' && req.query.toDate ? new Date(req.query.toDate) : undefined
 
   const result = await adminAuditLogService.getLogs({
+    keyword,
     adminId,
     action,
     targetType,
