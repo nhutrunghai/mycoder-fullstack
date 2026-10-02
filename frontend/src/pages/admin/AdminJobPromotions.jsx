@@ -573,21 +573,15 @@ export default function AdminJobPromotions() {
 
                     <td className="py-3 px-4 whitespace-nowrap">
                       {isPaid ? (
-                        <div>
-                          <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-2 py-0.5 text-[11px] font-semibold text-teal-700 ring-1 ring-inset ring-teal-600/20">
-                            <span className="material-symbols-outlined text-[13px]">wallet</span>
-                            <span>{formatMoney(promo.amount_paid, promo.currency)}</span>
-                          </span>
-                          <p className="text-[10px] text-slate-400 mt-0.5">Doanh nghiệp mua ví</p>
-                        </div>
+                        <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                          <span className="material-symbols-outlined text-[12px]">wallet</span>
+                          <span>{formatMoney(promo.amount_paid, promo.currency)}</span>
+                        </span>
                       ) : (
-                        <div>
-                          <span className="inline-flex items-center gap-1 rounded-md bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-700 ring-1 ring-inset ring-purple-600/20">
-                            <span className="material-symbols-outlined text-[13px]">military_tech</span>
-                            <span>Admin đặc cách</span>
-                          </span>
-                          <p className="text-[10px] text-slate-400 mt-0.5">Miễn phí (0 ₫)</p>
-                        </div>
+                        <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                          <span className="material-symbols-outlined text-[12px]">shield_person</span>
+                          <span>Admin kích hoạt</span>
+                        </span>
                       )}
                     </td>
 
@@ -797,7 +791,7 @@ export default function AdminJobPromotions() {
                 <span className="font-semibold text-slate-800">
                   {selectedPromotion.source === 'employer_purchase'
                     ? 'Nhà tuyển dụng mua qua Ví'
-                    : 'Admin cấp đặc cách'}
+                    : 'Admin kích hoạt'}
                 </span>
               </div>
 
@@ -932,7 +926,7 @@ export default function AdminJobPromotions() {
           </div>
 
           <div className="rounded-lg bg-indigo-50/70 p-3 text-[11px] text-indigo-800 border border-indigo-100 leading-relaxed">
-            <strong>Ghi chú:</strong> Chiến dịch do quản trị viên cấp được ghi nhận nguồn <code>Admin đặc cách</code>, chi phí thanh toán là <code>0 ₫</code> và không ảnh hưởng đến số dư ví của doanh nghiệp.
+            <strong>Ghi chú:</strong> Chiến dịch do quản trị viên cấp được ghi nhận nguồn <code>Admin kích hoạt</code>, chi phí thanh toán là <code>0 ₫</code> và không ảnh hưởng đến số dư ví của doanh nghiệp.
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
