@@ -117,6 +117,8 @@ export default function AdminJobs() {
   const [searchParams, setSearchParams] = useSearchParams()
   const location = useLocation()
   const companyIdParam = searchParams.get('companyId') || searchParams.get('company_id') || ''
+  const categoryIdParam = searchParams.get('categoryId') || searchParams.get('category_id') || ''
+  const categoryNameParam = searchParams.get('categoryName') || location.state?.categoryName || ''
 
   const [jobs, setJobs] = useState([])
   const [selectedJob, setSelectedJob] = useState(null)
@@ -157,6 +159,7 @@ export default function AdminJobs() {
         status: status || undefined,
         moderation_status: moderationStatus || undefined,
         companyId: companyIdParam || undefined,
+        categoryId: categoryIdParam || undefined,
       })
         .then((data) => {
           if (!active) return
@@ -178,11 +181,11 @@ export default function AdminJobs() {
       active = false
       window.clearTimeout(timer)
     }
-  }, [keyword, status, moderationStatus, companyIdParam, pagination.page, pagination.limit])
+  }, [keyword, status, moderationStatus, companyIdParam, categoryIdParam, pagination.page, pagination.limit])
 
   useEffect(() => {
     setPagination((current) => ({ ...current, page: 1 }))
-  }, [keyword, status, moderationStatus, companyIdParam])
+  }, [keyword, status, moderationStatus, companyIdParam, categoryIdParam])
 
   const handleOpenDetail = async (jobId) => {
     setDrawerOpen(true)
@@ -370,30 +373,57 @@ export default function AdminJobs() {
           </select>
         </div>
 
-        {companyIdParam ? (
-          <div className="mt-3 flex items-center gap-2 text-xs bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg w-fit">
-            <span className="material-symbols-outlined text-[15px] text-indigo-500">apartment</span>
-            <span>
-              Đang lọc theo công ty: <strong>{location.state?.companyName || (companyIdParam ? 'Công ty #' + companyIdParam.slice(-6) : '')}</strong>
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setKeyword('')
-                setSearchParams((prev) => {
-                  const next = new URLSearchParams(prev)
-                  next.delete('companyId')
-                  next.delete('company_id')
-                  return next
-                }, { replace: true })
-              }}
-              title="Hủy lọc theo công ty"
-              className="inline-flex items-center justify-center h-5 w-5 rounded-full hover:bg-indigo-200/60 text-indigo-600 transition ml-1 font-bold"
-            >
-              ✕
-            </button>
-          </div>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {companyIdParam ? (
+            <div className="mt-3 flex items-center gap-2 text-xs bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg w-fit">
+              <span className="material-symbols-outlined text-[15px] text-indigo-500">apartment</span>
+              <span>
+                Đang lọc theo công ty: <strong>{location.state?.companyName || (companyIdParam ? 'Công ty #' + companyIdParam.slice(-6) : '')}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setKeyword('')
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev)
+                    next.delete('companyId')
+                    next.delete('company_id')
+                    return next
+                  }, { replace: true })
+                }}
+                title="Hủy lọc theo công ty"
+                className="inline-flex items-center justify-center h-5 w-5 rounded-full hover:bg-indigo-200/60 text-indigo-600 transition ml-1 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+          ) : null}
+
+          {categoryIdParam ? (
+            <div className="mt-3 flex items-center gap-2 text-xs bg-teal-50 border border-teal-100 text-teal-700 px-3 py-1.5 rounded-lg w-fit">
+              <span className="material-symbols-outlined text-[15px] text-teal-600">category</span>
+              <span>
+                Đang lọc theo danh mục: <strong>{categoryNameParam || ('ID #' + categoryIdParam.slice(-6))}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev)
+                    next.delete('categoryId')
+                    next.delete('category_id')
+                    next.delete('categoryName')
+                    return next
+                  }, { replace: true })
+                }}
+                title="Hủy lọc theo danh mục"
+                className="inline-flex items-center justify-center h-5 w-5 rounded-full hover:bg-teal-200/60 text-teal-600 transition ml-1 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+          ) : null}
+        </div>
       </section>
 
       {/* Main Data Table */}

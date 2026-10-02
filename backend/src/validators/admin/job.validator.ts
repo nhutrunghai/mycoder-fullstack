@@ -28,6 +28,20 @@ export const getAdminJobsValidator = z.object({
         message: UserMessages.COMPANY_ID_INVALID
       })
       .optional(),
+    categoryId: z
+      .string()
+      .trim()
+      .regex(/^[a-fA-F0-9]{24}$/, {
+        message: 'ID danh mục không hợp lệ'
+      })
+      .optional(),
+    category_id: z
+      .string()
+      .trim()
+      .regex(/^[a-fA-F0-9]{24}$/, {
+        message: 'ID danh mục không hợp lệ'
+      })
+      .optional(),
     status: z
       .enum(adminJobStatusValues, {
         message: UserMessages.JOB_UPDATE_STATUS_INVALID

@@ -7,6 +7,7 @@ import adminJobService from '~/services/admin/job.service.js'
 
 export const getAdminJobsController = async (req: Request, res: Response) => {
   const companyId = (typeof req.query.companyId === 'string' && req.query.companyId) || (typeof req.query.company_id === 'string' && req.query.company_id) || undefined
+  const categoryId = (typeof req.query.categoryId === 'string' && req.query.categoryId) || (typeof req.query.category_id === 'string' && req.query.category_id) || undefined
   const status = req.query.status as JobStatus | undefined
   const moderationStatus = req.query.moderation_status as JobModerationStatus | undefined
   const keyword = typeof req.query.keyword === 'string' ? req.query.keyword.trim() : undefined
@@ -15,6 +16,7 @@ export const getAdminJobsController = async (req: Request, res: Response) => {
 
   const result = await adminJobService.getJobs({
     companyId: companyId ? new ObjectId(companyId) : undefined,
+    categoryId: categoryId ? new ObjectId(categoryId) : undefined,
     status,
     moderationStatus,
     keyword,

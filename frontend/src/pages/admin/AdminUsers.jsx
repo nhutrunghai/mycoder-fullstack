@@ -540,8 +540,17 @@ export default function AdminUsers() {
                 <span className={`w-fit rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${roleToneMap[user.role] || 'bg-slate-100 text-slate-700'}`}>
                   {roleLabelMap[user.role] ?? user.role}
                 </span>
-                <span className={`w-fit rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${statusToneMap[user.status] || statusToneMap[2]}`}>
-                  {statusLabelMap[user.status] ?? user.status}
+                <span className={`inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${statusToneMap[user.status] || statusToneMap[2]}`}>
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      user.status === 0
+                        ? 'bg-emerald-500'
+                        : user.status === 1
+                        ? 'bg-rose-500'
+                        : 'bg-slate-400'
+                    }`}
+                  />
+                  <span>{statusLabelMap[user.status] ?? user.status}</span>
                 </span>
                 <p className="text-[11px] text-slate-500 font-medium lg:text-xs">{formatDate(user.updated_at)}</p>
               </div>
@@ -629,8 +638,17 @@ export default function AdminUsers() {
                   <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${roleToneMap[selectedUser.role] || 'bg-slate-100 text-slate-700'}`}>
                     {roleLabelMap[selectedUser.role] ?? selectedUser.role}
                   </span>
-                  <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${statusToneMap[selectedUser.status] || statusToneMap[2]}`}>
-                    {statusLabelMap[selectedUser.status] ?? selectedUser.status}
+                  <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${statusToneMap[selectedUser.status] || statusToneMap[2]}`}>
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        selectedUser.status === 0
+                          ? 'bg-emerald-500'
+                          : selectedUser.status === 1
+                          ? 'bg-rose-500'
+                          : 'bg-slate-400'
+                      }`}
+                    />
+                    <span>{statusLabelMap[selectedUser.status] ?? selectedUser.status}</span>
                   </span>
                   <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${selectedUser.is_verified ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' : 'bg-amber-50 text-amber-700 ring-amber-600/20'}`}>
                     {selectedUser.is_verified ? 'Đã xác minh email' : 'Chưa xác minh email'}

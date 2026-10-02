@@ -34,6 +34,7 @@ type AdminJobListItem = {
 class AdminJobService {
   async getJobs({
     companyId,
+    categoryId,
     status,
     moderationStatus,
     keyword,
@@ -41,6 +42,7 @@ class AdminJobService {
     limit
   }: {
     companyId?: ObjectId
+    categoryId?: ObjectId
     status?: JobStatus
     moderationStatus?: JobModerationStatus
     keyword?: string
@@ -51,6 +53,10 @@ class AdminJobService {
 
     if (companyId) {
       matchQuery.company_id = companyId
+    }
+
+    if (categoryId) {
+      matchQuery.category_ids = categoryId
     }
 
     if (status) {
@@ -73,6 +79,14 @@ class AdminJobService {
       },
       {
         $unwind: '$company'
+      },
+      {
+        $lookup: {
+          from: databaseService.jobCategories.collectionName,
+          localField: 'category_ids',
+          foreignField: '_id',
+          as: 'categories'
+        }
       }
     ]
 
@@ -111,7 +125,8 @@ class AdminJobService {
             _id: '$company._id',
             company_name: '$company.company_name',
             verified: '$company.verified'
-          }
+          },
+          category_names: '$categories.name'
         }
       },
       { $sort: { updated_at: -1 } },

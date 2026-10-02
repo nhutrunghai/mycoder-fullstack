@@ -93,7 +93,20 @@ class AdminJobCategoryService {
     if (existing) throw new Error('Slug danh mục đã tồn tại')
 
     if (normalized.parent_id) {
-      if (String(normalized.parent_id) === String(categoryId)) throw new Error('Danh mục cha không được trùng chính nó')
+      if (String(normalized.parent_id) === String(categoryId)) {
+        throw new Error('Danh mục cha không được trùng chính nó')
+      }
+
+      // Check circular reference: parent_id cannot be a descendant of categoryId
+      let checkParentId: ObjectId | null = normalized.parent_id
+      while (checkParentId) {
+        if (String(checkParentId) === String(categoryId)) {
+          throw new Error('Không thể chọn danh mục con hoặc cháu làm danh mục cha')
+        }
+        const parentCat: any = await databaseService.jobCategories.findOne({ _id: checkParentId })
+        checkParentId = parentCat?.parent_id ? new ObjectId(parentCat.parent_id) : null
+      }
+
       const parent = await databaseService.jobCategories.findOne({ _id: normalized.parent_id })
       if (!parent) throw new Error('Danh mục cha không tồn tại')
     }
