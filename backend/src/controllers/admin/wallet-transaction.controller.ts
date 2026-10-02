@@ -18,6 +18,7 @@ import logger from '~/configs/logger.config.js'
 export const getAdminWalletTransactionsController = async (req: Request, res: Response) => {
   const page = Number(req.query.page || 1)
   const limit = Number(req.query.limit || 10)
+  const keyword = typeof req.query.keyword === 'string' && req.query.keyword.trim() ? req.query.keyword.trim() : undefined
   const rawUserId = (req.query.userId || req.query.user_id) as string | undefined
   const userId = typeof rawUserId === 'string' && rawUserId.trim() ? new ObjectId(rawUserId.trim()) : undefined
   const type = req.query.type as WalletTransactionType | undefined
@@ -25,6 +26,7 @@ export const getAdminWalletTransactionsController = async (req: Request, res: Re
   const direction = req.query.direction as WalletTransactionDirection | undefined
 
   const result = await adminWalletTransactionService.getWalletTransactions({
+    keyword,
     userId,
     type,
     status,
@@ -37,7 +39,8 @@ export const getAdminWalletTransactionsController = async (req: Request, res: Re
     status: 'success',
     data: {
       transactions: result.transactions,
-      pagination: result.pagination
+      pagination: result.pagination,
+      stats: result.stats
     }
   })
 }

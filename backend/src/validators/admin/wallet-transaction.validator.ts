@@ -27,6 +27,7 @@ const adminWalletTransactionDirectionValues = [
 
 export const getAdminWalletTransactionsValidator = z.object({
   query: z.object({
+    keyword: z.string().trim().optional(),
     userId: z
       .string()
       .trim()

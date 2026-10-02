@@ -13,6 +13,7 @@ import WalletTransaction from '~/models/schema/client/walletTransactions.schema.
 
 class AdminWalletTransactionService {
   async getWalletTransactions({
+    keyword,
     userId,
     type,
     status,
@@ -20,6 +21,7 @@ class AdminWalletTransactionService {
     page,
     limit
   }: {
+    keyword?: string
     userId?: ObjectId
     type?: WalletTransactionType
     status?: WalletTransactionStatus
@@ -27,12 +29,7 @@ class AdminWalletTransactionService {
     page: number
     limit: number
   }) {
-    const match: {
-      user_id?: ObjectId
-      type?: WalletTransactionType
-      status?: WalletTransactionStatus
-      direction?: WalletTransactionDirection
-    } = {}
+    const match: Record<string, any> = {}
 
     if (userId) {
       match.user_id = userId
@@ -50,7 +47,37 @@ class AdminWalletTransactionService {
       match.direction = direction
     }
 
-    const [transactions, totalResult] = await Promise.all([
+    if (keyword) {
+      const orConditions: any[] = [
+        { description: { $regex: keyword, $options: 'i' } }
+      ]
+
+      const matchedUsers = await databaseService.users
+        .find(
+          {
+            $or: [
+              { fullName: { $regex: keyword, $options: 'i' } },
+              { username: { $regex: keyword, $options: 'i' } },
+              { email: { $regex: keyword, $options: 'i' } }
+            ]
+          },
+          { projection: { _id: 1 } }
+        )
+        .toArray()
+
+      if (matchedUsers.length > 0) {
+        orConditions.push({ user_id: { $in: matchedUsers.map((u) => u._id) } })
+      }
+
+      if (ObjectId.isValid(keyword) && keyword.length === 24) {
+        orConditions.push({ _id: new ObjectId(keyword) })
+        orConditions.push({ reference_id: new ObjectId(keyword) })
+      }
+
+      match.$or = orConditions
+    }
+
+    const [transactions, totalResult, statsResult, userWallet] = await Promise.all([
       databaseService.walletTransactions
         .aggregate<{
           _id: ObjectId
@@ -137,10 +164,45 @@ class AdminWalletTransactionService {
           { $match: match },
           { $count: 'total' }
         ])
-        .toArray()
+        .toArray(),
+      databaseService.walletTransactions
+        .aggregate<{
+          totalCredit: number
+          totalDebit: number
+          totalCount: number
+        }>([
+          { $match: match },
+          {
+            $group: {
+              _id: null,
+              totalCredit: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ['$direction', 'credit'] }, { $eq: ['$status', 'succeeded'] }] },
+                    '$amount',
+                    0
+                  ]
+                }
+              },
+              totalDebit: {
+                $sum: {
+                  $cond: [
+                    { $and: [{ $eq: ['$direction', 'debit'] }, { $eq: ['$status', 'succeeded'] }] },
+                    '$amount',
+                    0
+                  ]
+                }
+              },
+              totalCount: { $sum: 1 }
+            }
+          }
+        ])
+        .toArray(),
+      userId ? databaseService.wallets.findOne({ user_id: userId }) : Promise.resolve(null)
     ])
 
     const total = totalResult[0]?.total || 0
+    const rawStats = statsResult[0] || { totalCredit: 0, totalDebit: 0, totalCount: total }
 
     return {
       transactions,
@@ -148,7 +210,13 @@ class AdminWalletTransactionService {
         page,
         limit,
         total,
-        total_pages: Math.ceil(total / limit)
+        total_pages: Math.max(1, Math.ceil(total / limit))
+      },
+      stats: {
+        totalCredit: rawStats.totalCredit || 0,
+        totalDebit: rawStats.totalDebit || 0,
+        totalCount: total,
+        userBalance: userWallet ? userWallet.balance : null
       }
     }
   }

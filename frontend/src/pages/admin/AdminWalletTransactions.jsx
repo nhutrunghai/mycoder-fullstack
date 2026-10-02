@@ -1,7 +1,6 @@
-﻿import { useEffect, useMemo, useState } from 'react'
-import { useLocation, useSearchParams } from 'react-router-dom'
+﻿import { useEffect, useState } from 'react'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout.jsx'
-import AdminDrawer from '../../components/admin/AdminDrawer.jsx'
 import AdminModal from '../../components/admin/AdminModal.jsx'
 import Toast from '../../components/Toast.jsx'
 import {
@@ -31,19 +30,21 @@ const statusLabelMap = {
 }
 
 const statusToneMap = {
-  succeeded: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-  pending: 'bg-amber-50 text-amber-700 ring-amber-600/20',
-  failed: 'bg-rose-50 text-rose-700 ring-rose-600/20',
-  cancelled: 'bg-slate-100 text-slate-600 ring-slate-500/10',
+  succeeded: 'border-emerald-200 bg-emerald-50/60 text-emerald-700',
+  pending: 'border-amber-200 bg-amber-50/60 text-amber-700',
+  failed: 'border-rose-200 bg-rose-50/60 text-rose-700',
+  cancelled: 'border-slate-200 bg-slate-50 text-slate-600',
 }
 
-function PropertyRow({ label, value, mono = false }) {
+function PropertyRow({ label, value, mono = false, children }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-slate-100 text-xs">
+    <div className="flex items-start justify-between gap-4 py-2 border-b border-slate-100 text-xs last:border-b-0">
       <span className="text-slate-500 font-medium shrink-0">{label}</span>
-      <span className={`text-slate-900 text-right ${mono ? 'font-mono' : 'font-medium'} break-all`}>
-        {value || '—'}
-      </span>
+      {children || (
+        <span className={`text-slate-900 text-right ${mono ? 'font-mono' : 'font-medium'} break-all`}>
+          {value || '—'}
+        </span>
+      )}
     </div>
   )
 }
@@ -56,8 +57,9 @@ export default function AdminWalletTransactions() {
   const [transactions, setTransactions] = useState([])
   const [selectedTx, setSelectedTx] = useState(null)
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, total_pages: 1 })
+  const [dbStats, setDbStats] = useState({ totalCredit: 0, totalDebit: 0, totalCount: 0, userBalance: null })
   const [loading, setLoading] = useState(true)
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [adjustOpen, setAdjustOpen] = useState(false)
   const [toast, setToast] = useState(null)
 
@@ -114,7 +116,7 @@ export default function AdminWalletTransactions() {
       const data = await getAdminWalletTransactions({
         page: pagination.page,
         limit: pagination.limit,
-        keyword: keyword || undefined,
+        keyword: keyword.trim() || undefined,
         type: type || undefined,
         status: status || undefined,
         direction: direction || undefined,
@@ -122,6 +124,10 @@ export default function AdminWalletTransactions() {
       })
       setTransactions(data?.transactions || data?.data?.transactions || [])
       setPagination((curr) => ({ ...curr, ...(data?.pagination || {}) }))
+      const statsPayload = data?.stats || data?.data?.stats
+      if (statsPayload) {
+        setDbStats(statsPayload)
+      }
     } catch (error) {
       setToast({ type: 'error', message: error.message || 'Không thể tải lịch sử giao dịch.' })
     } finally {
@@ -159,17 +165,6 @@ export default function AdminWalletTransactions() {
     return () => clearTimeout(timer)
   }, [adjustUserSearch, adjustOpen])
 
-  const stats = useMemo(() => {
-    let creditTotal = 0
-    let debitTotal = 0
-    transactions.forEach((tx) => {
-      const amt = Number(tx.amount || 0)
-      if (tx.direction === 'credit') creditTotal += amt
-      else debitTotal += amt
-    })
-    return { creditTotal, debitTotal }
-  }, [transactions])
-
   const handleClearUserFilter = () => {
     setFilterUser(null)
     setSearchParams((prev) => {
@@ -197,7 +192,17 @@ export default function AdminWalletTransactions() {
 
   const handleOpenDetail = (tx) => {
     setSelectedTx(tx)
-    setDrawerOpen(true)
+    setDetailModalOpen(true)
+  }
+
+  const handleFilterByUser = (targetUserId) => {
+    if (!targetUserId) return
+    setDetailModalOpen(false)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('userId', String(targetUserId))
+      return next
+    })
   }
 
   const handleOpenAdjust = () => {
@@ -260,28 +265,42 @@ export default function AdminWalletTransactions() {
     >
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      {/* KPI Cards */}
+      {/* KPI Cards (Database-Wide) */}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
-          <p className="text-xs font-medium text-slate-500">Tổng GD trang này</p>
-          <p className="mt-2 text-xl font-bold tracking-tight text-slate-900">{transactions.length}</p>
+          <p className="text-xs font-medium text-slate-500">
+            {userIdParam ? 'Tổng GD tài khoản' : 'Tổng số giao dịch'}
+          </p>
+          <p className="mt-2 text-xl font-bold tracking-tight text-slate-900 font-mono">
+            {dbStats.totalCount || pagination.total || transactions.length}
+          </p>
         </div>
         <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
-          <p className="text-xs font-medium text-slate-500">Dòng tiền nạp vào (+)</p>
+          <p className="text-xs font-medium text-slate-500">
+            {userIdParam ? 'Tổng nạp vào tài khoản' : 'Dòng tiền nạp vào (+)'}
+          </p>
           <p className="mt-2 text-xl font-bold tracking-tight text-emerald-600 font-mono">
-            +{formatMoney(stats.creditTotal)}
+            +{formatMoney(dbStats.totalCredit)}
           </p>
         </div>
         <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
-          <p className="text-xs font-medium text-slate-500">Dòng tiền thanh toán (-)</p>
+          <p className="text-xs font-medium text-slate-500">
+            {userIdParam ? 'Tổng chi tiêu tài khoản' : 'Dòng tiền thanh toán (-)'}
+          </p>
           <p className="mt-2 text-xl font-bold tracking-tight text-slate-800 font-mono">
-            {stats.debitTotal > 0 ? `-${formatMoney(stats.debitTotal)}` : '0 ₫'}
+            {dbStats.totalDebit > 0 ? `-${formatMoney(dbStats.totalDebit)}` : '0 ₫'}
           </p>
         </div>
         <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
-          <p className="text-xs font-medium text-slate-500">Tổng số GD phù hợp</p>
+          <p className="text-xs font-medium text-slate-500">
+            {userIdParam ? 'Số dư ví hiện tại' : 'Biến động ròng (Net)'}
+          </p>
           <p className="mt-2 text-xl font-bold tracking-tight text-indigo-600 font-mono">
-            {pagination.total || transactions.length}
+            {userIdParam && dbStats.userBalance !== null
+              ? formatMoney(dbStats.userBalance)
+              : `${dbStats.totalCredit - dbStats.totalDebit >= 0 ? '+' : ''}${formatMoney(
+                  dbStats.totalCredit - dbStats.totalDebit
+                )}`}
           </p>
         </div>
       </section>
@@ -290,15 +309,32 @@ export default function AdminWalletTransactions() {
       <section className="rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs">
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_150px_150px_150px_auto]">
           <div className="relative">
-            <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400"
+            >
               search
             </span>
             <input
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder={userIdParam ? 'Tìm trong giao dịch của tài khoản này...' : 'Tìm theo mã GD, mã SePay hoặc ghi chú...'}
-              className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50/50 pl-9 pr-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-indigo-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-600 transition"
+              placeholder={
+                userIdParam
+                  ? 'Tìm trong giao dịch của tài khoản này...'
+                  : 'Tìm theo mã GD, email, họ tên hoặc ghi chú...'
+              }
+              className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50/50 pl-9 pr-8 text-xs text-slate-800 placeholder:text-slate-400 focus:border-indigo-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-600 transition"
             />
+            {keyword ? (
+              <button
+                type="button"
+                onClick={() => setKeyword('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full"
+                title="Xóa tìm kiếm"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </button>
+            ) : null}
           </div>
           <select
             value={type}
@@ -397,12 +433,22 @@ export default function AdminWalletTransactions() {
                     </td>
 
                     <td className="py-3 px-4">
-                      <p className="font-semibold text-slate-900 truncate max-w-xs">{displayName}</p>
+                      {user._id ? (
+                        <Link
+                          to={`/admin/users?keyword=${encodeURIComponent(user.email || displayName)}`}
+                          className="font-semibold text-slate-900 hover:text-indigo-600 transition truncate max-w-xs block"
+                          title="Xem hồ sơ người dùng"
+                        >
+                          {displayName}
+                        </Link>
+                      ) : (
+                        <p className="font-semibold text-slate-900 truncate max-w-xs">{displayName}</p>
+                      )}
                       <p className="text-[11px] text-slate-500 truncate">{displayEmail}</p>
                     </td>
 
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700">
+                      <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700">
                         {typeLabelMap[tx.type] || tx.type}
                       </span>
                     </td>
@@ -414,9 +460,13 @@ export default function AdminWalletTransactions() {
                     </td>
 
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset ${statusToneMap[tx.status] || 'bg-slate-100 text-slate-600'}`}>
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-medium ${
+                          statusToneMap[tx.status] || 'border-slate-200 bg-slate-50 text-slate-600'
+                        }`}
+                      >
                         <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                        {statusLabelMap[tx.status] || tx.status}
+                        <span>{statusLabelMap[tx.status] || tx.status}</span>
                       </span>
                     </td>
 
@@ -428,9 +478,9 @@ export default function AdminWalletTransactions() {
                       <button
                         type="button"
                         onClick={() => handleOpenDetail(tx)}
-                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+                        className="inline-flex h-7 items-center justify-center rounded-md border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-indigo-600 hover:border-slate-300 transition"
                       >
-                        Xem
+                        Chi tiết
                       </button>
                     </td>
                   </tr>
@@ -471,48 +521,117 @@ export default function AdminWalletTransactions() {
         </div>
       </section>
 
-      {/* Transaction Detail Drawer */}
-      <AdminDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+      {/* Transaction Detail Modal (Center Modal) */}
+      <AdminModal
+        open={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
         title="Chi tiết giao dịch số dư"
-        subtitle={selectedTx?.code || selectedTx?.transaction_code}
+        subtitle={`Mã giao dịch: ${selectedTx?.code || selectedTx?.transaction_code || selectedTx?._id?.slice(-8).toUpperCase()}`}
+        size="md"
+        footer={
+          <div className="flex items-center justify-between gap-3 w-full">
+            <div>
+              {selectedTx && (!userIdParam || userIdParam !== String(selectedTx.user_id?._id || selectedTx.user_id)) ? (
+                <button
+                  type="button"
+                  onClick={() => handleFilterByUser(selectedTx.user_id?._id || selectedTx.user_id)}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition"
+                >
+                  <span className="material-symbols-outlined text-[15px]">filter_alt</span>
+                  <span>Lọc tất cả GD của tài khoản này</span>
+                </button>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => setDetailModalOpen(false)}
+              className="h-8 rounded-lg border border-slate-200 bg-white px-4 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+            >
+              Đóng
+            </button>
+          </div>
+        }
       >
         {selectedTx ? (
-          <div className="space-y-5">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div className="space-y-4">
+            {/* Header Amount & Status Card */}
+            <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 p-4">
               <div>
-                <p className="text-xs text-slate-500">Số tiền giao dịch</p>
-                <p className={`text-2xl font-bold font-mono mt-0.5 ${
-                  selectedTx.direction === 'credit' ? 'text-emerald-600' : 'text-slate-900'
-                }`}>
+                <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                  Số tiền biến động
+                </p>
+                <p
+                  className={`text-2xl font-bold font-mono mt-0.5 ${
+                    selectedTx.direction === 'credit' ? 'text-emerald-600' : 'text-slate-900'
+                  }`}
+                >
                   {selectedTx.direction === 'credit' ? '+' : '-'}{formatMoney(selectedTx.amount)}
                 </p>
               </div>
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${statusToneMap[selectedTx.status]}`}>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium ${
+                  statusToneMap[selectedTx.status] || 'border-slate-200 bg-slate-50 text-slate-600'
+                }`}
+              >
                 <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                {statusLabelMap[selectedTx.status] || selectedTx.status}
+                <span>{statusLabelMap[selectedTx.status] || selectedTx.status}</span>
               </span>
             </div>
 
+            {/* Information Grid */}
             <div>
               <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
                 Thông tin nghiệp vụ
               </h4>
               {(() => {
-                const detailUser = selectedTx.user || (typeof selectedTx.user_id === 'object' ? selectedTx.user_id : null) || {}
-                const customerName = detailUser.fullName || detailUser.username || (detailUser.email ? detailUser.email.split('@')[0] : compactId(selectedTx.user_id))
+                const detailUser =
+                  selectedTx.user || (typeof selectedTx.user_id === 'object' ? selectedTx.user_id : null) || {}
+                const customerName =
+                  detailUser.fullName ||
+                  detailUser.username ||
+                  (detailUser.email ? detailUser.email.split('@')[0] : compactId(selectedTx.user_id))
 
                 return (
-                  <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-slate-50/50 px-3">
-                    <PropertyRow label="Mã giao dịch (Code)" value={selectedTx.code || selectedTx.transaction_code} mono />
-                    <PropertyRow label="Khách hàng" value={customerName} />
+                  <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-white px-3 shadow-2xs">
+                    <PropertyRow label="Mã giao dịch (Code)" value={selectedTx.code || selectedTx.transaction_code || selectedTx._id} mono />
+                    <PropertyRow label="Khách hàng">
+                      {detailUser.email ? (
+                        <Link
+                          to={`/admin/users?keyword=${encodeURIComponent(detailUser.email)}`}
+                          className="font-semibold text-indigo-600 hover:underline text-xs"
+                          title="Mở quản lý người dùng"
+                        >
+                          {customerName}
+                        </Link>
+                      ) : (
+                        <span className="font-medium text-slate-900 text-xs">{customerName}</span>
+                      )}
+                    </PropertyRow>
                     <PropertyRow label="Email khách hàng" value={detailUser.email} />
                     <PropertyRow label="Loại giao dịch" value={typeLabelMap[selectedTx.type] || selectedTx.type} />
-                    <PropertyRow label="Chiều dòng tiền" value={selectedTx.direction === 'credit' ? 'Cộng tiền vào ví' : 'Trừ tiền khỏi ví'} />
-                    <PropertyRow label="Mã tham chiếu SePay" value={selectedTx.sepay_transaction_id} mono />
-                    <PropertyRow label="Ngân hàng thụ hưởng" value={selectedTx.payment_details?.bank_brand_name || selectedTx.bank_brand_name} />
-                    <PropertyRow label="Nội dung chuyển khoản" value={selectedTx.payment_details?.content || selectedTx.description} />
+                    <PropertyRow
+                      label="Chiều dòng tiền"
+                      value={selectedTx.direction === 'credit' ? 'Cộng tiền vào ví (+)' : 'Trừ tiền khỏi ví (-)'}
+                    />
+                    {selectedTx.balance_before !== undefined ? (
+                      <PropertyRow label="Số dư trước GD" value={formatMoney(selectedTx.balance_before)} mono />
+                    ) : null}
+                    {selectedTx.balance_after !== undefined ? (
+                      <PropertyRow label="Số dư sau GD" value={formatMoney(selectedTx.balance_after)} mono />
+                    ) : null}
+                    {selectedTx.sepay_transaction_id ? (
+                      <PropertyRow label="Mã tham chiếu SePay" value={String(selectedTx.sepay_transaction_id)} mono />
+                    ) : null}
+                    {(selectedTx.payment_details?.bank_brand_name || selectedTx.bank_brand_name) ? (
+                      <PropertyRow
+                        label="Ngân hàng thụ hưởng"
+                        value={selectedTx.payment_details?.bank_brand_name || selectedTx.bank_brand_name}
+                      />
+                    ) : null}
+                    <PropertyRow
+                      label="Nội dung / Ghi chú"
+                      value={selectedTx.payment_details?.content || selectedTx.description}
+                    />
                     <PropertyRow label="Thời gian tạo" value={formatDateTime(selectedTx.created_at)} mono />
                   </div>
                 )
@@ -520,7 +639,7 @@ export default function AdminWalletTransactions() {
             </div>
           </div>
         ) : null}
-      </AdminDrawer>
+      </AdminModal>
 
       {/* Adjust Wallet Balance Modal */}
       <AdminModal
