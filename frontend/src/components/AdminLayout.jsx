@@ -2,25 +2,42 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { adminLogout } from '../api/adminService.js'
 
-const navItems = [
-  { key: 'dashboard', label: 'Tổng quan', to: '/admin/dashboard', icon: 'dashboard' },
-  { key: 'users', label: 'Người dùng', to: '/admin/users', icon: 'group' },
-  { key: 'companies', label: 'Doanh nghiệp', to: '/admin/companies', icon: 'apartment' },
-  { key: 'jobs', label: 'Tin tuyển dụng', to: '/admin/jobs', icon: 'work' },
-  { key: 'job-categories', label: 'Danh mục việc làm', to: '/admin/job-categories', icon: 'category' },
-  { key: 'job-promotions', label: 'Quảng cáo tuyển dụng', to: '/admin/job-promotions', icon: 'star' },
-  { key: 'job-promotion-plans', label: 'Gói quảng cáo', to: '/admin/job-promotion-plans', icon: 'sell' },
-  { key: 'wallet-transactions', label: 'Giao dịch ví', to: '/admin/wallet-transactions', icon: 'account_balance_wallet' },
-  { key: 'sepay-config', label: 'Cấu hình SePay', to: '/admin/sepay-config', icon: 'settings_ethernet' },
-  { key: 'rag-chat-config', label: 'Cấu hình RAG Chat', to: '/admin/rag-chat-config', icon: 'smart_toy' },
-  { key: 'audit-logs', label: 'Nhật ký admin', to: '/admin/audit-logs', icon: 'history' },
+const navGroups = [
+  {
+    title: 'Quản trị cốt lõi',
+    items: [
+      { key: 'dashboard', label: 'Tổng quan', to: '/admin/dashboard', icon: 'dashboard' },
+      { key: 'users', label: 'Người dùng', to: '/admin/users', icon: 'group' },
+      { key: 'companies', label: 'Doanh nghiệp', to: '/admin/companies', icon: 'apartment' },
+      { key: 'jobs', label: 'Tin tuyển dụng', to: '/admin/jobs', icon: 'work' },
+      { key: 'job-categories', label: 'Danh mục việc làm', to: '/admin/job-categories', icon: 'category' },
+    ],
+  },
+  {
+    title: 'Dịch vụ & Tài chính',
+    items: [
+      { key: 'job-promotions', label: 'Quảng cáo tuyển dụng', to: '/admin/job-promotions', icon: 'star' },
+      { key: 'job-promotion-plans', label: 'Gói quảng cáo', to: '/admin/job-promotion-plans', icon: 'sell' },
+      { key: 'wallet-transactions', label: 'Giao dịch ví', to: '/admin/wallet-transactions', icon: 'account_balance_wallet' },
+    ],
+  },
+  {
+    title: 'Cấu hình & Hệ thống',
+    items: [
+      { key: 'sepay-config', label: 'Cấu hình SePay', to: '/admin/sepay-config', icon: 'settings_ethernet' },
+      { key: 'rag-chat-config', label: 'Cấu hình RAG Chat', to: '/admin/rag-chat-config', icon: 'smart_toy' },
+      { key: 'audit-logs', label: 'Nhật ký admin', to: '/admin/audit-logs', icon: 'history' },
+    ],
+  },
 ]
 
-export default function AdminLayout({ title, subtitle, children }) {
+const allNavItems = navGroups.flatMap((group) => group.items)
+
+export default function AdminLayout({ title, subtitle, actions, children }) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
-  const activeItem = navItems.find((item) => pathname === item.to || pathname.startsWith(`${item.to}/`)) || navItems[0]
+  const activeItem = allNavItems.find((item) => pathname === item.to || pathname.startsWith(`${item.to}/`)) || allNavItems[0]
 
   useEffect(() => {
     setMobileNavOpen(false)
@@ -50,7 +67,7 @@ export default function AdminLayout({ title, subtitle, children }) {
           mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:flex`}
       >
-        <div className="admin-brand-block border-b border-white/10 px-3.5 py-3.5">
+        <div className="admin-brand-block shrink-0 border-b border-white/10 px-3.5 py-3.5">
           <Link to="/admin/dashboard" className="admin-brand-link group flex items-center gap-3 rounded-lg px-1.5 py-1 transition-colors hover:bg-white/[0.05]">
             <span className="admin-brand-mark relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#314047] text-teal-200 ring-1 ring-white/10">
               <span className="text-[19px] font-black tracking-[-0.08em]">M<span className="text-teal-400">.</span></span>
@@ -66,39 +83,43 @@ export default function AdminLayout({ title, subtitle, children }) {
           </Link>
         </div>
 
-        <div className="px-2.5 py-3.5">
-          <p className="mb-2.5 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#829594]">Quản lý</p>
-          <nav className="space-y-1 text-[12.5px]">
-            {navItems.map((item) => {
-              const isActive = pathname === item.to || pathname.startsWith(`${item.to}/`)
-              return (
-                <Link
-                  key={item.key}
-                  to={item.to}
-                  className={`group relative flex items-center gap-2 rounded-md px-2 py-2 font-normal transition-colors ${
-                    isActive ? 'bg-[#f5f8f7] text-[#1c2a2e] shadow-sm' : 'text-[#b4c4c3] hover:bg-[#2a383d] hover:text-white'
-                  }`}
-                >
-                  <span
-                    className={`absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full ${
-                      isActive ? 'bg-teal-500' : 'bg-transparent'
-                    }`}
-                  />
-                  <span
-                    className={`flex h-[26px] w-[26px] items-center justify-center rounded-md ${
-                      isActive ? 'bg-teal-50 text-teal-700' : 'bg-white/[0.06] text-[#b4c4c3] group-hover:text-white'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-[17px]">{item.icon}</span>
-                  </span>
-                  <span>{item.label}</span>
-                </Link>
-              )
-            })}
-          </nav>
+        <div className="flex-1 overflow-y-auto px-2.5 py-3.5 space-y-4 custom-scrollbar">
+          {navGroups.map((group) => (
+            <div key={group.title}>
+              <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#829594]">{group.title}</p>
+              <nav className="space-y-1 text-[12.5px]">
+                {group.items.map((item) => {
+                  const isActive = pathname === item.to || pathname.startsWith(`${item.to}/`)
+                  return (
+                    <Link
+                      key={item.key}
+                      to={item.to}
+                      className={`group relative flex items-center gap-2 rounded-md px-2 py-2 font-normal transition-colors ${
+                        isActive ? 'bg-[#f5f8f7] text-[#1c2a2e] shadow-sm' : 'text-[#b4c4c3] hover:bg-[#2a383d] hover:text-white'
+                      }`}
+                    >
+                      <span
+                        className={`absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full ${
+                          isActive ? 'bg-teal-500' : 'bg-transparent'
+                        }`}
+                      />
+                      <span
+                        className={`flex h-[26px] w-[26px] items-center justify-center rounded-md ${
+                          isActive ? 'bg-teal-50 text-teal-700' : 'bg-white/[0.06] text-[#b4c4c3] group-hover:text-white'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[17px]">{item.icon}</span>
+                      </span>
+                      <span>{item.label}</span>
+                    </Link>
+                  )
+                })}
+              </nav>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-auto border-t border-white/10 p-3">
+        <div className="shrink-0 border-t border-white/10 p-3">
           <div className="admin-account-card rounded-lg border border-white/10 bg-[#26343a] p-3 shadow-[0_14px_30px_-24px_rgba(0,0,0,0.8)]">
             <div className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-500/15 text-[17px] font-black tracking-[-0.08em] text-teal-200 ring-1 ring-teal-300/10">
@@ -145,6 +166,7 @@ export default function AdminLayout({ title, subtitle, children }) {
             </div>
 
             <div className="flex items-center justify-end gap-2 self-start sm:self-auto lg:min-w-[310px]">
+              {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
               <label className="relative hidden flex-1 lg:block">
                 <span className="material-symbols-outlined pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[17px] text-slate-400">
                   search
@@ -169,9 +191,9 @@ export default function AdminLayout({ title, subtitle, children }) {
           </div>
         </header>
 
-        <main className="px-3 py-3 sm:px-4 sm:py-4">
+        <main className="space-y-4 px-3 py-3 sm:px-4 sm:py-4">
           {subtitle ? (
-            <div className="mb-4 border-l-4 border-[#b7d8d0] pl-3">
+            <div className="border-l-4 border-[#b7d8d0] pl-3">
               <p className="max-w-3xl text-[12.5px] font-medium leading-5 text-[#5f726f]">{subtitle}</p>
             </div>
           ) : null}
