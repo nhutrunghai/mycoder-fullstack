@@ -6,6 +6,7 @@ import { Collection, ObjectId } from 'mongodb'
 import { AppError } from '~/errors/app-error.js'
 import { StatusCodes } from 'http-status-codes'
 import UserMessages from '~/constants/messages/index.js'
+import ErrorCode from '~/constants/error-code.js'
 import {
   EmailVerifyRqType,
   LoginRqType,
@@ -16,7 +17,7 @@ import { verifyToken } from '~/utils/jwt.util.js'
 import env from '~/configs/env.config.js'
 import RedisService from '~/configs/redis.config.js'
 import { comparePassword, hashToken } from '~/utils/crypto.utils.js'
-import { OtpType } from '~/constants/enums.js'
+import { OtpType, UserStatus } from '~/constants/enums.js'
 import { VerifyOtpLocals } from '~/types/http/response.type.js'
 import OtpCode from '~/models/schema/client/otpCodes.schema.js'
 import { clearRefreshTokenCookie } from '~/utils/auth-cookie.util.js'
@@ -45,6 +46,7 @@ export const checkOtpVerify = async (condition: { code: string; type: OtpType },
   }
   return result
 }
+
 export const registerMiddleware = async (
   req: Request<ParamsDictionary, any, RegisterRqType>,
   res: Response,
@@ -56,6 +58,7 @@ export const registerMiddleware = async (
   }
   next()
 }
+
 export const LoginMiddleware = async (
   req: Request<ParamsDictionary, any, LoginRqType>,
   res: Response,
@@ -75,9 +78,31 @@ export const LoginMiddleware = async (
       })
     )
   }
+
+  // Check account status: BANNED or DELETED accounts must not log in
+  if (user.status === UserStatus.BANNED) {
+    return next(
+      new AppError({
+        statusCode: StatusCodes.FORBIDDEN,
+        message: UserMessages.ACCOUNT_BANNED,
+        errorCode: ErrorCode.ACCOUNT_BANNED
+      })
+    )
+  }
+  if (user.status === UserStatus.DELETED) {
+    return next(
+      new AppError({
+        statusCode: StatusCodes.FORBIDDEN,
+        message: UserMessages.ACCOUNT_DELETED,
+        errorCode: ErrorCode.ACCOUNT_DELETED
+      })
+    )
+  }
+
   req.user = user
   next()
 }
+
 export const OauthGoogleMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   const { code, error } = req.query
   if (error) {
@@ -90,6 +115,7 @@ export const OauthGoogleMiddleware = async (req: Request, res: Response, next: N
   }
   next()
 }
+
 export const LogoutMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   const access_token = req.headers['authorization']?.split('Bearer ')[1]
   if (access_token) {
@@ -117,6 +143,7 @@ export const LogoutMiddleware = async (req: Request, res: Response, next: NextFu
   }
   next()
 }
+
 export const RefreshMiddleware = async (
   req: Request,
   res: Response,
@@ -130,8 +157,24 @@ export const RefreshMiddleware = async (
   try {
     const payload = await verifyToken(refresh_token, env.SECRET_REFRESH_TOKEN)
     req.decodeToken = payload
+    const userId = new ObjectId(payload.userId)
+
+    // Verify user is not banned or deleted in database
+    const user = await databaseService.users.findOne({ _id: userId })
+    if (!user || user.status === UserStatus.BANNED || user.status === UserStatus.DELETED) {
+      await databaseService.refreshTokens.deleteMany({ user_id: userId })
+      clearRefreshTokenCookie(res)
+      return next(
+        new AppError({
+          statusCode: StatusCodes.FORBIDDEN,
+          message: user?.status === UserStatus.BANNED ? UserMessages.ACCOUNT_BANNED : UserMessages.ACCOUNT_DELETED,
+          errorCode: user?.status === UserStatus.BANNED ? ErrorCode.ACCOUNT_BANNED : ErrorCode.ACCOUNT_DELETED
+        })
+      )
+    }
+
     const result = await databaseService.refreshTokens.findOneAndDelete({
-      user_id: new ObjectId(payload.userId),
+      user_id: userId,
       jti: payload.jti
     })
     if (result) {
@@ -144,6 +187,7 @@ export const RefreshMiddleware = async (
     next(new AppError({ statusCode: StatusCodes.UNAUTHORIZED, message: UserMessages.REFRESH_TOKEN_INVALID }))
   }
 }
+
 export const verifyEmailMiddleware = async (
   req: Request<ParamsDictionary, any, EmailVerifyRqType>,
   res: Response<any, VerifyOtpLocals>,
@@ -163,6 +207,7 @@ export const verifyEmailMiddleware = async (
   res.locals.otpVerify = result as OtpCode
   next()
 }
+
 export const resetPasswordMiddleware = async (
   req: Request<ParamsDictionary, any, ResetPasswordRqType>,
   res: Response<any, VerifyOtpLocals>,
@@ -174,4 +219,3 @@ export const resetPasswordMiddleware = async (
   res.locals.otpVerify = result as OtpCode
   next()
 }
-

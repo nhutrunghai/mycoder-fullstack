@@ -17,9 +17,13 @@ const optionalDecodeToken = async (req: Request, res: Response, next: NextFuncti
 
   try {
     const payload = await verifyToken(accessToken, env.SECRET_ACCESS_TOKEN)
-    const isBlacklisted = await RedisService.getInstance().get(`blacklist:${payload.jti}`)
+    const redis = RedisService.getInstance()
+    const [isTokenBlacklisted, isUserBlacklisted] = await Promise.all([
+      redis.get(`blacklist:${payload.jti}`),
+      redis.get(`blacklist:user:${payload.userId}`)
+    ])
 
-    if (!isBlacklisted) {
+    if (!isTokenBlacklisted && !isUserBlacklisted) {
       req.decodeToken = payload
     }
   } catch {

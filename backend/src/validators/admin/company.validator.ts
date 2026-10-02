@@ -24,6 +24,20 @@ export const getAdminCompaniesValidator = z.object({
   query: z.object({
     verified: verifiedQuerySchema.optional(),
     keyword: z.string().trim().min(1).max(100).optional(),
+    companyId: z
+      .string()
+      .trim()
+      .regex(/^[a-fA-F0-9]{24}$/, {
+        message: UserMessages.COMPANY_ID_INVALID
+      })
+      .optional(),
+    company_id: z
+      .string()
+      .trim()
+      .regex(/^[a-fA-F0-9]{24}$/, {
+        message: UserMessages.COMPANY_ID_INVALID
+      })
+      .optional(),
     page: z.coerce.number().int().min(1).optional().default(1),
     limit: z.coerce.number().int().min(1).max(100).optional().default(10)
   })

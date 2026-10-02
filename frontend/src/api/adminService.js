@@ -95,10 +95,30 @@ export async function getAdminUserDetail(userId) {
   return adminRequest('GET', `/admin/users/${userId}`)
 }
 
+export async function getAdminUserWallet(userId) {
+  return adminRequest('GET', '/admin/users/' + userId + '/wallet')
+}
+
+export async function getAdminUserApplications(userId, params = {}) {
+  return adminRequest('GET', '/admin/users/' + userId + '/applications', { params })
+}
+
+export async function getAdminUserTopUpOrders(userId, params = {}) {
+  return adminRequest('GET', '/admin/users/' + userId + '/wallet-topup-orders', { params })
+}
+
 export async function updateAdminUserStatus(userId, status) {
   return adminRequest('PATCH', `/admin/users/${userId}/status`, {
     data: {
       status: Number(status),
+    },
+  })
+}
+
+export async function updateAdminUserRole(userId, role) {
+  return adminRequest('PATCH', `/admin/users/${userId}/role`, {
+    data: {
+      role: Number(role),
     },
   })
 }
@@ -126,7 +146,6 @@ export async function updateAdminCompanyStatus(companyId, verified) {
     },
   })
 }
-
 
 export async function getAdminJobCategories() {
   return adminRequest('GET', '/admin/job-categories')
@@ -170,6 +189,10 @@ export async function updateAdminJobModerationStatus(jobId, body) {
       blocked_reason: body?.blocked_reason,
     },
   })
+}
+
+export async function getAdminJobApplications(jobId, params = {}) {
+  return adminRequest('GET', `/admin/jobs/${jobId}/applications`, { params })
 }
 
 export async function getAdminJobPromotions(params = {}) {
@@ -227,16 +250,20 @@ export async function deleteAdminJobPromotion(promotionId) {
 }
 
 export async function getAdminWalletTransactions(params = {}) {
-  return adminRequest('GET', '/admin/wallet-transactions', { params })
+  const normalizedParams = { ...params }
+  if (normalizedParams.user_id && !normalizedParams.userId) {
+    normalizedParams.userId = normalizedParams.user_id
+  }
+  return adminRequest('GET', '/admin/wallet-transactions', { params: normalizedParams })
 }
 
 export async function adjustAdminWalletBalance(body) {
   return adminRequest('POST', '/admin/wallet-transactions/adjust', {
     data: {
-      userId: body?.userId,
-      amount: body?.amount,
+      userId: body?.userId || body?.user_id,
+      amount: Number(body?.amount),
       direction: body?.direction,
-      description: body?.description,
+      description: body?.description || body?.reason || 'Điều chỉnh số dư ví từ trang quản trị',
     },
   })
 }

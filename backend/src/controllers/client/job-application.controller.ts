@@ -1,4 +1,4 @@
-import { Request, Response } from 'express'
+﻿import { Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
 import { ObjectId } from 'mongodb'
 import databaseService from '~/configs/database.config'
@@ -14,6 +14,16 @@ import {
 import JobApplication from '~/models/schema/client/jobApplications.schema'
 import jobApplicationService from '~/services/client/job-application.service'
 import notificationService from '~/services/client/notification.service'
+
+const applicationStatusLabelMap: Record<JobApplicationStatus, string> = {
+  [JobApplicationStatus.SUBMITTED]: 'Đã nộp hồ sơ',
+  [JobApplicationStatus.REVIEWING]: 'Đang xem xét',
+  [JobApplicationStatus.SHORTLISTED]: 'Phù hợp',
+  [JobApplicationStatus.INTERVIEWING]: 'Mời phỏng vấn',
+  [JobApplicationStatus.HIRED]: 'Trúng tuyển',
+  [JobApplicationStatus.REJECTED]: 'Từ chối',
+  [JobApplicationStatus.WITHDRAWN]: 'Đã rút hồ sơ'
+}
 
 type ApplyJobBody = {
   cv_id: string
@@ -61,7 +71,7 @@ export const applyJobController = async (
         userId: company.user_id,
         type: NotificationType.JOB_APPLICATION_SUBMITTED,
         title: 'Có ứng viên ứng tuyển lại',
-        content: `${candidate?.fullName || 'Một ứng viên'} đã ứng tuyển lại vào job của bạn.`,
+        content: `${candidate?.fullName || 'Một ứng viên'} đã ứng tuyển lại vào tin tuyển dụng của bạn.`,
         data: {
           job_id: String(job._id),
           company_id: String(job.company_id),
@@ -102,7 +112,7 @@ export const applyJobController = async (
       userId: company.user_id,
       type: NotificationType.JOB_APPLICATION_SUBMITTED,
       title: 'Có ứng viên mới',
-      content: `${candidate?.fullName || 'Một ứng viên'} vừa ứng tuyển vào job của bạn.`,
+      content: `${candidate?.fullName || 'Một ứng viên'} vừa ứng tuyển vào tin tuyển dụng của bạn.`,
       data: {
         job_id: String(job._id),
         company_id: String(job.company_id),
@@ -192,11 +202,13 @@ export const updateCompanyApplicationStatusController = async (
   })
   const job = await databaseService.jobs.findOne({ _id: application.job_id }, { projection: { title: 1 } })
 
+  const readableStatus = applicationStatusLabelMap[req.body.status] || req.body.status
+
   await notificationService.create({
     userId: application.candidate_id,
     type: NotificationType.JOB_APPLICATION_STATUS_UPDATED,
-    title: 'Hồ sơ đã được cập nhật',
-    content: `Trạng thái hồ sơ cho job "${job?.title || 'đã ứng tuyển'}" đã chuyển sang "${req.body.status}".`,
+    title: 'Hồ sơ ứng tuyển đã được cập nhật',
+    content: `Trạng thái hồ sơ cho vị trí "${job?.title || 'đã ứng tuyển'}" đã chuyển sang "${readableStatus}".`,
     data: {
       application_id: String(application._id),
       job_id: String(application.job_id),
@@ -253,3 +265,4 @@ export const withdrawMyJobApplicationController = async (
     }
   })
 }
+

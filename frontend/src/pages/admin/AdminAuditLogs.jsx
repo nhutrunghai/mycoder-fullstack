@@ -1,75 +1,44 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../../components/AdminLayout.jsx'
 import AdminDrawer from '../../components/admin/AdminDrawer.jsx'
+import AdminModal from '../../components/admin/AdminModal.jsx'
 import Toast from '../../components/Toast.jsx'
 import { getAdminAuditLogs, getAdminUsers } from '../../api/adminService.js'
-import { compactId, formatDateTimeVi as formatDateTime, toIsoString } from '../../utils/formatters.js'
+import { formatDateTimeVi as formatDateTime } from '../../utils/formatters.js'
 
 const actionOptions = [
-  '', 'admin.login', 'admin.logout', 'user.status.update', 'company.verification.update', 'job.moderation.update',
-  'wallet.adjust', 'wallet.transactions.view', 'user.wallet.view', 'user.topup_orders.view',
-  'sepay.config.view', 'sepay.config.update', 'sepay.secret.rotate', 'sepay.test_connection', 'sepay.diagnostics.view',
-  'rag_chat.config.view', 'rag_chat.config.update', 'rag_chat.secret.rotate', 'rag_chat.health.view',
-  'job_promotion.view', 'job_promotion.create', 'job_promotion.update', 'job_promotion.delete',
-  'job_promotion_plan.create', 'job_promotion_plan.update', 'job_promotion_plan.delete',
+  { value: '', label: 'Tất cả hành động' },
+  { value: 'admin.login', label: 'admin.login (Đăng nhập)' },
+  { value: 'admin.logout', label: 'admin.logout (Đăng xuất)' },
+  { value: 'user.status.update', label: 'user.status.update (Đổi trạng thái user)' },
+  { value: 'company.verification.update', label: 'company.verification.update (Xác minh công ty)' },
+  { value: 'job.moderation.update', label: 'job.moderation.update (Kiểm duyệt tin)' },
+  { value: 'wallet.adjust', label: 'wallet.adjust (Điều chỉnh ví)' },
+  { value: 'sepay.config.update', label: 'sepay.config.update (Cập nhật SePay)' },
+  { value: 'rag_chat.config.update', label: 'rag_chat.config.update (Cập nhật RAG AI)' },
+  { value: 'job_promotion.create', label: 'job_promotion.create (Tạo QC)' },
+  { value: 'job_promotion.update', label: 'job_promotion.update (Sửa QC)' },
+  { value: 'job_promotion_plan.update', label: 'job_promotion_plan.update (Sửa gói QC)' },
 ]
 
-const targetTypeOptions = ['', 'admin', 'user', 'company', 'job', 'wallet', 'wallet_transaction', 'wallet_topup_order', 'sepay', 'rag_chat', 'system_setting', 'job_promotion', 'job_promotion_plan']
+const targetTypeOptions = [
+  { value: '', label: 'Tất cả đối tượng' },
+  { value: 'user', label: 'Người dùng (user)' },
+  { value: 'company', label: 'Doanh nghiệp (company)' },
+  { value: 'job', label: 'Tin tuyển dụng (job)' },
+  { value: 'wallet', label: 'Số dư ví (wallet)' },
+  { value: 'sepay', label: 'Cổng SePay (sepay)' },
+  { value: 'rag_chat', label: 'Trợ lý AI (rag_chat)' },
+  { value: 'job_promotion', label: 'Quảng cáo (job_promotion)' },
+]
 
-const inputClassName =
-  'h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100'
-
-function PickerModal({ open, onClose, onSelect }) {
-  const [keyword, setKeyword] = useState('')
-  const [admins, setAdmins] = useState([])
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (!open) return
-    let active = true
-    const timer = window.setTimeout(() => {
-      setLoading(true)
-      getAdminUsers({ page: 1, limit: 8, role: 2, keyword: keyword || undefined })
-        .then((data) => {
-          if (active) setAdmins(Array.isArray(data?.users) ? data.users : [])
-        })
-        .finally(() => {
-          if (active) setLoading(false)
-        })
-    }, keyword ? 250 : 0)
-    return () => {
-      active = false
-      window.clearTimeout(timer)
-    }
-  }, [keyword, open])
-
-  if (!open) return null
+function PropertyRow({ label, value, mono = false }) {
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-4">
-      <div className="max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-          <div>
-            <h3 className="text-[15px] font-extrabold text-slate-950">Chọn quản trị viên</h3>
-            <p className="mt-1 text-[12px] font-medium text-slate-500">Lọc audit log ngay trong màn này.</p>
-          </div>
-          <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"><span className="material-symbols-outlined text-[18px]">close</span></button>
-        </div>
-        <div className="p-5">
-          <input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="Tìm theo tên, email hoặc username..." className={inputClassName} />
-          <div className="mt-4 space-y-2">
-            {admins.map((admin) => (
-              <div key={admin._id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-extrabold text-slate-950">{admin.fullName || admin.username || admin.email || 'Quản trị viên'}</p>
-                  <p className="mt-1 truncate text-[12px] font-medium text-slate-500">{admin.email || 'Chưa có email'} · {compactId(admin._id)}</p>
-                </div>
-                <button type="button" onClick={() => onSelect(admin)} className="h-9 rounded-md border border-teal-200 bg-teal-50 px-4 text-[12px] font-extrabold text-teal-700 transition hover:bg-teal-100">Chọn admin</button>
-              </div>
-            ))}
-            {!admins.length ? <div className="rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-[13px] font-semibold text-slate-400">{loading ? 'Đang tải quản trị viên...' : 'Không tìm thấy quản trị viên phù hợp.'}</div> : null}
-          </div>
-        </div>
-      </div>
+    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-slate-100 text-xs">
+      <span className="text-slate-500 font-medium shrink-0">{label}</span>
+      <span className={`text-slate-900 text-right ${mono ? 'font-mono' : 'font-medium'} break-all`}>
+        {value || '—'}
+      </span>
     </div>
   )
 }
@@ -77,156 +46,307 @@ function PickerModal({ open, onClose, onSelect }) {
 export default function AdminAuditLogs() {
   const [logs, setLogs] = useState([])
   const [selectedLog, setSelectedLog] = useState(null)
+  const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, total_pages: 1 })
   const [loading, setLoading] = useState(true)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [adminPickerOpen, setAdminPickerOpen] = useState(false)
   const [toast, setToast] = useState(null)
-  const [isPickerOpen, setIsPickerOpen] = useState(false)
+
+  // Filters
+  const [action, setAction] = useState('')
+  const [targetType, setTargetType] = useState('')
   const [selectedAdmin, setSelectedAdmin] = useState(null)
-  const [filters, setFilters] = useState({ action: '', targetType: '', success: '', fromDate: '', toDate: '' })
-  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, total_pages: 1 })
+  const [adminSearch, setAdminSearch] = useState('')
+  const [adminResults, setAdminResults] = useState([])
+  const [searchAdminLoading, setSearchAdminLoading] = useState(false)
+
+  const loadLogs = async () => {
+    setLoading(true)
+    try {
+      const data = await getAdminAuditLogs({
+        page: pagination.page,
+        limit: pagination.limit,
+        action: action || undefined,
+        target_type: targetType || undefined,
+        admin_id: selectedAdmin?._id || undefined,
+      })
+      setLogs(data?.audit_logs || data?.data?.audit_logs || [])
+      setPagination((curr) => ({ ...curr, ...(data?.pagination || {}) }))
+    } catch (error) {
+      setToast({ type: 'error', message: error.message || 'Không thể tải nhật ký kiểm toán.' })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let active = true
-    getAdminAuditLogs({
-      page: pagination.page,
-      limit: pagination.limit,
-      adminId: selectedAdmin?._id || undefined,
-      action: filters.action || undefined,
-      targetType: filters.targetType || undefined,
-      success: filters.success || undefined,
-      fromDate: toIsoString(filters.fromDate),
-      toDate: toIsoString(filters.toDate),
-    })
-      .then((data) => {
-        if (!active) return
-        setLogs(Array.isArray(data?.logs) ? data.logs : [])
-        setPagination((current) => ({ ...current, ...(data?.pagination || {}) }))
-      })
-      .catch((error) => {
-        if (active) setToast({ type: 'error', message: error.message || 'Không thể tải audit log.' })
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [filters.action, filters.fromDate, filters.success, filters.targetType, filters.toDate, pagination.limit, pagination.page, selectedAdmin?._id])
+    loadLogs()
+  }, [pagination.page, action, targetType, selectedAdmin])
 
-  const updateFilter = (key, value) => {
-    setLoading(true)
-    setFilters((current) => ({ ...current, [key]: value }))
-    setPagination((current) => ({ ...current, page: 1 }))
-  }
+  // Admin Search inside picker
+  useEffect(() => {
+    if (!adminPickerOpen) return
+    const timer = setTimeout(async () => {
+      setSearchAdminLoading(true)
+      try {
+        const data = await getAdminUsers({ page: 1, limit: 6, role: 2, keyword: adminSearch.trim() || undefined })
+        setAdminResults(data?.users ?? [])
+      } catch {
+        setAdminResults([])
+      } finally {
+        setSearchAdminLoading(false)
+      }
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [adminSearch, adminPickerOpen])
 
-  const selectAdmin = (admin) => {
-    setLoading(true)
-    setSelectedAdmin(admin)
-    setPagination((current) => ({ ...current, page: 1 }))
-    setIsPickerOpen(false)
-  }
-
-  const resetFilters = () => {
-    setLoading(true)
-    setSelectedAdmin(null)
-    setFilters({ action: '', targetType: '', success: '', fromDate: '', toDate: '' })
-    setPagination((current) => ({ ...current, page: 1 }))
-  }
-
-  const changePage = (page) => {
-    setLoading(true)
-    setPagination((current) => ({ ...current, page }))
-  }
-
-  const stats = useMemo(() => ({
-    success: logs.filter((item) => item.success).length,
-    failed: logs.filter((item) => item.success === false).length,
-    sepay: logs.filter((item) => item.target_type === 'sepay').length,
-    rag: logs.filter((item) => item.target_type === 'rag_chat').length,
-  }), [logs])
+  const canGoPrev = Number(pagination.page) > 1
+  const canGoNext = Number(pagination.page) < Number(pagination.total_pages || 1)
 
   return (
-    <AdminLayout title="Nhật Ký Admin" subtitle="Theo dõi hành động quản trị, lọc theo quản trị viên, action, resource và khoảng thời gian, đồng thời xem chi tiết metadata thay đổi.">
+    <AdminLayout
+      title="Nhật ký kiểm toán hệ thống"
+      subtitle="Theo dõi toàn bộ các thao tác nghiệp vụ, cấu hình bảo mật và thay đổi dữ liệu của quản trị viên."
+    >
       <Toast toast={toast} onClose={() => setToast(null)} />
-      <PickerModal open={isPickerOpen} onClose={() => setIsPickerOpen(false)} onSelect={selectAdmin} />
 
-      <section className="admin-metrics mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Success</p><p className="mt-2 text-2xl font-extrabold text-emerald-700">{stats.success}</p></div>
-        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Failed</p><p className="mt-2 text-2xl font-extrabold text-rose-700">{stats.failed}</p></div>
-        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">SePay</p><p className="mt-2 text-2xl font-extrabold text-teal-700">{stats.sepay}</p></div>
-        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm"><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">RAG Chat</p><p className="mt-2 text-2xl font-extrabold text-slate-950">{stats.rag}</p></div>
+      {/* Filter Toolbar */}
+      <section className="rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_160px_auto]">
+          <select
+            value={action}
+            onChange={(e) => setAction(e.target.value)}
+            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+          >
+            {actionOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={targetType}
+            onChange={(e) => setTargetType(e.target.value)}
+            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+          >
+            {targetTypeOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            onClick={() => setAdminPickerOpen(true)}
+            className="h-9 rounded-lg border border-slate-200 bg-slate-50/50 px-3 text-xs font-medium text-slate-700 hover:bg-slate-100 transition truncate text-left"
+          >
+            {selectedAdmin ? `Admin: ${selectedAdmin.fullName || selectedAdmin.username}` : 'Lọc theo Admin...'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setAction(''); setTargetType(''); setSelectedAdmin(null) }}
+            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+          >
+            Đặt lại
+          </button>
+        </div>
+
+        {selectedAdmin ? (
+          <div className="mt-2.5 flex items-center gap-2 text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg w-fit">
+            <span>Lọc theo quản trị viên: <strong>{selectedAdmin.fullName || selectedAdmin.email}</strong></span>
+            <button
+              type="button"
+              onClick={() => setSelectedAdmin(null)}
+              className="text-indigo-400 hover:text-indigo-900 transition font-bold ml-1"
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
       </section>
 
-      <section className="admin-filter-bar mb-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-[220px_180px_170px_170px_170px_120px_110px]">
-          <div className="flex h-10 items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3">
-            <p className="truncate text-[13px] font-bold text-slate-700">{selectedAdmin ? selectedAdmin.fullName || selectedAdmin.username || selectedAdmin.email : 'Tất cả admin'}</p>
-            <button type="button" onClick={() => setIsPickerOpen(true)} className="h-7 rounded-md border border-slate-200 bg-white px-2 text-[11px] font-extrabold text-slate-600 transition hover:bg-slate-50">Chọn</button>
+      {/* Audit Logs Table */}
+      <section className="rounded-xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-slate-200 bg-slate-50/70 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+              <tr>
+                <th className="py-3 px-4">Thời gian</th>
+                <th className="py-3 px-4">Quản trị viên</th>
+                <th className="py-3 px-4">Hành động</th>
+                <th className="py-3 px-4">Đối tượng tác động</th>
+                <th className="py-3 px-4">Địa chỉ IP</th>
+                <th className="py-3 px-4 text-right">Chi tiết</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {logs.map((log) => {
+                const admin = log.admin_id || {}
+                return (
+                  <tr key={log._id} className="hover:bg-slate-50/70 transition">
+                    <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                      {formatDateTime(log.created_at)}
+                    </td>
+
+                    <td className="py-3 px-4">
+                      <p className="font-semibold text-slate-900 truncate max-w-xs">{admin.fullName || admin.username || 'Quản trị viên'}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{admin.email || '—'}</p>
+                    </td>
+
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-slate-100 text-slate-800 ring-1 ring-inset ring-slate-500/10">
+                        {log.action}
+                      </span>
+                    </td>
+
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="text-slate-900 font-medium">{log.target_type || '—'}</span>
+                      {log.target_id ? (
+                        <span className="block font-mono text-[10px] text-slate-400 truncate max-w-[120px]">
+                          #{String(log.target_id).slice(-8)}
+                        </span>
+                      ) : null}
+                    </td>
+
+                    <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                      {log.ip_address || '127.0.0.1'}
+                    </td>
+
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedLog(log)
+                          setDrawerOpen(true)
+                        }}
+                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+                      >
+                        Xem
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {!logs.length ? (
+            <div className="py-12 text-center text-xs font-medium text-slate-400">
+              {loading ? 'Đang tải nhật ký kiểm toán...' : 'Không có nhật ký nào phù hợp.'}
+            </div>
+          ) : null}
+        </div>
+
+        {/* Pagination Bar */}
+        <div className="flex flex-col gap-2 border-t border-slate-100 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between bg-slate-50/40">
+          <span>
+            Trang <strong className="text-slate-900 font-semibold">{pagination.page || 1}</strong> / {pagination.total_pages || 1} · Tổng <strong className="text-slate-900 font-semibold">{pagination.total || logs.length}</strong> bản ghi
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              disabled={!canGoPrev}
+              onClick={() => setPagination((curr) => ({ ...curr, page: Number(curr.page || 1) - 1 }))}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 transition"
+            >
+              Trang trước
+            </button>
+            <button
+              type="button"
+              disabled={!canGoNext}
+              onClick={() => setPagination((curr) => ({ ...curr, page: Number(curr.page || 1) + 1 }))}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 transition"
+            >
+              Trang sau
+            </button>
           </div>
-          <select value={filters.action} onChange={(event) => updateFilter('action', event.target.value)} className={inputClassName}>
-            <option value="">Tất cả action</option>
-            {actionOptions.filter(Boolean).map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-          <select value={filters.targetType} onChange={(event) => updateFilter('targetType', event.target.value)} className={inputClassName}>
-            <option value="">Tất cả resource</option>
-            {targetTypeOptions.filter(Boolean).map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-          <select value={filters.success} onChange={(event) => updateFilter('success', event.target.value)} className={inputClassName}>
-            <option value="">Tất cả kết quả</option><option value="true">Success</option><option value="false">Failed</option>
-          </select>
-          <input type="datetime-local" value={filters.fromDate} onChange={(event) => updateFilter('fromDate', event.target.value)} className={inputClassName} />
-          <input type="datetime-local" value={filters.toDate} onChange={(event) => updateFilter('toDate', event.target.value)} className={inputClassName} />
-          <button type="button" onClick={resetFilters} className="h-10 rounded-md border border-slate-200 bg-white px-3 text-[13px] font-extrabold text-slate-600 transition hover:bg-slate-50">Đặt lại</button>
         </div>
       </section>
 
-      <section>
-        <section className="admin-data-panel flex min-h-[560px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="hidden grid-cols-[160px_1.2fr_150px_110px_150px_96px] bg-slate-50 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400 lg:grid">
-            <span>Admin</span><span>Hành động</span><span>Tài nguyên</span><span>Kết quả</span><span>Thời gian</span><span></span>
-          </div>
-          <div className="flex-1">
-          {logs.map((log) => (
-            <article key={log._id} className={`border-t border-slate-100 px-4 py-3 text-[12px] transition lg:grid lg:grid-cols-[160px_1.2fr_150px_110px_150px_96px] lg:items-center lg:gap-3 ${selectedLog?._id === log._id ? 'bg-teal-50/60' : 'hover:bg-slate-50'}`}>
-              <div className="min-w-0"><p className="truncate font-extrabold text-slate-950">{log.admin_email || compactId(log.admin_id)}</p><p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">{compactId(log.admin_id)}</p></div>
-              <div className="mt-3 min-w-0 lg:mt-0"><p className="truncate font-bold text-slate-800">{log.action}</p><p className="mt-0.5 truncate text-[11px] text-slate-500">{log.method || 'GET'} · {log.path || 'Chưa có path'}</p></div>
-              <div className="mt-3 lg:mt-0"><span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-extrabold text-slate-700">{log.target_type || 'N/A'}</span></div>
-              <div className="mt-3 lg:mt-0"><span className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-extrabold ${log.success ? 'border-emerald-100 bg-emerald-50 text-emerald-700' : 'border-rose-100 bg-rose-50 text-rose-700'}`}>{log.success ? 'Thành công' : 'Thất bại'}</span></div>
-              <div className="mt-3 text-[11px] font-medium text-slate-500 lg:mt-0">{formatDateTime(log.created_at)}</div>
-              <button type="button" onClick={() => setSelectedLog(log)} className="mt-3 h-9 rounded-md border border-slate-200 bg-white px-3 text-[12px] font-extrabold text-slate-700 transition hover:bg-slate-50 lg:mt-0">Xem</button>
-            </article>
-          ))}
-          {!logs.length ? <div className="flex min-h-[360px] items-center justify-center px-4 py-10 text-center text-[13px] font-semibold text-slate-400">{loading ? 'Đang tải audit log...' : 'Không có log phù hợp.'}</div> : null}
-          </div>
-          <div className="mt-auto flex flex-col gap-2 border-t border-slate-100 px-4 py-3 text-[12px] font-semibold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-            <span>Trang {pagination.page || 1}/{pagination.total_pages || 1} · Tổng {pagination.total || logs.length} log</span>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-              <button type="button" disabled={Number(pagination.page) <= 1} onClick={() => changePage(Number(pagination.page || 1) - 1)} className="h-8 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40">Trước</button>
-              <button type="button" disabled={Number(pagination.page) >= Number(pagination.total_pages || 1)} onClick={() => changePage(Number(pagination.page || 1) + 1)} className="h-8 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40">Sau</button>
+      {/* Audit Log Detail Drawer */}
+      <AdminDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Chi tiết bản ghi kiểm toán"
+        subtitle={selectedLog?.action}
+        wide
+      >
+        {selectedLog ? (
+          <div className="space-y-5">
+            <div>
+              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                Thông tin sự kiện
+              </h4>
+              <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-slate-50/50 px-3">
+                <PropertyRow label="Mã bản ghi (ID)" value={selectedLog._id} mono />
+                <PropertyRow label="Hành động" value={selectedLog.action} mono />
+                <PropertyRow label="Quản trị viên thực hiện" value={`${selectedLog.admin_id?.fullName || ''} (${selectedLog.admin_id?.email || selectedLog.admin_id})`} />
+                <PropertyRow label="Đối tượng mục tiêu" value={selectedLog.target_type} />
+                <PropertyRow label="Mã đối tượng mục tiêu" value={selectedLog.target_id} mono />
+                <PropertyRow label="Địa chỉ IP" value={selectedLog.ip_address} mono />
+                <PropertyRow label="Trình duyệt (User Agent)" value={selectedLog.user_agent} />
+                <PropertyRow label="Thời gian ghi nhận" value={formatDateTime(selectedLog.created_at)} mono />
+              </div>
             </div>
-          </div>
-        </section>
 
-        <AdminDrawer open={Boolean(selectedLog)} onClose={() => setSelectedLog(null)} title="Chi tiết audit log" subtitle={selectedLog ? `${selectedLog.method || 'GET'} · ${selectedLog.path || 'Không có path'}` : ''} wide>
-          {selectedLog ? (
-            <div className="p-4">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5"><p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Admin</p><p className="mt-1 text-[12px] font-bold text-slate-800">{selectedLog.admin_email || compactId(selectedLog.admin_id)}</p></div>
-                <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5"><p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Hành động</p><p className="mt-1 text-[12px] font-bold text-slate-800">{selectedLog.action}</p></div>
-                <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5"><p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Tài nguyên</p><p className="mt-1 text-[12px] font-bold text-slate-800">{selectedLog.target_type || "Chưa có"}</p></div>
-                <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5"><p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">ID m?c ti?u</p><p className="mt-1 text-[12px] font-bold text-slate-800">{selectedLog.target_id ? compactId(selectedLog.target_id) : 'Chưa có'}</p></div>
-                <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5"><p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Đường dẫn</p><p className="mt-1 text-[12px] font-bold text-slate-800 break-all">{selectedLog.path || 'Chưa có'}</p></div>
-                <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5"><p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Phương thức / trạng thái</p><p className="mt-1 text-[12px] font-bold text-slate-800">{selectedLog.method || 'N/A'} · {selectedLog.status_code || 'N/A'}</p></div>
-                <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5"><p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">IP</p><p className="mt-1 text-[12px] font-bold text-slate-800">{selectedLog.ip || 'Chưa có'}</p></div>
-                <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5"><p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Thời gian</p><p className="mt-1 text-[12px] font-bold text-slate-800">{formatDateTime(selectedLog.created_at)}</p></div>
+            {selectedLog.details && Object.keys(selectedLog.details).length > 0 ? (
+              <div>
+                <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Dữ liệu payload thay đổi (Details)
+                </h4>
+                <pre className="p-3 rounded-lg border border-slate-200 bg-slate-900 text-slate-200 font-mono text-[11px] overflow-x-auto max-h-60 custom-scrollbar">
+                  {JSON.stringify(selectedLog.details, null, 2)}
+                </pre>
               </div>
-              <div className="mt-3 rounded-md border border-slate-100 bg-slate-50 p-3">
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Payload thay đổi / metadata</p>
-                <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words text-[12px] font-medium leading-5 text-slate-600">{JSON.stringify(selectedLog.metadata || {}, null, 2)}</pre>
-              </div>
-            </div>
-          ) : null}
-        </AdminDrawer>
-      </section>
+            ) : null}
+          </div>
+        ) : null}
+      </AdminDrawer>
+
+      {/* Admin User Picker Modal */}
+      <AdminModal
+        open={adminPickerOpen}
+        onClose={() => setAdminPickerOpen(false)}
+        title="Chọn Quản trị viên để lọc"
+        subtitle="Tìm kiếm tài khoản admin trong hệ thống."
+        size="sm"
+      >
+        <div className="space-y-3">
+          <input
+            value={adminSearch}
+            onChange={(e) => setAdminSearch(e.target.value)}
+            placeholder="Tìm theo email hoặc họ tên admin..."
+            className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none transition"
+          />
+
+          <div className="max-h-60 overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+            {searchAdminLoading ? (
+              <div className="p-4 text-center text-xs text-slate-400">Đang tìm admin...</div>
+            ) : adminResults.map((a) => (
+              <button
+                key={a._id}
+                type="button"
+                onClick={() => {
+                  setSelectedAdmin(a)
+                  setAdminPickerOpen(false)
+                }}
+                className="w-full text-left p-2.5 hover:bg-slate-50 transition flex items-center justify-between text-xs"
+              >
+                <div className="min-w-0">
+                  <p className="font-semibold text-slate-900 truncate">{a.fullName || a.username}</p>
+                  <p className="text-[11px] text-slate-400 truncate">{a.email}</p>
+                </div>
+                <span className="text-[11px] font-semibold text-indigo-600 shrink-0">Chọn</span>
+              </button>
+            ))}
+            {!adminResults.length && !searchAdminLoading ? (
+              <div className="p-4 text-center text-xs text-slate-400">Không tìm thấy quản trị viên.</div>
+            ) : null}
+          </div>
+        </div>
+      </AdminModal>
     </AdminLayout>
   )
 }

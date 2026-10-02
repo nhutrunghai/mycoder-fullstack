@@ -21,11 +21,26 @@ function formatNotificationTime(value) {
 }
 
 function getNotificationTitle(item) {
-  return item?.title || item?.data?.title || item?.metadata?.title || 'Thông báo'
+  const raw = item?.title || item?.data?.title || item?.metadata?.title || ''
+  if (!raw) return 'Thông báo'
+  // Auto-normalize unaccented titles for backward compatibility with old database records
+  if (raw === 'So du vi da duoc dieu chinh') return 'Số dư ví đã được điều chỉnh'
+  if (raw === 'Co ung vien moi') return 'Có ứng viên mới'
+  if (raw === 'Nap tien thanh cong') return 'Nạp tiền ví thành công'
+  return raw
 }
 
 function getNotificationMessage(item) {
-  return item?.message || item?.content || item?.data?.message || item?.metadata?.message || 'Bạn có một thông báo mới.'
+  const raw = item?.message || item?.content || item?.data?.message || item?.metadata?.message || ''
+  if (!raw) return 'Bạn có một thông báo mới.'
+  // Auto-normalize unaccented contents for backward compatibility with old database records
+  if (raw.startsWith('Vi cua ban duoc cong')) {
+    return raw.replace('Vi cua ban duoc cong', 'Ví của bạn được cộng')
+  }
+  if (raw.startsWith('Vi cua ban bi tru')) {
+    return raw.replace('Vi cua ban bi tru', 'Ví của bạn bị trừ')
+  }
+  return raw
 }
 
 export default function NotificationBell({ className = '', iconClassName = '', badgeClassName = '' }) {
@@ -94,7 +109,7 @@ export default function NotificationBell({ className = '', iconClassName = '', b
         setUnreadCount(nextCount)
         emitUnreadNotificationCount(nextCount)
       } catch {
-        // Keep navigation available even if marking the notification fails.
+        // Keep navigation available
       }
     }
     setOpen(false)

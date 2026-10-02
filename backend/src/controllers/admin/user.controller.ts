@@ -1,5 +1,7 @@
 import { Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
+import { ObjectId } from 'mongodb'
+import databaseService from '~/configs/database.config.js'
 import {
   AdminAuditAction,
   AdminAuditTargetType,
@@ -15,13 +17,20 @@ import adminUserService from '~/services/admin/user.service.js'
 import { buildUploadThingFileUrl } from '~/utils/avatar.util.js'
 
 export const getAdminUsersController = async (req: Request, res: Response) => {
-  const role = req.query.role as UserRole | undefined
-  const status = req.query.status as UserStatus | undefined
+  const role =
+    req.query.role !== undefined && req.query.role !== '' ? (Number(req.query.role) as UserRole) : undefined
+  const status =
+    req.query.status !== undefined && req.query.status !== '' ? (Number(req.query.status) as UserStatus) : undefined
   const keyword = typeof req.query.keyword === 'string' ? req.query.keyword.trim() : undefined
+  const userId =
+    (typeof req.query.userId === 'string' && req.query.userId) ||
+    (typeof req.query.user_id === 'string' && req.query.user_id) ||
+    undefined
   const page = Number(req.query.page || 1)
   const limit = Number(req.query.limit || 10)
 
   const result = await adminUserService.getUsers({
+    userId: userId ? new ObjectId(userId) : undefined,
     role,
     status,
     keyword,
@@ -44,6 +53,7 @@ export const getAdminUsersController = async (req: Request, res: Response) => {
         created_at: user.created_at,
         updated_at: user.updated_at
       })),
+      stats: result.stats,
       pagination: result.pagination
     }
   })
@@ -54,6 +64,20 @@ export const getAdminUserDetailController = async (
   res: Response<unknown, AdminUserLocals>
 ) => {
   const user = res.locals.adminUser
+  let company = null
+  if (user.role === UserRole.EMPLOYER) {
+    const foundCompany = await adminUserService.getUserEmployerCompany(user._id!)
+    if (foundCompany) {
+      company = {
+        _id: foundCompany._id,
+        company_name: foundCompany.company_name,
+        logo: buildUploadThingFileUrl(foundCompany.logo_file_key) || foundCompany.logo || '',
+        address: foundCompany.address,
+        website: foundCompany.website,
+        verified: foundCompany.verified
+      }
+    }
+  }
 
   return res.status(StatusCodes.OK).json({
     status: 'success',
@@ -70,9 +94,30 @@ export const getAdminUserDetailController = async (
       role: user.role,
       status: user.status,
       is_verified: user.is_verified,
+      company,
       created_at: user.created_at,
       updated_at: user.updated_at
     }
+  })
+}
+
+export const getAdminUserApplicationsController = async (
+  req: Request,
+  res: Response<unknown, AdminUserLocals>
+) => {
+  const user = res.locals.adminUser
+  const page = Number(req.query.page || 1)
+  const limit = Number(req.query.limit || 20)
+
+  const result = await adminUserService.getUserApplicationsForAdmin({
+    userId: user._id!,
+    page,
+    limit
+  })
+
+  return res.status(StatusCodes.OK).json({
+    status: 'success',
+    data: result
   })
 }
 
@@ -178,6 +223,59 @@ export const updateAdminUserStatusController = async (
     data: {
       _id: updatedUser?._id,
       status: updatedUser?.status,
+      updated_at: updatedUser?.updated_at
+    }
+  })
+}
+
+export const updateAdminUserRoleController = async (
+  req: Request<any, any, { role: UserRole }>,
+  res: Response<unknown, AdminUserLocals>
+) => {
+  const targetUser = res.locals.adminUser
+  const nextRole = Number(req.body.role) as UserRole
+  const currentAdmin = req.user
+
+  if (
+    currentAdmin?._id &&
+    String(currentAdmin._id) === String(targetUser._id) &&
+    nextRole !== UserRole.ADMIN
+  ) {
+    throw new AppError({
+      statusCode: StatusCodes.BAD_REQUEST,
+      message: 'Bạn không thể tự thu hồi quyền Quản trị viên của chính mình.'
+    })
+  }
+
+  let finalRole = nextRole
+  if (nextRole !== UserRole.ADMIN) {
+    const company = await databaseService.companies.findOne({ user_id: targetUser._id })
+    finalRole = company ? UserRole.EMPLOYER : UserRole.CANDIDATE
+  }
+
+  const updatedUser =
+    targetUser.role === finalRole
+      ? targetUser
+      : await adminUserService.updateUserRole(targetUser._id!, finalRole)
+
+  await adminAuditLogService.create({
+    req,
+    action: AdminAuditAction.USER_ROLE_UPDATE,
+    targetType: AdminAuditTargetType.USER,
+    targetId: targetUser._id,
+    statusCode: StatusCodes.OK,
+    metadata: {
+      previous_role: targetUser.role,
+      next_role: finalRole
+    }
+  })
+
+  return res.status(StatusCodes.OK).json({
+    status: 'success',
+    message: 'Cập nhật phân quyền người dùng thành công.',
+    data: {
+      _id: updatedUser?._id,
+      role: updatedUser?.role,
       updated_at: updatedUser?.updated_at
     }
   })

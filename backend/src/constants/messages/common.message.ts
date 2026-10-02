@@ -35,6 +35,8 @@ const CommonMessages = {
   OTP_CODE_CHANGE_PASSWORD: 'OtpCode không phải là string',
   FORGOT_PASSWORD_SUCCESS: 'Đặt lại mật khẩu thành công',
   UNAUTHORIZED: 'Tài khoản hoặc mật khẩu không đúng',
+  ACCOUNT_BANNED: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.',
+  ACCOUNT_DELETED: 'Tài khoản của bạn đã bị xóa khỏi hệ thống.',
   REGISTER_SUCCESS: 'Đăng ký tài khoản thành công',
   LOGIN_SUCCESS: 'Đăng nhập thành công',
   LOGOUT_SUCCESS: 'Đăng xuất thành công',

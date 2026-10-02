@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { UserRole } from '~/constants/enums.js'
 import {
+  getAdminJobApplicationsController,
   getAdminJobDetailController,
   getAdminJobsController,
   updateAdminJobModerationStatusController
@@ -11,6 +12,7 @@ import { findAdminJobByIdOrThrow } from '~/middlewares/admin/job.middleware.js'
 import { adminLimiter } from '~/middlewares/common/rate-limit.middleware.js'
 import validate from '~/middlewares/common/validator.middleware.js'
 import {
+  getAdminJobApplicationsValidator,
   getAdminJobDetailValidator,
   getAdminJobsValidator,
   updateAdminJobModerationStatusValidator
@@ -43,6 +45,16 @@ adminJobRouter.patch(
   validate(updateAdminJobModerationStatusValidator),
   findAdminJobByIdOrThrow,
   updateAdminJobModerationStatusController
+)
+
+
+adminJobRouter.get(
+  '/:jobId/applications',
+  adminAuthMiddleware,
+  authorizeAdmin([UserRole.ADMIN]),
+  validate(getAdminJobApplicationsValidator),
+  findAdminJobByIdOrThrow,
+  getAdminJobApplicationsController
 )
 
 export default adminJobRouter

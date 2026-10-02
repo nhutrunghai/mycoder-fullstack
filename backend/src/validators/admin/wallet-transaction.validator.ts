@@ -1,4 +1,4 @@
-import { z } from 'zod'
+﻿import { z } from 'zod'
 import {
   WalletTransactionDirection,
   WalletTransactionStatus,
@@ -28,6 +28,13 @@ const adminWalletTransactionDirectionValues = [
 export const getAdminWalletTransactionsValidator = z.object({
   query: z.object({
     userId: z
+      .string()
+      .trim()
+      .regex(/^[a-fA-F0-9]{24}$/, {
+        message: UserMessages.INVALID_DATA
+      })
+      .optional(),
+    user_id: z
       .string()
       .trim()
       .regex(/^[a-fA-F0-9]{24}$/, {

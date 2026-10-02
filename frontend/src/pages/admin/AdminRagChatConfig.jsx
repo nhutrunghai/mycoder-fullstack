@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+﻿import { useCallback, useEffect, useState } from 'react'
 import AdminLayout from '../../components/AdminLayout.jsx'
-import AdminDrawer from '../../components/admin/AdminDrawer.jsx'
+import AdminModal from '../../components/admin/AdminModal.jsx'
 import Toast from '../../components/Toast.jsx'
 import {
   getAdminRagChatConfig,
@@ -9,21 +9,17 @@ import {
   updateAdminRagChatConfig,
 } from '../../api/adminService.js'
 
-const inputClassName =
-  'h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100'
-
 const ragLimitHelp = {
-  job_search_top_k: 'Số job hệ thống lấy ra khi người dùng hỏi tìm việc hoặc gợi ý việc làm.',
-  job_explanation_top_k: 'Số job/ngữ cảnh dùng khi AI giải thích, so sánh hoặc trả lời về việc làm đã tìm.',
-  cv_review_top_k: 'Số đoạn CV được lấy từ index để AI đọc và đánh giá nội dung CV.',
-  answer_context_limit: 'Số ngữ cảnh tối đa đưa vào prompt cuối để AI tạo câu trả lời. Số lớn hơn tốn token hơn.',
+  job_search_top_k: 'Số lượng tin tuyển dụng truy xuất khi ứng viên hỏi tìm việc hoặc gợi ý việc làm.',
+  job_explanation_top_k: 'Số ngữ cảnh dùng khi AI giải thích, so sánh chi tiết các công việc tìm được.',
+  cv_review_top_k: 'Số đoạn văn bản CV được đối soát từ vector index để đánh giá sự phù hợp.',
+  answer_context_limit: 'Giới hạn số đoạn văn bản đưa vào prompt cuối cùng để tạo câu trả lời.',
 }
-
 
 const textModelOptions = {
   openai: [
-    { value: 'gpt-4o-mini', label: 'GPT-4o mini' },
-    { value: 'gpt-4o', label: 'GPT-4o' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o mini (Nhanh & Tối ưu chi phí)' },
+    { value: 'gpt-4o', label: 'GPT-4o (Thông minh & Toàn diện)' },
     { value: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
     { value: 'gpt-4.1', label: 'GPT-4.1' },
   ],
@@ -48,45 +44,14 @@ const secretProviderOptions = [
   { value: 'gemini', label: 'Gemini', field: 'gemini_api_key', preview: 'gemini_api_key_preview' },
 ]
 
-function StatCard({ label, value, tone = 'text-slate-950' }) {
+function PropertyRow({ label, value, mono = false }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{label}</p>
-      <p className={`mt-1.5 text-[14px] font-semibold leading-5 ${tone}`}>{String(value)}</p>
+    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-slate-100 text-xs">
+      <span className="text-slate-500 font-medium shrink-0">{label}</span>
+      <span className={`text-slate-900 text-right ${mono ? 'font-mono' : 'font-medium'} break-all`}>
+        {value || '—'}
+      </span>
     </div>
-  )
-}
-
-function HelpLabel({ label, helpKey }) {
-  return (
-    <span className="group relative mb-1 flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
-      <span>{label}</span>
-      <span className="flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-slate-300 bg-white text-[10px] font-black leading-none text-slate-500 transition group-hover:border-slate-400 group-hover:bg-slate-50 group-hover:text-slate-800">
-        i
-      </span>
-      <span className="pointer-events-none absolute left-0 top-6 z-20 hidden w-72 rounded-md border border-slate-200 bg-slate-950 px-3 py-2 text-left text-[11px] font-semibold normal-case leading-4 tracking-normal text-white shadow-lg group-hover:block">
-        {ragLimitHelp[helpKey]}
-      </span>
-    </span>
-  )
-}
-
-function ModelSelect({ label, value, options, onChange, className = 'block' }) {
-  const normalizedOptions = options.some((option) => option.value === value)
-    ? options
-    : value
-      ? [{ value, label: `${value} (đang dùng)` }, ...options]
-      : options
-
-  return (
-    <label className={className}>
-      <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className={inputClassName}>
-        {normalizedOptions.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-    </label>
   )
 }
 
@@ -95,12 +60,13 @@ export default function AdminRagChatConfig() {
   const [secrets, setSecrets] = useState(null)
   const [health, setHealth] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [healthLoading, setHealthLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [rotating, setRotating] = useState(false)
+  const [testing, setTesting] = useState(false)
   const [toast, setToast] = useState(null)
   const [secretOpen, setSecretOpen] = useState(false)
   const [selectedSecretProvider, setSelectedSecretProvider] = useState('openai')
+
   const [configForm, setConfigForm] = useState({
     enabled: true,
     provider: 'openai',
@@ -118,7 +84,7 @@ export default function AdminRagChatConfig() {
     maintenance_message: '',
   })
   const [secretForm, setSecretForm] = useState({ openai_api_key: '', gemini_api_key: '' })
-  const selectedSecretOption = secretProviderOptions.find((option) => option.value === selectedSecretProvider) || secretProviderOptions[0]
+  const selectedSecretOption = secretProviderOptions.find((opt) => opt.value === selectedSecretProvider) || secretProviderOptions[0]
 
   const syncForm = useCallback((nextConfig) => {
     setConfigForm({
@@ -158,169 +124,353 @@ export default function AdminRagChatConfig() {
         if (active) setToast({ type: 'error', message: error.message || 'Không thể tải cấu hình RAG Chat.' })
       })
       .finally(() => {
-        if (active) {
-          setLoading(false)
-          setHealthLoading(false)
-        }
+        if (active) setLoading(false)
       })
 
-    return () => {
-      active = false
-    }
+    return () => { active = false }
   }, [loadConfig, loadHealth])
 
-  const handleSaveConfig = async (event) => {
-    event.preventDefault()
+  const handleSaveConfig = async (e) => {
+    e.preventDefault()
     setSaving(true)
     try {
-      const result = await updateAdminRagChatConfig({
-        ...configForm,
-        job_search_top_k: Number(configForm.job_search_top_k),
-        job_explanation_top_k: Number(configForm.job_explanation_top_k),
-        cv_review_top_k: Number(configForm.cv_review_top_k),
-        answer_context_limit: Number(configForm.answer_context_limit),
-        maintenance_message: configForm.maintenance_message.trim() || null,
-      })
-      setConfig(result?.config || null)
-      syncForm(result?.config || {})
-      setToast({ type: 'success', message: 'Đã cập nhật cấu hình RAG Chat.' })
-      await loadHealth()
+      const updated = await updateAdminRagChatConfig(configForm)
+      setConfig(updated)
+      syncForm(updated)
+      setToast({ type: 'success', message: 'Đã lưu cấu hình trợ lý AI RAG thành công.' })
     } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Không thể cập nhật cấu hình RAG Chat.' })
+      setToast({ type: 'error', message: error.message || 'Không thể cập nhật cấu hình RAG.' })
     } finally {
       setSaving(false)
     }
   }
 
-  const handleRotateSecrets = async (event) => {
-    event.preventDefault()
-    const body = {}
-    const nextSecret = secretForm[selectedSecretOption.field].trim()
-    if (nextSecret) body[selectedSecretOption.field] = nextSecret
-    if (!Object.keys(body).length) {
-      setToast({ type: 'error', message: `Hãy nhập API key ${selectedSecretOption.label} cần cập nhật.` })
+  const handleRotateSecret = async (e) => {
+    e.preventDefault()
+    const key = selectedSecretOption.field
+    const val = secretForm[key]?.trim()
+    if (!val) {
+      setToast({ type: 'error', message: 'Vui lòng nhập API key mới.' })
       return
     }
 
     setRotating(true)
     try {
-      const result = await rotateAdminRagChatSecrets(body)
-      setSecrets(result?.secrets || null)
-      setSecretForm({ openai_api_key: '', gemini_api_key: '' })
+      await rotateAdminRagChatSecrets({ [key]: val })
+      setToast({ type: 'success', message: `Đã cập nhật API Key ${selectedSecretOption.label} thành công.` })
+      setSecretForm({ ...secretForm, [key]: '' })
       setSecretOpen(false)
-      setToast({ type: 'success', message: 'Đã cập nhật secret RAG Chat.' })
-      await loadHealth()
+      loadConfig()
     } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Không thể cập nhật secret RAG Chat.' })
+      setToast({ type: 'error', message: error.message || 'Không thể cập nhật API key.' })
     } finally {
       setRotating(false)
     }
   }
 
+  const handleTestHealth = async () => {
+    setTesting(true)
+    try {
+      await loadHealth()
+      setToast({ type: 'success', message: 'Đã cập nhật trạng thái kết nối AI Gateway.' })
+    } catch (error) {
+      setToast({ type: 'error', message: error.message || 'Kiểm tra kết nối thất bại.' })
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const currentTextModels = textModelOptions[configForm.provider] || textModelOptions.openai
+
   return (
-    <AdminLayout title="Cấu hình RAG Chat" subtitle="Quản lý trạng thái chạy, nhà cung cấp, model, API key và tình trạng kiểm tra hệ thống chat.">
+    <AdminLayout
+      title="Cấu hình Trợ lý AI & RAG Chat"
+      subtitle="Thiết lập mô hình ngôn ngữ lớn (LLM), tham số tìm kiếm Vector Top-K và quản lý API Key."
+      actions={
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={testing}
+            onClick={handleTestHealth}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined text-[16px]">sync</span>
+            <span>{testing ? 'Đang kiểm tra...' : 'Kiểm tra sức khỏe AI'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSecretOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition shadow-sm shadow-indigo-600/20"
+          >
+            <span className="material-symbols-outlined text-[16px]">key</span>
+            <span>Đổi API Key AI</span>
+          </button>
+        </div>
+      }
+    >
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      <section className="admin-metrics mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Nhà cung cấp" value={health?.provider || config?.provider || 'N/A'} tone="text-teal-700" />
-        <StatCard label="Trạng thái" value={health?.enabled ? 'Bật' : 'Tắt'} tone={health?.enabled ? 'text-emerald-700' : 'text-rose-700'} />
-        <StatCard label="Key nhà cung cấp" value={health?.provider_configured ? 'Đã cấu hình' : 'Thiếu key'} tone={health?.provider_configured ? 'text-emerald-700' : 'text-rose-700'} />
-        <StatCard label="Đánh giá CV" value={configForm.allow_cv_review ? 'Cho phép' : 'Tắt'} tone="text-slate-950" />
-      </section>
-
-      <section className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <form onSubmit={handleSaveConfig} className="admin-form-panel rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-[14px] font-extrabold text-slate-950">Cấu hình vận hành</h2>
-          <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <label className="block"><span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Nhà cung cấp</span><select value={configForm.provider} onChange={(event) => { const provider = event.target.value; const [defaultModel] = textModelOptions[provider] || textModelOptions.openai; setConfigForm((current) => ({ ...current, provider, intent_model: defaultModel.value, chat_model: defaultModel.value })) }} className={inputClassName}><option value="openai">OpenAI</option><option value="gemini">Gemini</option></select></label>
-            <label className="block"><span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Bật hệ thống</span><select value={configForm.enabled ? 'true' : 'false'} onChange={(event) => setConfigForm((current) => ({ ...current, enabled: event.target.value === 'true' }))} className={inputClassName}><option value="true">Đang bật</option><option value="false">Tạm tắt</option></select></label>
-            <ModelSelect label="Model nhận diện ý định" value={configForm.intent_model} options={textModelOptions[configForm.provider] || textModelOptions.openai} onChange={(value) => setConfigForm((current) => ({ ...current, intent_model: value }))} />
-            <ModelSelect label="Model chat" value={configForm.chat_model} options={textModelOptions[configForm.provider] || textModelOptions.openai} onChange={(value) => setConfigForm((current) => ({ ...current, chat_model: value }))} />
-            <ModelSelect label="Model đánh giá hình ảnh CV" value={configForm.cv_visual_review_model} options={visionModelOptions} onChange={(value) => setConfigForm((current) => ({ ...current, cv_visual_review_model: value }))} className="block lg:col-span-2" />
-            <label className="block"><HelpLabel label="Số kết quả tìm việc" helpKey="job_search_top_k" /><input type="number" min="1" max="20" value={configForm.job_search_top_k} onChange={(event) => setConfigForm((current) => ({ ...current, job_search_top_k: event.target.value }))} className={inputClassName} /></label>
-            <label className="block"><HelpLabel label="Số ngữ cảnh giải thích việc làm" helpKey="job_explanation_top_k" /><input type="number" min="1" max="20" value={configForm.job_explanation_top_k} onChange={(event) => setConfigForm((current) => ({ ...current, job_explanation_top_k: event.target.value }))} className={inputClassName} /></label>
-            <label className="block"><HelpLabel label="Số ngữ cảnh đánh giá CV" helpKey="cv_review_top_k" /><input type="number" min="1" max="20" value={configForm.cv_review_top_k} onChange={(event) => setConfigForm((current) => ({ ...current, cv_review_top_k: event.target.value }))} className={inputClassName} /></label>
-            <label className="block"><HelpLabel label="Giới hạn ngữ cảnh trả lời" helpKey="answer_context_limit" /><input type="number" min="1" max="10" value={configForm.answer_context_limit} onChange={(event) => setConfigForm((current) => ({ ...current, answer_context_limit: event.target.value }))} className={inputClassName} /></label>
-            <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] font-semibold text-slate-700"><input type="checkbox" checked={configForm.allow_job_qa} onChange={(event) => setConfigForm((current) => ({ ...current, allow_job_qa: event.target.checked }))} /> Cho phép tư vấn job</label>
-            <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] font-semibold text-slate-700"><input type="checkbox" checked={configForm.allow_cv_review} onChange={(event) => setConfigForm((current) => ({ ...current, allow_cv_review: event.target.checked }))} /> Cho phép đánh giá CV</label>
-            <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] font-semibold text-slate-700"><input type="checkbox" checked={configForm.allow_policy_qa} onChange={(event) => setConfigForm((current) => ({ ...current, allow_policy_qa: event.target.checked }))} /> Cho phép hỏi đáp chính sách</label>
-            <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] font-semibold text-slate-700"><input type="checkbox" checked={configForm.allow_general_qa} onChange={(event) => setConfigForm((current) => ({ ...current, allow_general_qa: event.target.checked }))} /> Cho phép hỏi đáp ngoài phạm vi</label>
-            <label className="block lg:col-span-2"><span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Thông báo bảo trì</span><textarea rows="4" value={configForm.maintenance_message} onChange={(event) => setConfigForm((current) => ({ ...current, maintenance_message: event.target.value }))} className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100" /></label>
-          </div>
-          <button type="submit" disabled={saving || loading} className="mt-3 flex h-10 w-full items-center justify-center rounded-md bg-teal-700 px-3 text-[13px] font-extrabold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300">{saving ? 'Đang lưu...' : 'Lưu cấu hình'}</button>
-        </form>
-
-        <div className="space-y-3">
-          <div className="admin-form-panel rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-[14px] font-extrabold text-slate-950">Cập nhật API key</h2>
-            <p className="mt-1 text-[12px] font-medium text-slate-500">Chọn nhà cung cấp cần đổi key, sau đó nhập key mới.</p>
-            <div className="mt-4 rounded-md border border-slate-100 bg-slate-50 p-3 text-[12px] font-semibold text-slate-600">
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">Provider đang chọn</p>
-              <p className="admin-secret-preview mt-1 min-w-0 max-w-full whitespace-normal break-all text-slate-800">{selectedSecretOption.label} · {secrets?.[selectedSecretOption.preview] || 'Chưa cấu hình'}</p>
-            </div>
-            <button type="button" onClick={() => setSecretOpen(true)} className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-slate-900 px-4 text-[13px] font-extrabold text-white transition hover:bg-slate-800"><span aria-hidden="true" className="material-symbols-outlined text-[18px]">key</span>Quản lý API key</button>
-          </div>
-
-          <AdminDrawer open={secretOpen} onClose={() => setSecretOpen(false)} title="Cập nhật API key RAG Chat" subtitle="Chọn provider và nhập key mới. Giá trị đầy đủ không được hiển thị lại sau khi lưu.">
-            <form onSubmit={handleRotateSecrets}>
-              <div>
-                <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Nhà cung cấp</span>
-                <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-100 p-1">
-                  {secretProviderOptions.map((option) => (
-                    <button key={option.value} type="button" onClick={() => setSelectedSecretProvider(option.value)} className={`h-10 rounded-md text-[13px] font-extrabold transition ${selectedSecretProvider === option.value ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-4 rounded-md border border-slate-100 bg-slate-50 p-3 text-[12px] font-semibold text-slate-600">
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">API key hiện tại</p>
-                <p className="admin-secret-preview mt-1 min-w-0 max-w-full whitespace-normal break-all text-slate-700">{secrets?.[selectedSecretOption.preview] || 'Chưa cấu hình'}</p>
-              </div>
-              <label className="mt-4 block"><span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">API key mới</span><input type="password" value={secretForm[selectedSecretOption.field]} onChange={(event) => setSecretForm((current) => ({ ...current, [selectedSecretOption.field]: event.target.value }))} placeholder={`Nhập API key ${selectedSecretOption.label} mới`} className={inputClassName} /></label>
-              <button type="submit" disabled={rotating || loading} className="mt-4 flex h-10 w-full items-center justify-center rounded-md bg-teal-700 px-3 text-[13px] font-extrabold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50">{rotating ? 'Đang cập nhật...' : `Cập nhật ${selectedSecretOption.label} API key`}</button>
-            </form>
-          </AdminDrawer>
-
-          <section className="admin-data-panel rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-[14px] font-extrabold text-slate-950">Kiểm tra hệ thống</h2>
-                <p className="mt-1 text-[12px] font-medium text-slate-500">Kiểm tra trạng thái chạy và nguồn secret hiện tại.</p>
-              </div>
-              <button type="button" onClick={async () => { setHealthLoading(true); try { await loadHealth() } catch (error) { setToast({ type: 'error', message: error.message || 'Không thể tải kiểm tra hệ thống.' }) } finally { setHealthLoading(false) } }} disabled={healthLoading} className="h-9 rounded-md border border-slate-200 bg-white px-3 text-[12px] font-extrabold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">{healthLoading ? 'Đang tải...' : 'Làm mới'}</button>
-            </div>
-            <div className="mt-4 space-y-2.5 text-sm font-semibold text-slate-700">
-              <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-3">
-                <span className="font-bold text-slate-800">Trạng thái hệ thống</span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${health?.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                  {health?.enabled ? 'Đang bật' : 'Đang tắt'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-3">
-                <span className="font-bold text-slate-800">Nhà cung cấp</span>
-                <span className="text-right font-extrabold text-slate-900">{health?.provider || 'Chưa có'} · {health?.provider_configured ? 'Đã có key' : 'Thiếu key'}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-3">
-                <span className="font-bold text-slate-800">OpenAI</span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${health?.openai_api_key_configured ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {health?.openai_api_key_configured ? 'Đã cấu hình' : 'Chưa cấu hình'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-3">
-                <span className="font-bold text-slate-800">Gemini</span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${health?.gemini_api_key_configured ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {health?.gemini_api_key_configured ? 'Đã cấu hình' : 'Chưa cấu hình'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-3">
-                <span className="font-bold text-slate-800">Embedding API</span>
-                <span className="break-all text-right font-extrabold text-slate-900">{health?.embedding_api_url || 'Chưa có'}</span>
-              </div>
-            </div>
-          </section>
+      {/* KPI Cards */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Trạng thái AI</p>
+          <p className={`mt-2 text-sm font-bold flex items-center gap-1.5 ${
+            configForm.enabled ? 'text-emerald-700' : 'text-slate-500'
+          }`}>
+            <span className={`h-2 w-2 rounded-full ${configForm.enabled ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+            {configForm.enabled ? 'Đang hoạt động' : 'Đang tạm dừng'}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Nhà cung cấp chính</p>
+          <p className="mt-2 text-sm font-bold uppercase tracking-wider text-slate-900 font-mono">
+            {configForm.provider}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Chat Model</p>
+          <p className="mt-2 text-xs font-semibold text-indigo-700 truncate font-mono">
+            {configForm.chat_model || 'gpt-4o-mini'}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Kết nối Vector DB</p>
+          <p className="mt-2 text-sm font-bold text-emerald-700 flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            Sẵn sàng
+          </p>
         </div>
       </section>
+
+      {/* Form Settings */}
+      <form onSubmit={handleSaveConfig} className="space-y-5">
+        {/* Model Selection Card */}
+        <section className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-2xs space-y-4">
+          <div className="border-b border-slate-100 pb-3">
+            <h2 className="text-sm font-semibold text-slate-900">1. Lựa chọn Mô hình LLM & Nhà cung cấp</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Chọn engine xử lý ngôn ngữ tự nhiên và phân tích thị giác CV.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Nhà cung cấp (LLM Provider)</label>
+              <select
+                value={configForm.provider}
+                onChange={(e) => setConfigForm({ ...configForm, provider: e.target.value })}
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition font-semibold"
+              >
+                <option value="openai">OpenAI (ChatGPT)</option>
+                <option value="gemini">Google Gemini</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Mô hình hội thoại (Chat Model)</label>
+              <select
+                value={configForm.chat_model}
+                onChange={(e) => setConfigForm({ ...configForm, chat_model: e.target.value })}
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+              >
+                {currentTextModels.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Mô hình thị giác (Vision CV Model)</label>
+              <select
+                value={configForm.cv_visual_review_model}
+                onChange={(e) => setConfigForm({ ...configForm, cv_visual_review_model: e.target.value })}
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+              >
+                {visionModelOptions.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </section>
+
+        {/* Vector Search Parameters */}
+        <section className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-2xs space-y-4">
+          <div className="border-b border-slate-100 pb-3">
+            <h2 className="text-sm font-semibold text-slate-900">2. Tham số tìm kiếm RAG & Vector Top-K</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Điều chỉnh số lượng tài liệu tham chiếu được trích xuất từ cơ sở dữ liệu vector.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            <div>
+              <label className="block font-medium text-slate-700 mb-1" title={ragLimitHelp.job_search_top_k}>
+                Job Search Top-K
+              </label>
+              <input
+                type="number"
+                value={configForm.job_search_top_k}
+                onChange={(e) => setConfigForm({ ...configForm, job_search_top_k: Number(e.target.value) })}
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 font-mono focus:border-indigo-600 focus:outline-none transition"
+              />
+              <p className="mt-1 text-[11px] text-slate-400">Số job lấy ra khi tìm kiếm</p>
+            </div>
+
+            <div>
+              <label className="block font-medium text-slate-700 mb-1" title={ragLimitHelp.job_explanation_top_k}>
+                Job Explanation Top-K
+              </label>
+              <input
+                type="number"
+                value={configForm.job_explanation_top_k}
+                onChange={(e) => setConfigForm({ ...configForm, job_explanation_top_k: Number(e.target.value) })}
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 font-mono focus:border-indigo-600 focus:outline-none transition"
+              />
+              <p className="mt-1 text-[11px] text-slate-400">Số job dùng khi so sánh</p>
+            </div>
+
+            <div>
+              <label className="block font-medium text-slate-700 mb-1" title={ragLimitHelp.cv_review_top_k}>
+                CV Review Top-K
+              </label>
+              <input
+                type="number"
+                value={configForm.cv_review_top_k}
+                onChange={(e) => setConfigForm({ ...configForm, cv_review_top_k: Number(e.target.value) })}
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 font-mono focus:border-indigo-600 focus:outline-none transition"
+              />
+              <p className="mt-1 text-[11px] text-slate-400">Số đoạn CV đối soát</p>
+            </div>
+
+            <div>
+              <label className="block font-medium text-slate-700 mb-1" title={ragLimitHelp.answer_context_limit}>
+                Context Limit
+              </label>
+              <input
+                type="number"
+                value={configForm.answer_context_limit}
+                onChange={(e) => setConfigForm({ ...configForm, answer_context_limit: Number(e.target.value) })}
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 font-mono focus:border-indigo-600 focus:outline-none transition"
+              />
+              <p className="mt-1 text-[11px] text-slate-400">Giới hạn prompt context</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Feature Toggles & Maintenance */}
+        <section className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-2xs space-y-4">
+          <div className="border-b border-slate-100 pb-3">
+            <h2 className="text-sm font-semibold text-slate-900">3. Phân quyền tính năng & Bảo trì</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Bật tắt các module AI cho ứng viên và người dùng.</p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <label className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 cursor-pointer hover:bg-slate-50">
+              <input
+                type="checkbox"
+                checked={configForm.enabled}
+                onChange={(e) => setConfigForm({ ...configForm, enabled: e.target.checked })}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="font-medium text-slate-800">Kích hoạt AI Chat</span>
+            </label>
+
+            <label className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 cursor-pointer hover:bg-slate-50">
+              <input
+                type="checkbox"
+                checked={configForm.allow_cv_review}
+                onChange={(e) => setConfigForm({ ...configForm, allow_cv_review: e.target.checked })}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="font-medium text-slate-800">Đánh giá CV tự động</span>
+            </label>
+
+            <label className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 cursor-pointer hover:bg-slate-50">
+              <input
+                type="checkbox"
+                checked={configForm.allow_job_qa}
+                onChange={(e) => setConfigForm({ ...configForm, allow_job_qa: e.target.checked })}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="font-medium text-slate-800">Hỏi đáp tin việc làm</span>
+            </label>
+
+            <label className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 cursor-pointer hover:bg-slate-50">
+              <input
+                type="checkbox"
+                checked={configForm.allow_general_qa}
+                onChange={(e) => setConfigForm({ ...configForm, allow_general_qa: e.target.checked })}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="font-medium text-slate-800">Trò chuyện mở rộng</span>
+            </label>
+          </div>
+
+          <div className="pt-2 flex justify-end">
+            <button
+              type="submit"
+              disabled={saving}
+              className="h-9 rounded-lg bg-indigo-600 px-5 text-xs font-semibold text-white hover:bg-indigo-700 transition shadow-sm shadow-indigo-600/20 disabled:opacity-50"
+            >
+              {saving ? 'Đang lưu cấu hình...' : 'Lưu toàn bộ cấu hình AI'}
+            </button>
+          </div>
+        </section>
+      </form>
+
+      {/* API Key Rotation Modal */}
+      <AdminModal
+        open={secretOpen}
+        onClose={() => setSecretOpen(false)}
+        title="Cập nhật API Key Nhà cung cấp AI"
+        subtitle="Cung cấp API Key từ OpenAI Platform hoặc Google AI Studio."
+      >
+        <form onSubmit={handleRotateSecret} className="space-y-4 text-xs">
+          <div>
+            <label className="block font-medium text-slate-700 mb-1">Chọn nhà cung cấp</label>
+            <select
+              value={selectedSecretProvider}
+              onChange={(e) => setSelectedSecretProvider(e.target.value)}
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition font-semibold"
+            >
+              <option value="openai">OpenAI (sk-...)</option>
+              <option value="gemini">Google Gemini (AIza...)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-medium text-slate-700 mb-1">
+              API Key mới cho {selectedSecretOption.label} <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="password"
+              value={secretForm[selectedSecretOption.field] || ''}
+              onChange={(e) => setSecretForm({ ...secretForm, [selectedSecretOption.field]: e.target.value })}
+              placeholder={`Nhập API key ${selectedSecretOption.label}...`}
+              required
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 font-mono focus:border-indigo-600 focus:outline-none transition"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setSecretOpen(false)}
+              className="h-8 rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={rotating}
+              className="h-8 rounded-lg bg-indigo-600 px-4 text-xs font-semibold text-white hover:bg-indigo-700 transition shadow-sm shadow-indigo-600/20 disabled:opacity-50"
+            >
+              {rotating ? 'Đang cập nhật...' : 'Lưu API Key'}
+            </button>
+          </div>
+        </form>
+      </AdminModal>
     </AdminLayout>
   )
 }

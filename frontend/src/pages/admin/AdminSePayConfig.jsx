@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../../components/AdminLayout.jsx'
 import AdminDrawer from '../../components/admin/AdminDrawer.jsx'
+import AdminModal from '../../components/admin/AdminModal.jsx'
 import Toast from '../../components/Toast.jsx'
 import {
   getAdminSePayConfig,
@@ -9,32 +10,23 @@ import {
   testAdminSePayConnection,
   updateAdminSePayConfig,
 } from '../../api/adminService.js'
-import { compactId, formatCurrencyVi as formatMoney, formatDateTimeVi as formatDateTime } from '../../utils/formatters.js'
+import { formatCurrencyVi as formatMoney, formatDateTimeVi as formatDateTime } from '../../utils/formatters.js'
 
 const orderStatusMap = {
-  pending: { label: 'Chờ thanh toán', tone: 'border-amber-100 bg-amber-50 text-amber-700' },
-  paid: { label: 'Đã thanh toán', tone: 'border-emerald-100 bg-emerald-50 text-emerald-700' },
-  failed: { label: 'Thất bại', tone: 'border-rose-100 bg-rose-50 text-rose-700' },
-  cancelled: { label: 'Đã hủy', tone: 'border-slate-200 bg-slate-100 text-slate-600' },
-  expired: { label: 'Hết hạn', tone: 'border-slate-200 bg-slate-100 text-slate-600' },
+  pending: { label: 'Chờ thanh toán', tone: 'bg-amber-50 text-amber-700 ring-amber-600/20' },
+  paid: { label: 'Đã thanh toán', tone: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' },
+  failed: { label: 'Thất bại', tone: 'bg-rose-50 text-rose-700 ring-rose-600/20' },
+  cancelled: { label: 'Đã hủy', tone: 'bg-slate-100 text-slate-600 ring-slate-500/10' },
+  expired: { label: 'Hết hạn', tone: 'bg-slate-100 text-slate-600 ring-slate-500/10' },
 }
 
-function StatCard({ label, value, tone = 'text-slate-950' }) {
+function PropertyRow({ label, value, mono = false }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-      <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{label}</p>
-      <p className={`mt-2 text-2xl font-extrabold ${tone}`}>{value}</p>
-    </div>
-  )
-}
-
-function Field({ label, value, isCode = false }) {
-  return (
-    <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5">
-      <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">{label}</p>
-      <p className={`mt-1 text-[12px] font-bold text-slate-800 ${isCode ? 'font-mono break-all' : 'truncate'}`}>
-        {value || 'Chưa có'}
-      </p>
+    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-slate-100 text-xs">
+      <span className="text-slate-500 font-medium shrink-0">{label}</span>
+      <span className={`text-slate-900 text-right ${mono ? 'font-mono' : 'font-medium'} break-all`}>
+        {value || '—'}
+      </span>
     </div>
   )
 }
@@ -42,17 +34,16 @@ function Field({ label, value, isCode = false }) {
 function formatSecretDisplay(secretStr) {
   if (!secretStr) return 'Chưa cấu hình'
   const tail = secretStr.replace(/^\*+/, '')
-  return '••••••••••••••••' + (tail || secretStr.slice(-4))
+  return '••••••••••••' + (tail || secretStr.slice(-4))
 }
-
-const inputClassName =
-  'h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100'
 
 export default function AdminSePayConfig() {
   const [config, setConfig] = useState(null)
   const [diagnostics, setDiagnostics] = useState(null)
   const [recentLimit, setRecentLimit] = useState('10')
   const [selectedOrder, setSelectedOrder] = useState(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [secretOpen, setSecretOpen] = useState(false)
   const [configForm, setConfigForm] = useState({
     bank_account_id: '',
     bank_short_name: '',
@@ -61,12 +52,10 @@ export default function AdminSePayConfig() {
   })
   const [secretForm, setSecretForm] = useState({ api_token: '', webhook_secret: '' })
   const [loading, setLoading] = useState(true)
-  const [diagLoading, setDiagLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [rotating, setRotating] = useState(false)
   const [testing, setTesting] = useState(false)
   const [toast, setToast] = useState(null)
-  const [secretOpen, setSecretOpen] = useState(false)
 
   const syncConfigForm = useCallback((data) => {
     setConfigForm({
@@ -97,10 +86,7 @@ export default function AdminSePayConfig() {
         if (active) setToast({ type: 'error', message: error.message || 'Không thể tải cấu hình SePay.' })
       })
       .finally(() => {
-        if (active) {
-          setLoading(false)
-          setDiagLoading(false)
-        }
+        if (active) setLoading(false)
       })
 
     return () => {
@@ -144,7 +130,7 @@ export default function AdminSePayConfig() {
     if (secretForm.api_token.trim()) body.api_token = secretForm.api_token.trim()
     if (secretForm.webhook_secret.trim()) body.webhook_secret = secretForm.webhook_secret.trim()
     if (!Object.keys(body).length) {
-      setToast({ type: 'error', message: 'Hãy nhập ít nhất một secret cần cập nhật.' })
+      setToast({ type: 'error', message: 'Hãy nhập ít nhất một token/secret cần cập nhật.' })
       return
     }
 
@@ -168,428 +154,364 @@ export default function AdminSePayConfig() {
       const result = await testAdminSePayConnection()
       setToast({
         type: result?.connected ? 'success' : 'error',
-        message: result?.message || (result?.connected ? 'Kết nối tới cổng SePay thành công!' : 'Kết nối SePay thất bại.'),
+        message: result?.message || (result?.connected ? 'Kết nối SePay Gateway thành công.' : 'Kết nối SePay thất bại.'),
       })
+      loadDiagnostics(recentLimit)
     } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Không thể kiểm tra kết nối SePay.' })
+      setToast({ type: 'error', message: error.message || 'Lỗi kiểm tra kết nối SePay.' })
     } finally {
       setTesting(false)
     }
   }
 
-  const handleReloadDiagnostics = async () => {
-    setDiagLoading(true)
-    try {
-      await loadDiagnostics(recentLimit)
-      setToast({ type: 'success', message: 'Đã làm mới danh sách đơn nạp tiền.' })
-    } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Không thể tải lại thông tin SePay.' })
-    } finally {
-      setDiagLoading(false)
-    }
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard.writeText(text)
+    setToast({ type: 'success', message: `Đã sao chép ${label} vào clipboard!` })
   }
 
-  const handleCopyWebhook = () => {
-    const url = config?.webhook_url || config?.webhook_path || ''
-    if (!url) return
-    navigator.clipboard.writeText(url)
-    setToast({ type: 'success', message: 'Đã sao chép đường dẫn Webhook vào bộ nhớ tạm.' })
-  }
+  const recentOrders = diagnostics?.recent_orders ?? []
 
   return (
     <AdminLayout
-      title="Cấu hình SePay"
-      subtitle="Quản lý cấu hình tài khoản ngân hàng, API token SePay và theo dõi các đơn nạp tiền tự động qua QR."
+      title="Cấu hình SePay Webhook & Thanh toán"
+      subtitle="Quản lý cổng thanh toán tự động SePay, webhook xác thực giao dịch ngân hàng và tài khoản nhận tiền."
+      actions={
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={testing}
+            onClick={handleTestConnection}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined text-[16px]">sync</span>
+            <span>{testing ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSecretOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition shadow-sm shadow-indigo-600/20"
+          >
+            <span className="material-symbols-outlined text-[16px]">key</span>
+            <span>Cập nhật Secret/Token</span>
+          </button>
+        </div>
+      }
     >
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      {/* Metrics Row */}
-      <section className="admin-metrics mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Chờ thanh toán" value={stats.pending} tone="text-amber-700" />
-        <StatCard label="Đã thanh toán" value={stats.paid} tone="text-emerald-700" />
-        <StatCard label="Thất bại" value={stats.failed} tone="text-rose-700" />
-        <StatCard label="Chờ quá 1 giờ" value={stats.stalePending} tone="text-slate-950" />
+      {/* KPI Cards */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          ['Đã thanh toán', stats.paid, 'text-emerald-700 bg-emerald-50'],
+          ['Đang chờ xử lý', stats.pending, 'text-amber-700 bg-amber-50'],
+          ['Thất bại / Hủy', stats.failed, 'text-rose-700 bg-rose-50'],
+          ['Chờ quá 1 giờ', stats.stalePending, 'text-slate-700 bg-slate-100'],
+        ].map(([label, value, badgeStyle]) => (
+          <div key={label} className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+            <p className="text-xs font-medium text-slate-500">{label}</p>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-xl font-bold tracking-tight text-slate-900">{value}</span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${badgeStyle}`}>
+                Thống kê
+              </span>
+            </div>
+          </div>
+        ))}
       </section>
 
-      {/* Main Grid */}
-      <section className="mb-3 grid grid-cols-1 gap-3 xl:grid-cols-[380px_minmax(0,1fr)]">
-        {/* Left Form: Bank Account Config */}
-        <div className="space-y-3">
-          <form onSubmit={handleSaveConfig} className="admin-form-panel rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h2 className="text-[14px] font-extrabold text-slate-950">Tài khoản ngân hàng</h2>
-                <p className="mt-0.5 text-[12px] font-medium text-slate-500">Thông tin nhận tiền chuyển khoản SePay.</p>
-              </div>
-            </div>
-
-            <div className="mt-3 space-y-3">
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
-                  ID tài khoản SePay (Bank Account ID)
-                </span>
-                <input
-                  value={configForm.bank_account_id}
-                  onChange={(event) => setConfigForm((current) => ({ ...current, bank_account_id: event.target.value }))}
-                  placeholder="VD: e8385f14-3e98-11f1-b21a-..."
-                  className={inputClassName}
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
-                  Tên viết tắt ngân hàng
-                </span>
-                <input
-                  value={configForm.bank_short_name}
-                  onChange={(event) => setConfigForm((current) => ({ ...current, bank_short_name: event.target.value }))}
-                  placeholder="VD: MBBank, VCB, ACB, TPB..."
-                  className={inputClassName}
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
-                  Số tài khoản ngân hàng
-                </span>
-                <input
-                  value={configForm.bank_account_number}
-                  onChange={(event) => setConfigForm((current) => ({ ...current, bank_account_number: event.target.value }))}
-                  placeholder="VD: 0386606831"
-                  className={inputClassName}
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">
-                  Chủ tài khoản (Không dấu)
-                </span>
-                <input
-                  value={configForm.bank_account_holder_name}
-                  onChange={(event) => setConfigForm((current) => ({ ...current, bank_account_holder_name: event.target.value }))}
-                  placeholder="VD: NHU TRUNG HAI"
-                  className={inputClassName}
-                />
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving || loading}
-              className="mt-4 flex h-10 w-full items-center justify-center rounded-md bg-teal-700 px-3 text-[13px] font-extrabold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saving ? 'Đang lưu...' : 'Lưu cấu hình ngân hàng'}
-            </button>
-          </form>
-
-          {/* Quick Secret & Test Card */}
-          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-[13px] font-extrabold text-slate-950">Secret & Kết nối</h3>
-                <p className="mt-0.5 text-[11px] font-medium text-slate-500">API Token và kiểm tra kết nối API.</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleTestConnection}
-                disabled={testing}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-teal-200 bg-teal-50 px-3 text-[12px] font-extrabold text-teal-700 transition hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[16px]">sync_saved_locally</span>
-                {testing ? 'Đang kiểm tra...' : 'Kiểm tra kết nối'}
-              </button>
-            </div>
-
-            <div className="mt-3 space-y-2">
-              <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">API Token</span>
-                  <span className="rounded bg-slate-200/60 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
-                    {config?.api_token_source || (config?.api_token_configured ? 'Đã cấu hình' : 'Chưa có')}
-                  </span>
-                </div>
-                <p className="mt-1 font-mono text-[12px] font-bold text-slate-700 truncate">
-                  {formatSecretDisplay(config?.api_token_preview)}
-                </p>
-              </div>
-
-              <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Webhook Secret</span>
-                  <span className="rounded bg-slate-200/60 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
-                    {config?.webhook_secret_source || (config?.webhook_secret_configured ? 'Đã cấu hình' : 'Chưa có')}
-                  </span>
-                </div>
-                <p className="mt-1 font-mono text-[12px] font-bold text-slate-700 truncate">
-                  {formatSecretDisplay(config?.webhook_secret_preview)}
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setSecretOpen(true)}
-              className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white text-[12px] font-extrabold text-slate-700 transition hover:bg-slate-50"
-            >
-              <span className="material-symbols-outlined text-[16px]">key</span>
-              Thay đổi API Token / Secret
-            </button>
+      {/* Grid: Webhook Info & Bank Config */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {/* Left: Webhook & Gateway Status */}
+        <section className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-2xs space-y-4">
+          <div className="border-b border-slate-100 pb-3">
+            <h2 className="text-sm font-semibold text-slate-900">Thông tin Webhook & Khóa bảo mật</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Địa chỉ endpoint nhận thông báo biến động số dư từ SePay.</p>
           </div>
-        </div>
 
-        {/* Right Section: Webhook URL & Recent Top-Up Orders */}
-        <div className="space-y-3">
-          {/* Webhook Configuration Guide Card */}
-          <div className="rounded-lg border border-teal-100 bg-teal-50/50 p-4 shadow-sm">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-[13px] font-extrabold text-teal-950">Đường dẫn nhận Webhook SePay</p>
-                <p className="mt-0.5 text-[12px] font-medium text-teal-800">
-                  Dùng đường dẫn này để dán vào mục <strong>Cấu hình Webhook</strong> trên trang quản trị <strong>my.sepay.vn</strong>.
-                </p>
-              </div>
+          <div className="space-y-3 text-xs">
+            <div>
+              <label className="block text-slate-500 font-medium mb-1">Webhook URL Endpoint</label>
               <div className="flex items-center gap-2">
-                <span className="inline-flex rounded-full border border-teal-200 bg-white px-2.5 py-1 text-[11px] font-extrabold text-teal-700">
-                  24h: {diagnostics?.order_summary?.webhook_received_last_24h || 0} webhook
-                </span>
-                <span className="inline-flex rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-extrabold text-emerald-700">
-                  24h: {diagnostics?.order_summary?.paid_last_24h || 0} đã thanh toán
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-center gap-2">
-              <div className="relative flex-1">
                 <input
                   readOnly
-                  value={config?.webhook_url || config?.webhook_path || 'Chưa có'}
-                  className="h-9 w-full rounded-md border border-teal-200 bg-white pl-3 pr-3 font-mono text-[12px] font-bold text-slate-800 outline-none select-all"
+                  value={config?.webhook_url || 'Chưa xác định URL'}
+                  className="h-9 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 font-mono text-xs text-slate-800"
                 />
-              </div>
-              <button
-                type="button"
-                onClick={handleCopyWebhook}
-                className="flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-teal-700 px-3 text-[12px] font-extrabold text-white transition hover:bg-teal-800"
-              >
-                <span className="material-symbols-outlined text-[16px]">content_copy</span>
-                Sao chép
-              </button>
-            </div>
-          </div>
-
-          {/* Recent Orders Data Panel */}
-          <section className="admin-data-panel rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-              <div>
-                <h2 className="text-[14px] font-extrabold text-slate-950">Đơn nạp tiền gần đây</h2>
-                <p className="mt-0.5 text-[12px] font-medium text-slate-500">
-                  Theo dõi trạng thái các giao dịch nạp tiền qua cổng SePay.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <select
-                  value={recentLimit}
-                  onChange={(event) => {
-                    setRecentLimit(event.target.value)
-                    loadDiagnostics(event.target.value)
-                  }}
-                  className="h-9 rounded-md border border-slate-200 bg-white px-2.5 text-[12px] font-bold text-slate-700 outline-none"
-                >
-                  <option value="5">5 đơn</option>
-                  <option value="10">10 đơn</option>
-                  <option value="20">20 đơn</option>
-                  <option value="50">50 đơn</option>
-                </select>
                 <button
                   type="button"
-                  onClick={handleReloadDiagnostics}
-                  disabled={diagLoading}
-                  className="inline-flex h-9 items-center gap-1 rounded-md border border-slate-200 bg-white px-3 text-[12px] font-extrabold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => copyToClipboard(config?.webhook_url || '', 'Webhook URL')}
+                  className="h-9 rounded-lg border border-slate-200 bg-white px-3 font-medium text-slate-700 hover:bg-slate-50 transition"
                 >
-                  <span className="material-symbols-outlined text-[16px]">refresh</span>
-                  {diagLoading ? 'Đang tải...' : 'Làm mới'}
+                  Sao chép
                 </button>
               </div>
             </div>
 
-            <div className="mt-3 overflow-hidden rounded-lg border border-slate-200">
-              <div className="hidden grid-cols-[minmax(0,1.2fr)_120px_130px_140px_140px_100px] bg-slate-50 px-4 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400 lg:grid">
-                <span>Mã đơn & Nội dung</span>
-                <span>Số tiền</span>
-                <span>Trạng thái</span>
-                <span>Mã GD SePay</span>
-                <span>Cập nhật</span>
-                <span></span>
+            <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-slate-50/50 px-3">
+              <PropertyRow
+                label="API Token (Bearer)"
+                value={formatSecretDisplay(config?.api_token_masked || config?.api_token)}
+                mono
+              />
+              <PropertyRow
+                label="Webhook Secret (Chữ ký xác thực)"
+                value={formatSecretDisplay(config?.webhook_secret_masked || config?.webhook_secret)}
+                mono
+              />
+              <PropertyRow
+                label="Trạng thái cấu hình"
+                value={config?.is_configured ? 'Đã kích hoạt' : 'Chưa kích hoạt'}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Right: Bank Account Configuration Form */}
+        <section className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-2xs space-y-4">
+          <div className="border-b border-slate-100 pb-3">
+            <h2 className="text-sm font-semibold text-slate-900">Tài khoản ngân hàng thụ hưởng</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Thông tin tài khoản nhận tiền tạo mã QR thanh toán động.</p>
+          </div>
+
+          <form onSubmit={handleSaveConfig} className="space-y-3 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">Ngân hàng (Short name)</label>
+                <input
+                  value={configForm.bank_short_name}
+                  onChange={(e) => setConfigForm({ ...configForm, bank_short_name: e.target.value })}
+                  placeholder="MBBank, VCB, ACB..."
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none transition"
+                />
               </div>
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">Số tài khoản</label>
+                <input
+                  value={configForm.bank_account_number}
+                  onChange={(e) => setConfigForm({ ...configForm, bank_account_number: e.target.value })}
+                  placeholder="0123456789"
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 font-mono focus:border-indigo-600 focus:outline-none transition"
+                />
+              </div>
+            </div>
 
-              {(diagnostics?.recent_orders || []).map((order) => {
-                const statusInfo = orderStatusMap[order.status] || { label: order.status, tone: 'border-slate-200 bg-slate-100 text-slate-600' }
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Chủ tài khoản (Tên người/tổ chức)</label>
+              <input
+                value={configForm.bank_account_holder_name}
+                onChange={(e) => setConfigForm({ ...configForm, bank_account_holder_name: e.target.value })}
+                placeholder="NGUYEN VAN A / CONG TY TNHH MYCODER"
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 uppercase focus:border-indigo-600 focus:outline-none transition"
+              />
+            </div>
+
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Mã tài khoản SePay (Bank Account ID)</label>
+              <input
+                value={configForm.bank_account_id}
+                onChange={(e) => setConfigForm({ ...configForm, bank_account_id: e.target.value })}
+                placeholder="ID ngân hàng trên dashboard SePay"
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 font-mono focus:border-indigo-600 focus:outline-none transition"
+              />
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="submit"
+                disabled={saving}
+                className="h-8 rounded-lg bg-indigo-600 px-4 text-xs font-semibold text-white hover:bg-indigo-700 transition shadow-sm shadow-indigo-600/20 disabled:opacity-50"
+              >
+                {saving ? 'Đang lưu...' : 'Lưu tài khoản ngân hàng'}
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      {/* Recent Orders Section */}
+      <section className="rounded-xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/60 px-5 py-3.5">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Đơn nạp tiền qua cổng SePay gần đây</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Danh sách các yêu cầu nạp tiền và trạng thái khớp lệnh thanh toán.</p>
+          </div>
+          <select
+            value={recentLimit}
+            onChange={(e) => {
+              setRecentLimit(e.target.value)
+              loadDiagnostics(e.target.value)
+            }}
+            className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700"
+          >
+            <option value="10">10 đơn mới nhất</option>
+            <option value="20">20 đơn mới nhất</option>
+            <option value="50">50 đơn mới nhất</option>
+          </select>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-slate-200 bg-slate-50/70 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+              <tr>
+                <th className="py-3 px-4">Mã đơn hàng</th>
+                <th className="py-3 px-4">Khách hàng</th>
+                <th className="py-3 px-4 text-right">Số tiền nạp</th>
+                <th className="py-3 px-4">Ngân hàng</th>
+                <th className="py-3 px-4">Trạng thái</th>
+                <th className="py-3 px-4">Thời gian</th>
+                <th className="py-3 px-4 text-right">Chi tiết</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {recentOrders.map((order) => {
+                const user = order.user_id || {}
+                const statusInfo = orderStatusMap[order.status] || { label: order.status, tone: 'bg-slate-100 text-slate-600' }
                 return (
-                  <article
-                    key={order._id || order.order_code}
-                    className="border-t border-slate-100 px-4 py-3 text-[12px] text-slate-700 transition hover:bg-slate-50 lg:grid lg:grid-cols-[minmax(0,1.2fr)_120px_130px_140px_140px_100px] lg:items-center lg:gap-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-extrabold text-slate-950">{order.order_code || compactId(order._id)}</p>
-                      {order.transfer_content ? (
-                        <p className="mt-0.5 truncate font-mono text-[11px] font-medium text-slate-500">
-                          {order.transfer_content}
-                        </p>
-                      ) : null}
-                    </div>
+                  <tr key={order._id} className="hover:bg-slate-50/70 transition">
+                    <td className="py-3 px-4 font-mono text-xs font-semibold text-slate-900 whitespace-nowrap">
+                      {order.code || order.order_code || order._id?.slice(-8).toUpperCase()}
+                    </td>
 
-                    <div className="mt-2 lg:mt-0">
-                      <span className="font-extrabold text-emerald-700">
-                        {formatMoney(order.amount, order.currency)}
-                      </span>
-                    </div>
+                    <td className="py-3 px-4">
+                      <p className="font-semibold text-slate-900 truncate max-w-xs">{user.fullName || user.username || 'Khách hàng'}</p>
+                      <p className="text-[11px] text-slate-500 truncate">{user.email || '—'}</p>
+                    </td>
 
-                    <div className="mt-2 lg:mt-0">
-                      <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold ${statusInfo.tone}`}>
+                    <td className="py-3 px-4 text-right font-mono text-xs font-bold text-slate-900 whitespace-nowrap">
+                      {formatMoney(order.amount)}
+                    </td>
+
+                    <td className="py-3 px-4 text-slate-600 whitespace-nowrap">
+                      {order.bank_short_name || 'MBBank'}
+                    </td>
+
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset ${statusInfo.tone}`}>
+                        <span className="h-1.5 w-1.5 rounded-full bg-current" />
                         {statusInfo.label}
                       </span>
-                    </div>
+                    </td>
 
-                    <div className="mt-2 lg:mt-0">
-                      <span className="font-mono text-[11px] font-bold text-slate-600 truncate block">
-                        {order.provider_transaction_id || 'Chưa có'}
-                      </span>
-                    </div>
+                    <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                      {formatDateTime(order.created_at)}
+                    </td>
 
-                    <div className="mt-2 lg:mt-0">
-                      <span className="text-[11px] font-medium text-slate-500 block">
-                        {formatDateTime(order.updated_at)}
-                      </span>
-                    </div>
-
-                    <div className="mt-2 lg:mt-0">
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
                       <button
                         type="button"
-                        onClick={() => setSelectedOrder(order)}
-                        className="h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-[11px] font-extrabold text-slate-700 transition hover:bg-slate-100"
+                        onClick={() => {
+                          setSelectedOrder(order)
+                          setDrawerOpen(true)
+                        }}
+                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
                       >
-                        Xem chi tiết
+                        Chi tiết
                       </button>
-                    </div>
-                  </article>
+                    </td>
+                  </tr>
                 )
               })}
-
-              {!diagLoading && !(diagnostics?.recent_orders || []).length ? (
-                <div className="px-4 py-10 text-center text-[13px] font-semibold text-slate-400">
-                  Chưa có đơn nạp tiền nào gần đây.
-                </div>
-              ) : null}
+            </tbody>
+          </table>
+          {!recentOrders.length ? (
+            <div className="py-12 text-center text-xs font-medium text-slate-400">
+              {loading ? 'Đang tải danh sách đơn nạp tiền...' : 'Chưa có đơn nạp tiền nào qua cổng SePay.'}
             </div>
-          </section>
+          ) : null}
         </div>
       </section>
 
-      {/* Modal Cập nhật Secret */}
+      {/* Order Detail Drawer */}
       <AdminDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Chi tiết đơn nạp tiền SePay"
+        subtitle={selectedOrder?.code || selectedOrder?.order_code}
+      >
+        {selectedOrder ? (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div>
+                <p className="text-xs text-slate-500">Số tiền nạp</p>
+                <p className="text-2xl font-bold font-mono text-emerald-600 mt-0.5">
+                  +{formatMoney(selectedOrder.amount)}
+                </p>
+              </div>
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${
+                (orderStatusMap[selectedOrder.status] || {}).tone
+              }`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                {(orderStatusMap[selectedOrder.status] || {}).label || selectedOrder.status}
+              </span>
+            </div>
+
+            <div>
+              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                Thông tin đơn hàng & Khớp lệnh
+              </h4>
+              <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-slate-50/50 px-3">
+                <PropertyRow label="Mã đơn hàng" value={selectedOrder.code || selectedOrder.order_code} mono />
+                <PropertyRow label="Mã khách hàng" value={selectedOrder.user_id?._id || selectedOrder.user_id} mono />
+                <PropertyRow label="Tên khách hàng" value={selectedOrder.user_id?.fullName || selectedOrder.user_id?.email} />
+                <PropertyRow label="Cú pháp chuyển khoản" value={selectedOrder.payment_code || selectedOrder.content} mono />
+                <PropertyRow label="Ngân hàng thụ hưởng" value={selectedOrder.bank_short_name} />
+                <PropertyRow label="Số tài khoản thụ hưởng" value={selectedOrder.bank_account_number} mono />
+                <PropertyRow label="Thời gian tạo đơn" value={formatDateTime(selectedOrder.created_at)} mono />
+                <PropertyRow label="Thời gian thanh toán" value={formatDateTime(selectedOrder.paid_at || selectedOrder.updated_at)} mono />
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </AdminDrawer>
+
+      {/* Secret Rotation Modal */}
+      <AdminModal
         open={secretOpen}
         onClose={() => setSecretOpen(false)}
-        title="Cập nhật Secret SePay"
-        subtitle="Chỉ nhập các giá trị cần thay đổi. Giá trị đầy đủ được mã hóa và không hiển thị lại."
+        title="Cập nhật Secret & API Token SePay"
+        subtitle="Cấu hình các khóa bí mật để xác thực webhook và gọi API đối soát SePay."
       >
-        <form onSubmit={handleRotateSecrets} className="space-y-4">
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-600">
-              API Token mới
-            </span>
+        <form onSubmit={handleRotateSecrets} className="space-y-4 text-xs">
+          <div>
+            <label className="block font-medium text-slate-700 mb-1">SePay API Token</label>
             <input
               type="password"
               value={secretForm.api_token}
-              onChange={(event) => setSecretForm((current) => ({ ...current, api_token: event.target.value }))}
-              placeholder="Nhập API Token mới từ SePay..."
-              className={inputClassName}
+              onChange={(e) => setSecretForm({ ...secretForm, api_token: e.target.value })}
+              placeholder="Để trống nếu không thay đổi"
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 font-mono focus:border-indigo-600 focus:outline-none transition"
             />
-          </label>
+          </div>
 
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-600">
-              Webhook Secret mới
-            </span>
+          <div>
+            <label className="block font-medium text-slate-700 mb-1">SePay Webhook Secret (API Key Webhook)</label>
             <input
               type="password"
               value={secretForm.webhook_secret}
-              onChange={(event) => setSecretForm((current) => ({ ...current, webhook_secret: event.target.value }))}
-              placeholder="Nhập Webhook Secret mới..."
-              className={inputClassName}
+              onChange={(e) => setSecretForm({ ...secretForm, webhook_secret: e.target.value })}
+              placeholder="Để trống nếu không thay đổi"
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 font-mono focus:border-indigo-600 focus:outline-none transition"
             />
-          </label>
-
-          <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-2">
-            <div className="text-[12px]">
-              <p className="font-extrabold text-slate-900">API token hiện tại</p>
-              <p className="mt-0.5 font-mono text-slate-500">{config?.api_token_preview || 'Chưa cấu hình'} · {config?.api_token_source || 'N/A'}</p>
-            </div>
-            <div className="text-[12px]">
-              <p className="font-extrabold text-slate-900">Webhook secret hiện tại</p>
-              <p className="mt-0.5 font-mono text-slate-500">{config?.webhook_secret_preview || 'Chưa cấu hình'} · {config?.webhook_secret_source || 'N/A'}</p>
-            </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setSecretOpen(false)}
-              className="h-10 rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-bold text-slate-700 transition hover:bg-slate-50"
+              className="h-8 rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
             >
               Hủy
             </button>
             <button
               type="submit"
-              disabled={rotating || loading}
-              className="flex h-10 items-center justify-center rounded-lg bg-teal-700 px-5 text-[13px] font-extrabold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={rotating}
+              className="h-8 rounded-lg bg-indigo-600 px-4 text-xs font-semibold text-white hover:bg-indigo-700 transition shadow-sm shadow-indigo-600/20 disabled:opacity-50"
             >
-              {rotating ? 'Đang cập nhật...' : 'Cập nhật secret'}
+              {rotating ? 'Đang cập nhật...' : 'Lưu khóa bảo mật'}
             </button>
           </div>
         </form>
-      </AdminDrawer>
-
-      {/* Modal Chi tiết đơn nạp tiền */}
-      <AdminDrawer
-        open={Boolean(selectedOrder)}
-        onClose={() => setSelectedOrder(null)}
-        title="Chi tiết đơn nạp tiền"
-        subtitle={selectedOrder ? `Mã đơn: ${selectedOrder.order_code || compactId(selectedOrder._id)}` : ''}
-        wide
-      >
-        {selectedOrder ? (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
-              <div className="min-w-0">
-                <h3 className="text-lg font-extrabold leading-6 text-slate-950">
-                  {selectedOrder.order_code || compactId(selectedOrder._id)}
-                </h3>
-                <p className="mt-0.5 text-[12px] font-medium text-slate-500">
-                  Số tiền: <strong className="text-emerald-700 font-extrabold">{formatMoney(selectedOrder.amount, selectedOrder.currency)}</strong>
-                </p>
-              </div>
-              <span className={`rounded-full border px-2.5 py-1 text-[11px] font-extrabold ${(orderStatusMap[selectedOrder.status] || {}).tone || 'border-slate-200 bg-slate-100 text-slate-600'}`}>
-                {(orderStatusMap[selectedOrder.status] || {}).label || selectedOrder.status}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              <Field label="Mã đơn hàng (Order Code)" value={selectedOrder.order_code} isCode />
-              <Field label="Mã ID đơn hàng" value={compactId(selectedOrder._id)} isCode />
-              <Field label="Mã người dùng (User ID)" value={compactId(selectedOrder.user_id)} isCode />
-              <Field label="Số tiền nạp" value={formatMoney(selectedOrder.amount, selectedOrder.currency)} />
-              <Field label="Nội dung chuyển khoản (Memo)" value={selectedOrder.transfer_content} isCode />
-              <Field label="Ngân hàng nhận" value={selectedOrder.bank_short_name} />
-              <Field label="Số tài khoản nhận" value={selectedOrder.bank_account_number} isCode />
-              <Field label="Mã giao dịch SePay" value={selectedOrder.provider_transaction_id} isCode />
-              <Field label="Tạo lúc" value={formatDateTime(selectedOrder.created_at)} />
-              <Field label="Hết hạn lúc" value={formatDateTime(selectedOrder.expires_at)} />
-              <Field label="Thanh toán lúc" value={formatDateTime(selectedOrder.paid_at)} />
-              <Field label="Cập nhật lúc" value={formatDateTime(selectedOrder.updated_at)} />
-            </div>
-          </div>
-        ) : null}
-      </AdminDrawer>
+      </AdminModal>
     </AdminLayout>
   )
 }

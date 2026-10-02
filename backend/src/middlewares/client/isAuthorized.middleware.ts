@@ -25,8 +25,23 @@ const isAuthorized = async (req: Request, res: Response, next: NextFunction) => 
   }
   try {
     const verifyAccessToken = await verifyToken(accessToken, env.SECRET_ACCESS_TOKEN)
-    const isBlacklisted = await RedisService.getInstance().get(`blacklist:${verifyAccessToken.jti}`)
-    if (isBlacklisted) {
+    const redis = RedisService.getInstance()
+    const [isTokenBlacklisted, isUserBlacklisted] = await Promise.all([
+      redis.get(`blacklist:${verifyAccessToken.jti}`),
+      redis.get(`blacklist:user:${verifyAccessToken.userId}`)
+    ])
+
+    if (isUserBlacklisted) {
+      return next(
+        new AppError({
+          statusCode: StatusCodes.FORBIDDEN,
+          message: UserMessages.ACCOUNT_BANNED,
+          errorCode: ErrorCode.ACCOUNT_BANNED
+        })
+      )
+    }
+
+    if (isTokenBlacklisted) {
       return next(
         new AppError({
           statusCode: StatusCodes.UNAUTHORIZED,

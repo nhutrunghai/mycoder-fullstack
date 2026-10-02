@@ -1,4 +1,4 @@
-import { Request, Response } from 'express'
+﻿import { Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
 import { ObjectId } from 'mongodb'
 import {
@@ -24,10 +24,15 @@ export const getAdminCompaniesController = async (req: Request, res: Response) =
           ? false
           : undefined
   const keyword = typeof req.query.keyword === 'string' ? req.query.keyword.trim() : undefined
+  const companyId =
+    (typeof req.query.companyId === 'string' && req.query.companyId) ||
+    (typeof req.query.company_id === 'string' && req.query.company_id) ||
+    undefined
   const page = Number(req.query.page || 1)
   const limit = Number(req.query.limit || 10)
 
   const result = await adminCompanyService.getCompanies({
+    companyId: companyId ? new ObjectId(companyId) : undefined,
     verified,
     keyword,
     page,
@@ -45,8 +50,10 @@ export const getAdminCompaniesController = async (req: Request, res: Response) =
         address: company.address,
         verified: company.verified,
         created_at: company.created_at,
-        updated_at: company.updated_at
+        updated_at: company.updated_at,
+        owner: company.owner
       })),
+      stats: result.stats,
       pagination: result.pagination
     }
   })
@@ -71,6 +78,10 @@ export const getAdminCompanyJobsController = async (
   const limit = Number(req.query.limit || 10)
   const status = req.query.status as JobStatus | undefined
   const keyword = typeof req.query.keyword === 'string' ? req.query.keyword.trim() : undefined
+  const companyId =
+    (typeof req.query.companyId === 'string' && req.query.companyId) ||
+    (typeof req.query.company_id === 'string' && req.query.company_id) ||
+    undefined
 
   const result = await adminCompanyService.getCompanyJobsForAdmin({
     companyId: company._id as ObjectId,
@@ -167,10 +178,10 @@ export const updateAdminCompanyStatusController = async (
   await notificationService.create({
     userId: company.user_id,
     type: NotificationType.COMPANY_VERIFICATION_UPDATED,
-    title: 'Trạng thái công ty đã thay đổi',
+    title: 'Trạng thái doanh nghiệp đã thay đổi',
     content: verified
-      ? `Công ty "${company.company_name}" đã được xác minh.`
-      : `Công ty "${company.company_name}" đã bị bỏ xác minh.`,
+      ? `Doanh nghiệp "${company.company_name}" đã được xác minh thành công.`
+      : `Doanh nghiệp "${company.company_name}" đã bị hủy trạng thái xác minh.`,
     data: {
       company_id: String(company._id),
       verified

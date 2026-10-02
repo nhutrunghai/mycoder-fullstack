@@ -37,3 +37,5 @@ node_modules/
 package.json
 package-lock.json
 test_b64.txt
+
+scripts/

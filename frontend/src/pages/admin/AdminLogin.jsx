@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { adminLogin } from '../../api/adminService.js'
 
@@ -20,51 +20,76 @@ export default function AdminLogin() {
       await adminLogin({ email, password })
       navigate(nextPath, { replace: true })
     } catch (submitError) {
-      setError(submitError.message || 'Không thể đăng nhập admin.')
+      setError(submitError.message || 'Không thể đăng nhập tài khoản quản trị.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="admin-shell flex min-h-screen items-center justify-center bg-[#f4f6f5] px-6">
-      <div className="w-full max-w-md rounded-lg border border-[#dbe3e0] bg-white p-8 shadow-[0_22px_55px_-36px_rgba(20,41,38,0.55)]">
-        <div className="mb-7 flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-md bg-[#202b30] text-[19px] font-black tracking-[-0.08em] text-teal-200">
-            M<span className="text-teal-400">.</span>
-          </span>
+    <div className="flex min-h-screen items-center justify-center bg-[#090d16] px-4 sm:px-6">
+      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-[#0f1422] p-8 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white font-extrabold shadow-sm shadow-indigo-500/30">
+            <span className="text-lg">MC</span>
+          </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Mycoder Admin</p>
-            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Operations console</p>
+            <div className="flex items-center gap-1.5">
+              <span className="text-base font-bold tracking-tight text-white">MyCoder</span>
+              <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-400 ring-1 ring-inset ring-indigo-500/30">
+                Admin
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 font-medium">Hệ thống quản trị trung tâm</p>
           </div>
         </div>
-        <h1 className="mt-3 text-[32px] font-bold tracking-tight text-slate-900">Đăng nhập</h1>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="h-12 w-full rounded-md border border-slate-300 bg-white px-4 text-slate-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
-            placeholder="admin@example.com"
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="h-12 w-full rounded-md border border-slate-300 bg-white px-4 text-slate-900 outline-none transition focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
-            placeholder="password"
-          />
-          {error ? <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
+        <div className="mt-6 border-t border-slate-800/80 pt-6">
+          <h1 className="text-xl font-bold tracking-tight text-white">Đăng nhập Quản trị</h1>
+          <p className="mt-1 text-xs text-slate-400">Nhập thông tin tài khoản để truy cập bảng điều khiển.</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">Địa chỉ Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="h-10 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3.5 text-xs text-white placeholder:text-slate-500 outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              placeholder="admin@mycoder.vn"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">Mật khẩu</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="h-10 w-full rounded-lg border border-slate-700 bg-slate-900/80 px-3.5 text-xs text-white placeholder:text-slate-500 outline-none transition focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          {error ? (
+            <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300 font-medium">
+              {error}
+            </div>
+          ) : null}
+
           <button
             type="submit"
             disabled={loading}
-            className="inline-flex h-12 w-full items-center justify-center rounded-md bg-teal-700 text-sm font-bold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="mt-2 h-10 w-full rounded-lg bg-indigo-600 text-xs font-semibold text-white shadow-sm shadow-indigo-600/30 hover:bg-indigo-500 transition disabled:opacity-50"
           >
-            {loading ? 'Đang đăng nhập...' : 'Đăng nhập admin'}
+            {loading ? 'Đang xác thực...' : 'Đăng nhập vào hệ thống'}
           </button>
         </form>
       </div>
     </div>
   )
 }
+

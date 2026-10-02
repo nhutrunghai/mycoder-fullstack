@@ -16,6 +16,7 @@ export const getAdminJobPromotionsController = async (req: Request, res: Respons
   const status = req.query.status as JobPromotionStatus | undefined
   const companyId = typeof req.query.companyId === 'string' ? new ObjectId(req.query.companyId) : undefined
   const jobId = typeof req.query.jobId === 'string' ? new ObjectId(req.query.jobId) : undefined
+  const planId = typeof req.query.planId === 'string' ? new ObjectId(req.query.planId) : undefined
   const keyword = typeof req.query.keyword === 'string' ? req.query.keyword.trim() : undefined
   const page = Number(req.query.page || 1)
   const limit = Number(req.query.limit || 10)
@@ -25,6 +26,7 @@ export const getAdminJobPromotionsController = async (req: Request, res: Respons
     status,
     companyId,
     jobId,
+    planId,
     keyword,
     page,
     limit

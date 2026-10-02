@@ -2,10 +2,12 @@ import { Router } from 'express'
 import { UserRole } from '~/constants/enums.js'
 import {
   getAdminUserTopUpOrdersController,
+  getAdminUserApplicationsController,
   getAdminUserDetailController,
   getAdminUserWalletController,
   getAdminUsersController,
-  updateAdminUserStatusController
+  updateAdminUserStatusController,
+  updateAdminUserRoleController
 } from '~/controllers/admin/user.controller.js'
 import { adminAuthMiddleware } from '~/middlewares/admin/auth.middleware.js'
 import { authorizeAdmin } from '~/middlewares/admin/authorization.middleware.js'
@@ -15,9 +17,11 @@ import validate from '~/middlewares/common/validator.middleware.js'
 import {
   getAdminUserDetailValidator,
   getAdminUserTopUpOrdersValidator,
+  getAdminUserApplicationsValidator,
   getAdminUsersValidator,
   getAdminUserWalletValidator,
-  updateAdminUserStatusValidator
+  updateAdminUserStatusValidator,
+  updateAdminUserRoleValidator
 } from '~/validators/admin/user.validator.js'
 
 const adminUserRouter = Router()
@@ -57,6 +61,16 @@ adminUserRouter.get(
   getAdminUserTopUpOrdersController
 )
 
+adminUserRouter.get(
+  '/:userId/applications',
+  adminAuthMiddleware,
+  authorizeAdmin([UserRole.ADMIN]),
+  validate(getAdminUserApplicationsValidator),
+  findAdminUserByIdOrThrow,
+  getAdminUserApplicationsController
+)
+
+
 adminUserRouter.patch(
   '/:userId/status',
   adminAuthMiddleware,
@@ -65,6 +79,16 @@ adminUserRouter.patch(
   validate(updateAdminUserStatusValidator),
   findAdminUserByIdOrThrow,
   updateAdminUserStatusController
+)
+
+adminUserRouter.patch(
+  '/:userId/role',
+  adminAuthMiddleware,
+  authorizeAdmin([UserRole.ADMIN]),
+  adminLimiter,
+  validate(updateAdminUserRoleValidator),
+  findAdminUserByIdOrThrow,
+  updateAdminUserRoleController
 )
 
 export default adminUserRouter

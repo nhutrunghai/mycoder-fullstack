@@ -40,6 +40,7 @@ class AdminJobPromotionService {
     status,
     companyId,
     jobId,
+    planId,
     keyword,
     page,
     limit
@@ -48,6 +49,7 @@ class AdminJobPromotionService {
     status?: JobPromotionStatus
     companyId?: ObjectId
     jobId?: ObjectId
+    planId?: ObjectId
     keyword?: string
     page: number
     limit: number
@@ -58,6 +60,7 @@ class AdminJobPromotionService {
       status?: JobPromotionStatus
       company_id?: ObjectId
       job_id?: ObjectId
+      plan_id?: ObjectId
     } = {}
 
     if (type) {
@@ -74,6 +77,10 @@ class AdminJobPromotionService {
 
     if (jobId) {
       match.job_id = jobId
+    }
+
+    if (planId) {
+      match.plan_id = planId
     }
 
     const pipeline: object[] = [
@@ -137,6 +144,33 @@ class AdminJobPromotionService {
 
     const total = result?.total[0]?.count || 0
 
+    const [counts, revenue] = await Promise.all([
+      databaseService.jobPromotions
+        .aggregate<{ _id: JobPromotionStatus; count: number }>([
+          { $group: { _id: '$status', count: { $sum: 1 } } }
+        ])
+        .toArray(),
+      databaseService.jobPromotions
+        .aggregate<{ total_revenue: number }>([
+          { $match: { amount_paid: { $gt: 0 } } },
+          { $group: { _id: null, total_revenue: { $sum: '$amount_paid' } } }
+        ])
+        .toArray()
+    ])
+    const countMap = new Map(counts.map((c) => [c._id, c.count]))
+    const summary = {
+      total:
+        (countMap.get(JobPromotionStatus.ACTIVE) || 0) +
+        (countMap.get(JobPromotionStatus.SCHEDULED) || 0) +
+        (countMap.get(JobPromotionStatus.EXPIRED) || 0) +
+        (countMap.get(JobPromotionStatus.CANCELLED) || 0),
+      active: countMap.get(JobPromotionStatus.ACTIVE) || 0,
+      scheduled: countMap.get(JobPromotionStatus.SCHEDULED) || 0,
+      expired: countMap.get(JobPromotionStatus.EXPIRED) || 0,
+      cancelled: countMap.get(JobPromotionStatus.CANCELLED) || 0,
+      total_revenue: revenue[0]?.total_revenue || 0
+    }
+
     return {
       promotions: result?.items || [],
       pagination: {
@@ -144,7 +178,8 @@ class AdminJobPromotionService {
         limit,
         total,
         total_pages: Math.ceil(total / limit)
-      }
+      },
+      summary
     }
   }
 

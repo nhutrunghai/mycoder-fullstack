@@ -1,27 +1,34 @@
-import _ from 'lodash'
+﻿import _ from 'lodash'
 import { ObjectId } from 'mongodb'
 import databaseService from '~/configs/database.config.js'
 import { JobApplicationStatus, JobStatus } from '~/constants/enums.js'
 
 class AdminCompanyService {
   async getCompanies({
+    companyId,
     verified,
     keyword,
     page,
     limit
   }: {
+    companyId?: ObjectId
     verified?: boolean
     keyword?: string
     page: number
     limit: number
   }) {
     const query: {
+      _id?: ObjectId
       verified?: boolean
       company_name?: {
         $regex: string
         $options: string
       }
     } = {}
+
+    if (companyId) {
+      query._id = companyId
+    }
 
     if (verified !== undefined) {
       query.verified = verified
@@ -34,18 +41,94 @@ class AdminCompanyService {
       }
     }
 
-    const [companies, total] = await Promise.all([
+    const [companies, total, statsResult] = await Promise.all([
       databaseService.companies
-        .find(query)
-        .sort({ updated_at: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
+        .aggregate<{
+          _id: ObjectId
+          company_name: string
+          logo?: string
+          website?: string
+          address: string
+          verified?: boolean
+          created_at?: Date
+          updated_at?: Date
+          owner?: {
+            _id: ObjectId
+            fullName?: string
+            email: string
+          }
+        }>([
+          { $match: query },
+          { $sort: { updated_at: -1 } },
+          { $skip: (page - 1) * limit },
+          { $limit: limit },
+          {
+            $lookup: {
+              from: databaseService.users.collectionName,
+              localField: 'user_id',
+              foreignField: '_id',
+              as: 'owner'
+            }
+          },
+          {
+            $unwind: {
+              path: '$owner',
+              preserveNullAndEmptyArrays: true
+            }
+          },
+          {
+            $project: {
+              _id: 1,
+              company_name: 1,
+              logo: 1,
+              website: 1,
+              address: 1,
+              verified: 1,
+              created_at: 1,
+              updated_at: 1,
+              owner: {
+                _id: '$owner._id',
+                fullName: '$owner.fullName',
+                email: '$owner.email'
+              }
+            }
+          }
+        ])
         .toArray(),
-      databaseService.companies.countDocuments(query)
+      databaseService.companies.countDocuments(query),
+      databaseService.companies
+        .aggregate<{
+          total: number
+          verified: number
+          unverified: number
+        }>([
+          {
+            $group: {
+              _id: null,
+              total: { $sum: 1 },
+              verified: { $sum: { $cond: [{ $eq: ['$verified', true] }, 1, 0] } },
+              unverified: {
+                $sum: { $cond: [{ $or: [{ $eq: ['$verified', false] }, { $not: ['$verified'] }] }, 1, 0] }
+              }
+            }
+          }
+        ])
+        .toArray()
     ])
+
+    const stats = statsResult[0] || {
+      total: 0,
+      verified: 0,
+      unverified: 0
+    }
 
     return {
       companies,
+      stats: {
+        total: stats.total || 0,
+        verified: stats.verified || 0,
+        unverified: stats.unverified || 0
+      },
       pagination: {
         page,
         limit,

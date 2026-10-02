@@ -6,7 +6,7 @@ import { AdminJobLocals } from '~/types/http/response.type.js'
 import adminJobService from '~/services/admin/job.service.js'
 
 export const getAdminJobsController = async (req: Request, res: Response) => {
-  const companyId = typeof req.query.companyId === 'string' ? req.query.companyId : undefined
+  const companyId = (typeof req.query.companyId === 'string' && req.query.companyId) || (typeof req.query.company_id === 'string' && req.query.company_id) || undefined
   const status = req.query.status as JobStatus | undefined
   const moderationStatus = req.query.moderation_status as JobModerationStatus | undefined
   const keyword = typeof req.query.keyword === 'string' ? req.query.keyword.trim() : undefined
@@ -31,6 +31,7 @@ export const getAdminJobsController = async (req: Request, res: Response) => {
         location: job.location,
         job_type: job.job_type,
         level: job.level,
+        salary: job.salary,
         status: job.status,
         moderation_status: job.moderation_status,
         blocked_reason: job.blocked_reason ?? null,
@@ -44,6 +45,7 @@ export const getAdminJobsController = async (req: Request, res: Response) => {
           verified: job.company.verified
         }
       })),
+      stats: result.stats,
       pagination: result.pagination
     }
   })
@@ -128,5 +130,22 @@ export const updateAdminJobModerationStatusController = async (
       blocked_by: updatedJob?.blocked_by ?? null,
       updated_at: updatedJob?.updated_at
     }
+  })
+}
+
+export const getAdminJobApplicationsController = async (req: Request, res: Response) => {
+  const jobId = new ObjectId(req.params.jobId as string)
+  const page = Number(req.query.page || 1)
+  const limit = Number(req.query.limit || 20)
+
+  const result = await adminJobService.getJobApplicationsForAdmin({
+    jobId,
+    page,
+    limit
+  })
+
+  return res.status(StatusCodes.OK).json({
+    status: 'success',
+    data: result
   })
 }

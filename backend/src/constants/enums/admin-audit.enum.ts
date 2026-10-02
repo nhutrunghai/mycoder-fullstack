@@ -1,7 +1,8 @@
-export enum AdminAuditAction {
+﻿export enum AdminAuditAction {
   ADMIN_LOGIN = 'admin.login',
   ADMIN_LOGOUT = 'admin.logout',
   USER_STATUS_UPDATE = 'user.status.update',
+  USER_ROLE_UPDATE = 'user.role.update',
   COMPANY_VERIFICATION_UPDATE = 'company.verification.update',
   JOB_MODERATION_UPDATE = 'job.moderation.update',
   WALLET_ADJUST = 'wallet.adjust',

@@ -1,4 +1,4 @@
-const forms = require('@tailwindcss/forms')
+﻿const forms = require('@tailwindcss/forms')
 
 module.exports = {
   content: ['./index.html', './src/**/*.{js,jsx}'],
@@ -24,8 +24,9 @@ module.exports = {
         full: '9999px',
       },
       fontFamily: {
-        headline: ['Manrope', 'sans-serif'],
-        body: ['Manrope', 'sans-serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        headline: ['Inter', 'sans-serif'],
+        body: ['Inter', 'sans-serif'],
       },
     },
   },

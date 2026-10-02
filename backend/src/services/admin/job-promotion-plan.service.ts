@@ -95,10 +95,31 @@ class AdminJobPromotionPlanService {
   }
 
   async getPlans({ activeOnly = false } = {}) {
-    return databaseService.jobPromotionPlans
+    const plans = await databaseService.jobPromotionPlans
       .find(activeOnly ? { is_active: true } : {})
       .sort({ sort_order: 1, created_at: 1 })
       .toArray()
+
+    const usage = await databaseService.jobPromotions
+      .aggregate<{ _id: ObjectId; total: number; active_count: number }>([
+        {
+          $group: {
+            _id: '$plan_id',
+            total: { $sum: 1 },
+            active_count: {
+              $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
+            }
+          }
+        }
+      ])
+      .toArray()
+    const usageMap = new Map(usage.map((u) => [String(u._id), u]))
+
+    return plans.map((plan) => ({
+      ...plan,
+      total_promotions: usageMap.get(String(plan._id))?.total || 0,
+      active_promotions: usageMap.get(String(plan._id))?.active_count || 0
+    }))
   }
 
   async getPlanByIdOrThrow(planId: ObjectId, activeOnly = false) {

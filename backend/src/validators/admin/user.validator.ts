@@ -31,6 +31,20 @@ export const getAdminUsersValidator = z.object({
       message: UserMessages.INVALID_STATUS
     }).optional(),
     keyword: z.string().trim().min(1).max(100).optional(),
+    userId: z
+      .string()
+      .trim()
+      .regex(/^[a-fA-F0-9]{24}$/, {
+        message: UserMessages.INVALID_DATA
+      })
+      .optional(),
+    user_id: z
+      .string()
+      .trim()
+      .regex(/^[a-fA-F0-9]{24}$/, {
+        message: UserMessages.INVALID_DATA
+      })
+      .optional(),
     page: z.coerce.number().int().min(1).optional().default(1),
     limit: z.coerce.number().int().min(1).max(100).optional().default(10)
   })
@@ -91,5 +105,36 @@ export const updateAdminUserStatusValidator = z.object({
     status: z.coerce.number().refine(isValidEditableAdminUserStatus, {
       message: UserMessages.INVALID_STATUS
     })
+  })
+})
+
+export const updateAdminUserRoleValidator = z.object({
+  params: z.object({
+    userId: z
+      .string()
+      .trim()
+      .regex(/^[a-fA-F0-9]{24}$/, {
+        message: UserMessages.INVALID_DATA
+      })
+  }),
+  body: z.object({
+    role: z.coerce.number().refine(isValidAdminUserRole, {
+      message: UserMessages.INVALID_ROLE
+    })
+  })
+})
+
+export const getAdminUserApplicationsValidator = z.object({
+  params: z.object({
+    userId: z
+      .string()
+      .trim()
+      .regex(/^[a-fA-F0-9]{24}$/, {
+        message: UserMessages.INVALID_DATA
+      })
+  }),
+  query: z.object({
+    page: z.coerce.number().int().min(1).optional().default(1),
+    limit: z.coerce.number().int().min(1).max(100).optional().default(20)
   })
 })

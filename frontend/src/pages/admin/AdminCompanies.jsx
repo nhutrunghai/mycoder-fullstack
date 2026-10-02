@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
+import { Link, useSearchParams, useLocation } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout.jsx'
 import AdminDrawer from '../../components/admin/AdminDrawer.jsx'
+import AdminConfirmDialog from '../../components/admin/AdminConfirmDialog.jsx'
 import Toast from '../../components/Toast.jsx'
 import { compactId, formatDateVi as formatDate } from '../../utils/formatters.js'
 import { toSafeImageUrl } from '../../utils/safeUrl.js'
@@ -12,17 +14,20 @@ import {
   updateAdminCompanyStatus,
 } from '../../api/adminService.js'
 
-const verifyToneMap = {
-  true: 'border-emerald-100 bg-emerald-50 text-emerald-700',
-  false: 'border-amber-100 bg-amber-50 text-amber-700',
-}
-
 const jobStatusLabelMap = {
   draft: 'Bản nháp',
   open: 'Đang tuyển',
   paused: 'Tạm dừng',
   closed: 'Đã đóng',
   expired: 'Hết hạn',
+}
+
+const jobStatusToneMap = {
+  open: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+  paused: 'bg-amber-50 text-amber-700 ring-amber-600/20',
+  closed: 'bg-rose-50 text-rose-700 ring-rose-600/20',
+  draft: 'bg-slate-100 text-slate-600 ring-slate-500/10',
+  expired: 'bg-slate-100 text-slate-600 ring-slate-500/10',
 }
 
 const applicationStatusLabelMap = {
@@ -35,31 +40,69 @@ const applicationStatusLabelMap = {
   withdrawn: 'Đã rút',
 }
 
+const applicationStatusToneMap = {
+  submitted: 'bg-indigo-50 text-indigo-700 ring-indigo-600/20',
+  reviewing: 'bg-amber-50 text-amber-700 ring-amber-600/20',
+  shortlisted: 'bg-teal-50 text-teal-700 ring-teal-600/20',
+  interviewing: 'bg-purple-50 text-purple-700 ring-purple-600/20',
+  rejected: 'bg-rose-50 text-rose-700 ring-rose-600/20',
+  hired: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+  withdrawn: 'bg-slate-100 text-slate-600 ring-slate-500/10',
+}
+
 function getInitial(company) {
   return (company?.company_name || 'C').slice(0, 1).toUpperCase()
 }
 
-function Field({ label, value }) {
+function PropertyRow({ label, value, mono = false }) {
   return (
-    <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5">
-      <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">{label}</p>
-      <p className="mt-1 truncate text-[12px] font-bold text-slate-800">{value || 'Chưa có'}</p>
+    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-slate-100 text-xs">
+      <span className="text-slate-500 font-medium shrink-0">{label}</span>
+      <span className={`text-slate-900 text-right ${mono ? 'font-mono' : 'font-medium'} break-all`}>
+        {value || '—'}
+      </span>
     </div>
   )
 }
 
 export default function AdminCompanies() {
   const [companies, setCompanies] = useState([])
+  const [stats, setStats] = useState({ total: 0, verified: 0, unverified: 0 })
   const [selectedCompany, setSelectedCompany] = useState(null)
   const [companyJobs, setCompanyJobs] = useState([])
   const [companyApplications, setCompanyApplications] = useState([])
-  const [keyword, setKeyword] = useState('')
+  const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'jobs' | 'applications'
+  const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlKeyword = searchParams.get('keyword') || ''
+  const urlCompanyId = searchParams.get('companyId') || searchParams.get('company_id') || ''
+  const [keyword, setKeyword] = useState(urlCompanyId ? '' : urlKeyword)
   const [verified, setVerified] = useState('')
-  const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, total_pages: 1 })
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, total_pages: 1 })
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
-  const [updatingVerify, setUpdatingVerify] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    description: '',
+    tone: 'primary',
+    confirmLabel: 'Xác nhận',
+  })
   const [toast, setToast] = useState(null)
+
+  useEffect(() => {
+    if (urlCompanyId) {
+      handleOpenDetail(urlCompanyId)
+    }
+  }, [urlCompanyId])
+
+  useEffect(() => {
+    if (urlKeyword && urlKeyword !== keyword) {
+      setKeyword(urlKeyword)
+    }
+  }, [urlKeyword])
 
   useEffect(() => {
     let active = true
@@ -69,15 +112,16 @@ export default function AdminCompanies() {
         page: pagination.page,
         limit: pagination.limit,
         keyword: keyword || undefined,
-        verified: verified || undefined,
+        verified: verified === '' ? undefined : verified === 'true',
+        companyId: urlCompanyId || undefined,
       })
         .then((data) => {
           if (!active) return
           setCompanies(data?.companies ?? [])
-          setPagination((current) => ({
-            ...current,
-            ...(data?.pagination || {}),
-          }))
+          if (data?.stats) {
+            setStats(data.stats)
+          }
+          setPagination((current) => ({ ...current, ...(data?.pagination || {}) }))
         })
         .catch((error) => {
           if (active) setToast({ type: 'error', message: error.message || 'Không thể tải danh sách doanh nghiệp.' })
@@ -91,57 +135,88 @@ export default function AdminCompanies() {
       active = false
       window.clearTimeout(timer)
     }
-  }, [keyword, verified, pagination.page, pagination.limit])
+  }, [keyword, verified, urlCompanyId, pagination.page, pagination.limit])
 
   useEffect(() => {
     setPagination((current) => ({ ...current, page: 1 }))
-  }, [keyword, verified])
-
-  const stats = useMemo(() => {
-    return {
-      verified: companies.filter((company) => Boolean(company.verified)).length,
-      pending: companies.filter((company) => !company.verified).length,
-      total: companies.length,
-      verifyRate: companies.length ? Math.round((companies.filter((company) => Boolean(company.verified)).length / companies.length) * 100) : 0,
-    }
-  }, [companies])
+  }, [keyword, verified, urlCompanyId])
 
   const handleOpenDetail = async (companyId) => {
+    setDrawerOpen(true)
     setSelectedCompany(null)
+    setCompanyJobs([])
+    setCompanyApplications([])
+    setActiveTab('overview')
     setDetailLoading(true)
     try {
-      const [detail, jobsData, applicationsData] = await Promise.all([
-        getAdminCompanyDetail(companyId).catch(() => null),
-        getAdminCompanyJobs(companyId, { page: 1, limit: 5 }).catch(() => ({ jobs: [] })),
-        getAdminCompanyApplications(companyId, { page: 1, limit: 5 }).catch(() => ({ applications: [] })),
+      const [detail, jobs, applications] = await Promise.all([
+        getAdminCompanyDetail(companyId),
+        getAdminCompanyJobs(companyId, { limit: 20 }),
+        getAdminCompanyApplications(companyId, { limit: 20 }),
       ])
-      if (!detail) {
-        throw new Error('Không thể tải chi tiết doanh nghiệp.')
-      }
       setSelectedCompany(detail)
-      setCompanyJobs(jobsData?.jobs ?? [])
-      setCompanyApplications(applicationsData?.applications ?? [])
+      setCompanyJobs(jobs?.jobs || [])
+      setCompanyApplications(applications?.applications || [])
     } catch (error) {
+      setDrawerOpen(false)
       setToast({ type: 'error', message: error.message || 'Không thể tải chi tiết doanh nghiệp.' })
     } finally {
       setDetailLoading(false)
     }
   }
 
-  const handleVerifyChange = async (nextVerified) => {
+  const closeDrawer = () => {
+    setDrawerOpen(false)
+    setSelectedCompany(null)
+    setActiveTab('overview')
+  }
+
+  const handlePromptToggleVerified = () => {
     if (!selectedCompany) return
-    setUpdatingVerify(true)
+    const nextVerified = !selectedCompany.verified
+
+    if (nextVerified) {
+      setConfirmDialog({
+        open: true,
+        title: 'Phê duyệt xác minh doanh nghiệp',
+        description: `Xác nhận phê duyệt hồ sơ pháp lý của "${selectedCompany.company_name}"? Doanh nghiệp sẽ được cấp tích xanh xác thực uy tín trên cổng tuyển dụng.`,
+        tone: 'primary',
+        confirmLabel: 'Phê duyệt xác minh',
+      })
+    } else {
+      setConfirmDialog({
+        open: true,
+        title: 'Hủy trạng thái xác minh',
+        description: `Bạn có chắc chắn muốn hủy trạng thái xác minh của "${selectedCompany.company_name}"? Doanh nghiệp này sẽ mất tích xanh uy tín.`,
+        tone: 'danger',
+        confirmLabel: 'Hủy xác minh',
+      })
+    }
+  }
+
+  const handleConfirmToggleVerified = async () => {
+    if (!selectedCompany) return
+    setUpdatingStatus(true)
+    const nextVerified = !selectedCompany.verified
     try {
-      const result = await updateAdminCompanyStatus(selectedCompany._id, nextVerified)
+      const result = await updateAdminCompanyStatus(selectedCompany._id, { verified: nextVerified })
       const updatedVerified = Boolean(result?.verified ?? nextVerified)
       const updatedAt = result?.updated_at || new Date().toISOString()
-      setCompanies((current) => current.map((company) => (company._id === selectedCompany._id ? { ...company, verified: updatedVerified, updated_at: updatedAt } : company)))
+      setCompanies((current) => current.map((item) => (
+        item._id === selectedCompany._id ? { ...item, verified: updatedVerified, updated_at: updatedAt } : item
+      )))
       setSelectedCompany((current) => ({ ...current, verified: updatedVerified, updated_at: updatedAt }))
-      setToast({ type: 'success', message: updatedVerified ? 'Đã xác minh doanh nghiệp.' : 'Đã bỏ xác minh doanh nghiệp.' })
+      setStats((current) => ({
+        ...current,
+        verified: updatedVerified ? current.verified + 1 : Math.max(0, current.verified - 1),
+        unverified: updatedVerified ? Math.max(0, current.unverified - 1) : current.unverified + 1,
+      }))
+      setConfirmDialog((prev) => ({ ...prev, open: false }))
+      setToast({ type: 'success', message: `Đã ${updatedVerified ? 'xác minh' : 'hủy xác minh'} doanh nghiệp thành công.` })
     } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Không thể cập nhật xác minh doanh nghiệp.' })
+      setToast({ type: 'error', message: error.message || 'Không thể cập nhật trạng thái doanh nghiệp.' })
     } finally {
-      setUpdatingVerify(false)
+      setUpdatingStatus(false)
     }
   }
 
@@ -149,213 +224,468 @@ export default function AdminCompanies() {
   const canGoNext = Number(pagination.page) < Number(pagination.total_pages || 1)
 
   return (
-    <AdminLayout title="Doanh nghiệp" subtitle="Quản lý hồ sơ doanh nghiệp, trạng thái xác minh, tin tuyển dụng và hồ sơ ứng tuyển liên quan.">
+    <AdminLayout
+      title="Quản lý doanh nghiệp"
+      subtitle="Danh sách tổ chức, công ty tuyển dụng và trạng thái xác minh hồ sơ pháp lý."
+    >
       <Toast toast={toast} onClose={() => setToast(null)} />
 
-      <section className="admin-metrics mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Đã xác minh</p>
-          <p className="mt-2 text-2xl font-extrabold text-emerald-700">{stats.verified}</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Chờ duyệt</p>
-          <p className="mt-2 text-2xl font-extrabold text-amber-700">{stats.pending}</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Đang hiển thị</p>
-          <p className="mt-2 text-2xl font-extrabold text-slate-950">{stats.total}</p>
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">Tỷ lệ xác minh</p>
-          <p className="mt-2 text-2xl font-extrabold text-slate-950">{stats.verifyRate}%</p>
-        </div>
+      {/* KPI Cards (Real-time DB Totals) */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {[
+          ['Tổng doanh nghiệp', stats.total, 'text-slate-900 bg-slate-100 ring-slate-500/10'],
+          ['Đã xác minh', stats.verified, 'text-emerald-700 bg-emerald-50 ring-emerald-600/20'],
+          ['Chờ xác minh', stats.unverified, 'text-amber-700 bg-amber-50 ring-amber-600/20'],
+        ].map(([label, value, badgeStyle]) => (
+          <div key={label} className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+            <p className="text-xs font-medium text-slate-500">{label}</p>
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-xl font-bold tracking-tight text-slate-900">{value}</span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ring-1 ring-inset ${badgeStyle}`}>
+                Toàn hệ thống
+              </span>
+            </div>
+          </div>
+        ))}
       </section>
 
-      <section className="admin-filter-bar mb-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_180px]">
-          <label className="relative md:col-span-2 xl:col-span-1">
-            <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">search</span>
+      {/* Filter & Toolbar */}
+      <section className="rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_200px]">
+          <div className="relative">
+            <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
+              search
+            </span>
             <input
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
-              placeholder="Tìm theo tên doanh nghiệp..."
-              className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-3 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-100"
+              placeholder={urlCompanyId ? `Tìm trong doanh nghiệp ${location.state?.companyName || ''}...` : 'Tìm theo tên công ty hoặc từ khóa...'}
+              className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50/50 pl-9 pr-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-indigo-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-600 transition"
             />
-          </label>
-          <label className="block h-10">
-            <select value={verified} onChange={(event) => setVerified(event.target.value)} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100">
-              <option value="">Tất cả xác minh</option>
-              <option value="true">Đã xác minh</option>
-              <option value="false">Chờ duyệt</option>
-            </select>
-          </label>
+          </div>
+          <select
+            value={verified}
+            onChange={(event) => setVerified(event.target.value)}
+            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+          >
+            <option value="">Tất cả trạng thái xác minh</option>
+            <option value="true">Đã xác minh (Tích xanh)</option>
+            <option value="false">Chờ xác minh</option>
+          </select>
         </div>
+
+        {urlCompanyId ? (
+          <div className="mt-3 flex items-center gap-2 text-xs bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg w-fit">
+            <span className="material-symbols-outlined text-[15px] text-indigo-500">apartment</span>
+            <span>
+              Đang lọc theo công ty: <strong>{location.state?.companyName || (companies.find((c) => String(c._id) === urlCompanyId)?.company_name) || ('ID #' + urlCompanyId.slice(-6))}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setKeyword('')
+                setSearchParams((prev) => {
+                  const next = new URLSearchParams(prev)
+                  next.delete('companyId')
+                  next.delete('company_id')
+                  next.delete('keyword')
+                  return next
+                }, { replace: true })
+              }}
+              title="Hủy lọc theo công ty"
+              className="inline-flex items-center justify-center h-5 w-5 rounded-full hover:bg-indigo-200/60 text-indigo-600 transition ml-1 font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        ) : urlKeyword ? (
+          <div className="mt-3 flex items-center gap-2 text-xs bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg w-fit">
+            <span className="material-symbols-outlined text-[15px] text-indigo-500">search</span>
+            <span>
+              Từ khóa tìm kiếm: <strong>{urlKeyword}</strong>
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setKeyword('')
+                setSearchParams((prev) => {
+                  const next = new URLSearchParams(prev)
+                  next.delete('keyword')
+                  return next
+                }, { replace: true })
+              }}
+              title="Hủy từ khóa"
+              className="inline-flex items-center justify-center h-5 w-5 rounded-full hover:bg-indigo-200/60 text-indigo-600 transition ml-1 font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
       </section>
 
-      <section>
-        <section className="admin-data-panel flex min-h-[560px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="hidden grid-cols-[minmax(0,1.2fr)_180px_120px_110px_92px] bg-slate-50 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400 lg:grid">
-            <span>Doanh nghiệp</span>
-            <span>Website</span>
-            <span>Xác minh</span>
-            <span>Cập nhật</span>
-            <span></span>
-          </div>
+      {/* Main Data Table */}
+      <section className="rounded-xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-slate-200 bg-slate-50/70 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+              <tr>
+                <th className="py-3 px-4">Doanh nghiệp</th>
+                <th className="py-3 px-4">Trụ sở chính</th>
+                <th className="py-3 px-4">Chủ tài khoản / Đại diện</th>
+                <th className="py-3 px-4">Trạng thái</th>
+                <th className="py-3 px-4">Ngày tham gia</th>
+                <th className="py-3 px-4 text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {companies.map((company) => {
+                const owner = company.owner || {}
 
-          <div className="flex-1">
-          {companies.map((company) => {
-            const isSelected = selectedCompany?._id === company._id
-            return (
-              <article key={company._id} className={`border-t border-slate-100 px-4 py-3 text-[12px] transition ${isSelected ? 'bg-emerald-50/60' : 'hover:bg-slate-50'} lg:grid lg:grid-cols-[minmax(0,1.2fr)_180px_120px_110px_92px] lg:items-center lg:gap-3`}>
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-slate-100 text-[13px] font-extrabold text-slate-700 ring-1 ring-slate-200">
-                    {toSafeImageUrl(company.logo) ? <img src={toSafeImageUrl(company.logo)} alt="" className="h-full w-full object-cover" /> : getInitial(company)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-extrabold text-slate-950">{company.company_name || 'Doanh nghiệp chưa đặt tên'}</p>
-                    <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">{company.address || 'Chưa có địa chỉ'}</p>
-                  </div>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2 lg:mt-0 lg:contents">
-                  <p className="truncate font-semibold text-slate-500">{company.website || 'Chưa có'}</p>
-                  <span className={`w-fit rounded-full border px-2 py-1 text-[11px] font-extrabold ${verifyToneMap[String(Boolean(company.verified))]}`}>
-                    {company.verified ? 'Đã xác minh' : 'Chờ duyệt'}
-                  </span>
-                  <p className="text-[11px] font-semibold text-slate-500 lg:text-[12px]">{formatDate(company.updated_at)}</p>
-                </div>
-                <button type="button" onClick={() => handleOpenDetail(company._id)} className="mt-3 h-8 w-full rounded-md border border-slate-200 bg-white px-3 text-[12px] font-extrabold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 lg:mt-0 lg:w-auto">
-                  Xem
-                </button>
-              </article>
-            )
-          })}
+                return (
+                  <tr key={company._id} className="hover:bg-slate-50/70 transition">
+                    {/* Company Logo + Name + Website */}
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-slate-700 text-xs font-bold ring-1 ring-slate-200">
+                          {toSafeImageUrl(company.logo) ? (
+                            <img src={toSafeImageUrl(company.logo)} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            getInitial(company)
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900 truncate">
+                            {company.company_name}
+                          </p>
+                          {company.website ? (
+                            <a
+                              href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[11px] text-indigo-600 hover:underline truncate block"
+                            >
+                              {company.website}
+                            </a>
+                          ) : (
+                            <span className="text-[11px] text-slate-400">Chưa có website</span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Address */}
+                    <td className="py-3 px-4">
+                      <p className="text-slate-700 font-medium truncate max-w-xs">{company.address || '—'}</p>
+                    </td>
+
+                    {/* Owner Account */}
+                    <td className="py-3 px-4">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900 truncate">{owner.fullName || '—'}</p>
+                        <p className="text-[11px] text-slate-400 font-mono truncate">{owner.email || 'Chưa có email'}</p>
+                      </div>
+                    </td>
+
+                    {/* Verification Status */}
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ring-1 ring-inset ${
+                        company.verified
+                          ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'
+                          : 'bg-amber-50 text-amber-700 ring-amber-600/20'
+                      }`}>
+                        <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                        {company.verified ? 'Đã xác minh' : 'Chờ xác minh'}
+                      </span>
+                    </td>
+
+                    {/* Created Date */}
+                    <td className="py-3 px-4 text-slate-500 whitespace-nowrap font-medium">
+                      {formatDate(company.created_at)}
+                    </td>
+
+                    {/* Action Button */}
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDetail(company._id)}
+                        className="inline-flex h-7 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-indigo-600 hover:border-slate-300 transition"
+                      >
+                        Chi tiết
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
 
           {!companies.length ? (
-            <div className="flex min-h-[360px] items-center justify-center px-4 py-10 text-center text-[13px] font-semibold text-slate-400">
+            <div className="py-12 text-center text-xs font-medium text-slate-400">
               {loading ? 'Đang tải danh sách doanh nghiệp...' : 'Không tìm thấy doanh nghiệp phù hợp.'}
             </div>
           ) : null}
+        </div>
 
+        {/* Pagination Bar */}
+        <div className="flex flex-col gap-2 border-t border-slate-100 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between bg-slate-50/40">
+          <span>
+            Trang <strong className="text-slate-900 font-semibold">{pagination.page || 1}</strong> / {pagination.total_pages || 1} · Tổng <strong className="text-slate-900 font-semibold">{pagination.total || companies.length}</strong> doanh nghiệp
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              disabled={!canGoPrev}
+              onClick={() => setPagination((current) => ({ ...current, page: Number(current.page || 1) - 1 }))}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 transition"
+            >
+              Trang trước
+            </button>
+            <button
+              type="button"
+              disabled={!canGoNext}
+              onClick={() => setPagination((current) => ({ ...current, page: Number(current.page || 1) + 1 }))}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 transition"
+            >
+              Trang sau
+            </button>
           </div>
-          <div className="mt-auto flex flex-col gap-2 border-t border-slate-100 px-4 py-3 text-[12px] font-semibold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-            <span>
-              Trang {pagination.page || 1}/{pagination.total_pages || 1} · Tổng {pagination.total || companies.length} doanh nghiệp
-            </span>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-              <button
-                type="button"
-                disabled={!canGoPrev}
-                onClick={() => setPagination((current) => ({ ...current, page: Number(current.page || 1) - 1 }))}
-                className="h-8 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Trước
-              </button>
-              <button
-                type="button"
-                disabled={!canGoNext}
-                onClick={() => setPagination((current) => ({ ...current, page: Number(current.page || 1) + 1 }))}
-                className="h-8 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Sau
-              </button>
-            </div>
-          </div>
-        </section>
+        </div>
+      </section>
 
-        <AdminDrawer open={Boolean(selectedCompany) || detailLoading} onClose={() => { setSelectedCompany(null); setDetailLoading(false) }} title="Chi tiết doanh nghiệp" subtitle={detailLoading ? 'Đang tải dữ liệu doanh nghiệp...' : selectedCompany?.company_name || 'Hồ sơ doanh nghiệp'} wide>
-          {detailLoading || !selectedCompany ? (
-            <div className="flex min-h-[360px] items-center justify-center text-sm font-semibold text-slate-400">Đang tải chi tiết...</div>
-          ) : (
-            <div className="p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-base font-extrabold text-slate-700 ring-1 ring-slate-200">
-                  {toSafeImageUrl(selectedCompany.logo) ? <img src={toSafeImageUrl(selectedCompany.logo)} alt="" className="h-full w-full object-cover" /> : getInitial(selectedCompany)}
+      {/* Detail Drawer with Tab Navigation */}
+      <AdminDrawer
+        open={drawerOpen}
+        onClose={closeDrawer}
+        title="Hồ sơ doanh nghiệp"
+        subtitle={detailLoading ? 'Đang tải dữ liệu doanh nghiệp...' : selectedCompany?.company_name || 'Chi tiết doanh nghiệp'}
+      >
+        {detailLoading || !selectedCompany ? (
+          <div className="flex min-h-[320px] items-center justify-center text-xs font-medium text-slate-400">
+            Đang tải dữ liệu...
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {/* Header Company Summary */}
+            <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 text-slate-700 font-bold text-sm ring-1 ring-slate-200">
+                  {toSafeImageUrl(selectedCompany.logo) ? (
+                    <img src={toSafeImageUrl(selectedCompany.logo)} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    getInitial(selectedCompany)
+                  )}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="truncate text-lg font-extrabold text-slate-950">{selectedCompany.company_name || 'Doanh nghiệp chưa đặt tên'}</h3>
-                  <p className="mt-1 truncate text-[12px] font-medium text-slate-500">{selectedCompany.website || 'Chưa có website'}</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <span className={`rounded-full border px-2 py-1 text-[10px] font-extrabold ${verifyToneMap[String(Boolean(selectedCompany.verified))]}`}>
-                      {selectedCompany.verified ? 'Đã xác minh' : 'Chờ duyệt'}
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-slate-900 truncate text-sm">
+                      {selectedCompany.company_name}
+                    </h3>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ring-1 ring-inset ${
+                      selectedCompany.verified
+                        ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'
+                        : 'bg-amber-50 text-amber-700 ring-amber-600/20'
+                    }`}>
+                      <span className="h-1 w-1 rounded-full bg-current" />
+                      {selectedCompany.verified ? 'Đã xác minh' : 'Chờ xác minh'}
                     </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-extrabold text-slate-600">{companyJobs.length} tin tuyển dụng</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-extrabold text-slate-600">{companyApplications.length} hồ sơ</span>
                   </div>
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">{selectedCompany.address || 'Doanh nghiệp tuyển dụng'}</p>
                 </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Field label="Mã doanh nghiệp" value={compactId(selectedCompany._id, { prefix: 7, suffix: 5 })} />
-                <Field label="Ngày tạo" value={formatDate(selectedCompany.created_at)} />
-                <Field label="Địa chỉ" value={selectedCompany.address} />
-                <Field label="Cập nhật" value={formatDate(selectedCompany.updated_at)} />
-                <Field label="Chủ sở hữu" value={selectedCompany.owner?.fullName} />
-                <Field label="Email chủ sở hữu" value={selectedCompany.owner?.email} />
-              </div>
-
-              {selectedCompany.description ? (
-                <div className="mt-3 rounded-md border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Mô tả</p>
-                  <p className="mt-2 text-[12px] font-medium leading-5 text-slate-600">{selectedCompany.description}</p>
-                </div>
-              ) : null}
-
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  disabled={updatingVerify || Boolean(selectedCompany.verified)}
-                  onClick={() => handleVerifyChange(true)}
-                  className="h-9 rounded-md bg-slate-900 px-3 text-[12px] font-extrabold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                >
-                  Xác minh
-                </button>
-                <button
-                  type="button"
-                  disabled={updatingVerify || !selectedCompany.verified}
-                  onClick={() => handleVerifyChange(false)}
-                  className="h-9 rounded-md border border-amber-200 bg-amber-50 px-3 text-[12px] font-extrabold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  Bỏ xác minh
-                </button>
-              </div>
-
-              <div className="mt-5 grid grid-cols-1 gap-3">
-                <section className="rounded-md border border-slate-100">
-                  <div className="flex h-9 items-center justify-between border-b border-slate-100 px-3">
-                    <h4 className="text-[12px] font-extrabold text-slate-950">Tin tuyển dụng gần đây</h4>
-                    <span className="text-[11px] font-bold text-slate-400">{companyJobs.length} tin</span>
-                  </div>
-                  <div className="divide-y divide-slate-100">
-                    {companyJobs.map((job) => (
-                      <div key={job._id} className="px-3 py-2">
-                        <p className="truncate text-[12px] font-bold text-slate-900">{job.title}</p>
-                        <p className="mt-0.5 text-[11px] font-medium text-slate-500">{jobStatusLabelMap[job.status] || job.status || 'Chưa rõ'} · {formatDate(job.updated_at)}</p>
-                      </div>
-                    ))}
-                    {!companyJobs.length ? <p className="px-3 py-3 text-[12px] font-semibold text-slate-400">Chưa có tin tuyển dụng.</p> : null}
-                  </div>
-                </section>
-
-                <section className="rounded-md border border-slate-100">
-                  <div className="flex h-9 items-center justify-between border-b border-slate-100 px-3">
-                    <h4 className="text-[12px] font-extrabold text-slate-950">Hồ sơ ứng tuyển gần đây</h4>
-                    <span className="text-[11px] font-bold text-slate-400">{companyApplications.length} hồ sơ</span>
-                  </div>
-                  <div className="divide-y divide-slate-100">
-                    {companyApplications.map((application) => (
-                      <div key={application._id} className="px-3 py-2">
-                        <p className="truncate text-[12px] font-bold text-slate-900">{application.candidate?.fullName || 'Ứng viên'}</p>
-                        <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">{application.job?.title || 'Tin tuyển dụng'} · {applicationStatusLabelMap[application.status] || application.status || 'Chưa rõ'}</p>
-                      </div>
-                    ))}
-                    {!companyApplications.length ? <p className="px-3 py-3 text-[12px] font-semibold text-slate-400">Chưa có hồ sơ ứng tuyển.</p> : null}
-                  </div>
-                </section>
-              </div>
+              <button
+                type="button"
+                disabled={updatingStatus}
+                onClick={handlePromptToggleVerified}
+                className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold border transition ${
+                  selectedCompany.verified
+                    ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
+                    : 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shadow-emerald-600/20'
+                }`}
+              >
+                {updatingStatus ? 'Đang cập nhật...' : selectedCompany.verified ? 'Hủy xác minh' : 'Phê duyệt xác minh'}
+              </button>
             </div>
-          )}
-        </AdminDrawer>
-      </section>
+
+            {/* Tab Switcher */}
+            <div className="flex border-b border-slate-200 gap-1">
+              <button
+                type="button"
+                onClick={() => setActiveTab('overview')}
+                className={`flex items-center gap-1.5 py-2 px-3 text-xs font-semibold border-b-2 transition ${
+                  activeTab === 'overview'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">info</span>
+                <span>Thông tin chung</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('jobs')}
+                className={`flex items-center gap-1.5 py-2 px-3 text-xs font-semibold border-b-2 transition ${
+                  activeTab === 'jobs'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">work</span>
+                <span>Tin tuyển dụng ({companyJobs.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('applications')}
+                className={`flex items-center gap-1.5 py-2 px-3 text-xs font-semibold border-b-2 transition ${
+                  activeTab === 'applications'
+                    ? 'border-indigo-600 text-indigo-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">how_to_reg</span>
+                <span>Hồ sơ ứng tuyển ({companyApplications.length})</span>
+              </button>
+            </div>
+
+            {/* Tab 1: Overview & Owner */}
+            {activeTab === 'overview' && (
+              <div className="space-y-5">
+                {/* Owner Representative Account */}
+                {selectedCompany.owner && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Chủ sở hữu / Người đại diện
+                      </h4>
+                      <Link
+                        to={`/admin/users?userId=${selectedCompany.owner._id}`}
+                        state={{ userPreview: selectedCompany.owner }}
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-1"
+                      >
+                        <span>Quản lý tài khoản</span>
+                        <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                      </Link>
+                    </div>
+                    <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3.5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-900">{selectedCompany.owner.fullName || 'Người dùng'}</span>
+                        <span className="rounded bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-800">
+                          Nhà tuyển dụng
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-indigo-100/80 pt-2 text-xs">
+                        <span className="text-slate-500 font-mono text-[11px]">{selectedCompany.owner.email}</span>
+                        <span className="text-slate-600 text-[11px] font-medium">
+                          {selectedCompany.owner.is_verified ? 'Email đã xác minh' : 'Chưa xác minh email'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Key-Value Properties */}
+                <div>
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                    Thông tin pháp lý & Liên hệ
+                  </h4>
+                  <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/80 bg-slate-50/50 px-3">
+                    <PropertyRow label="Mã doanh nghiệp (ID)" value={compactId(selectedCompany._id, { prefix: 8, suffix: 6 })} mono />
+                    <PropertyRow label="Trang web" value={selectedCompany.website} />
+                    <PropertyRow label="Địa chỉ trụ sở" value={selectedCompany.address} />
+                    <PropertyRow label="Ngày đăng ký" value={formatDate(selectedCompany.created_at)} mono />
+                    <PropertyRow label="Cập nhật gần nhất" value={formatDate(selectedCompany.updated_at)} mono />
+                  </div>
+                </div>
+
+                {/* Description */}
+                {selectedCompany.description && (
+                  <div>
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Giới thiệu doanh nghiệp</h4>
+                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3 text-xs text-slate-700 leading-relaxed">
+                      {selectedCompany.description}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab 2: Jobs */}
+            {activeTab === 'jobs' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Danh sách tin tuyển dụng ({companyJobs.length})
+                  </h4>
+                  <Link
+                    to={`/admin/jobs?companyId=${selectedCompany._id}`}
+                    state={{ companyName: selectedCompany.company_name }}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-1"
+                  >
+                    <span>Xem trên trang Tin tuyển dụng</span>
+                    <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                  </Link>
+                </div>
+                <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/80 bg-white overflow-hidden">
+                  {companyJobs.map((job) => (
+                    <div key={job._id} className="p-3 flex items-center justify-between gap-3 text-xs hover:bg-slate-50/60 transition">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900 truncate">{job.title}</p>
+                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">{formatDate(job.created_at)}</p>
+                      </div>
+                      <span className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ring-1 ring-inset ${jobStatusToneMap[job.status] || 'bg-slate-100 text-slate-600'}`}>
+                        <span className="h-1 w-1 rounded-full bg-current" />
+                        {jobStatusLabelMap[job.status] || job.status}
+                      </span>
+                    </div>
+                  ))}
+                  {!companyJobs.length && (
+                    <div className="p-6 text-center text-xs text-slate-400">Doanh nghiệp chưa đăng tin tuyển dụng nào.</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tab 3: Applications */}
+            {activeTab === 'applications' && (
+              <div className="space-y-3">
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Hồ sơ ứng tuyển đã nhận ({companyApplications.length})
+                </h4>
+                <div className="divide-y divide-slate-100 rounded-xl border border-slate-200/80 bg-white overflow-hidden">
+                  {companyApplications.map((app) => (
+                    <div key={app._id} className="p-3 flex items-center justify-between gap-3 text-xs hover:bg-slate-50/60 transition">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900 truncate">{app.candidate?.fullName || 'Ứng viên'}</p>
+                        <p className="text-[11px] text-slate-500 truncate">Vị trí: {app.job?.title || 'Tin tuyển dụng'}</p>
+                      </div>
+                      <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ring-1 ring-inset ${applicationStatusToneMap[app.status] || 'bg-slate-100 text-slate-600'}`}>
+                        {applicationStatusLabelMap[app.status] || app.status}
+                      </span>
+                    </div>
+                  ))}
+                  {!companyApplications.length && (
+                    <div className="p-6 text-center text-xs text-slate-400">Chưa có ứng viên nào nộp hồ sơ.</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </AdminDrawer>
+
+      {/* Confirmation Dialog */}
+      <AdminConfirmDialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
+        onConfirm={handleConfirmToggleVerified}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        confirmLabel={confirmDialog.confirmLabel}
+        confirming={updatingStatus}
+        tone={confirmDialog.tone}
+      />
     </AdminLayout>
   )
 }

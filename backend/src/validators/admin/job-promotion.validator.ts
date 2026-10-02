@@ -34,6 +34,7 @@ export const getAdminJobPromotionsValidator = z.object({
     status: z.enum(jobPromotionStatusValues).optional(),
     companyId: objectIdSchema(UserMessages.COMPANY_ID_INVALID).optional(),
     jobId: objectIdSchema(UserMessages.JOB_ID_INVALID).optional(),
+    planId: objectIdSchema('Mã gói quảng cáo không hợp lệ.').optional(),
     keyword: z.string().trim().min(1).max(100).optional(),
     page: z.coerce.number().int().min(1).optional().default(1),
     limit: z.coerce.number().int().min(1).max(100).optional().default(10)

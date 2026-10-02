@@ -15,7 +15,7 @@ import { AppError } from '~/errors/app-error.js'
 import { StatusCodes } from 'http-status-codes'
 import UserMessages from '~/constants/messages/index.js'
 import userService from './users.service.js'
-import { OtpType, UserRole } from '~/constants/enums.js'
+import { OtpType, UserRole, UserStatus } from '~/constants/enums.js'
 class AuthService {
   private signAccessToken({
     userInfoAccessToken,
@@ -120,6 +120,12 @@ class AuthService {
     }
     const user = await userService.findUser('email', userInfo.email)
     if (user) {
+      if (user.status === UserStatus.BANNED) {
+        throw new AppError({ statusCode: StatusCodes.FORBIDDEN, message: UserMessages.ACCOUNT_BANNED })
+      }
+      if (user.status === UserStatus.DELETED) {
+        throw new AppError({ statusCode: StatusCodes.FORBIDDEN, message: UserMessages.ACCOUNT_DELETED })
+      }
       if (!user.is_verified) {
         await Promise.all([
           databaseService.users.updateOne({ _id: user._id }, { $set: { is_verified: true, updated_at: new Date() } }),

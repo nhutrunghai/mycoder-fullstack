@@ -1,37 +1,20 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+﻿import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout.jsx'
 import AdminDrawer from '../../components/admin/AdminDrawer.jsx'
+import AdminModal from '../../components/admin/AdminModal.jsx'
 import Toast from '../../components/Toast.jsx'
-import { adjustAdminWalletBalance, getAdminUsers, getAdminWalletTransactions } from '../../api/adminService.js'
-import { compactId, formatCurrencyVi as formatMoney, formatDateTimeVi as formatDateTime } from '../../utils/formatters.js'
-
-const transactionTypeOptions = [
-  { value: '', label: 'Tất cả loại giao dịch' },
-  { value: 'top_up', label: 'Nạp ví' },
-  { value: 'promotion_purchase', label: 'Mua quảng cáo' },
-  { value: 'refund', label: 'Hoàn tiền' },
-  { value: 'adjustment', label: 'Điều chỉnh ví' },
-]
-
-const transactionStatusOptions = [
-  { value: '', label: 'Tất cả trạng thái' },
-  { value: 'pending', label: 'Đang chờ' },
-  { value: 'succeeded', label: 'Thành công' },
-  { value: 'failed', label: 'Thất bại' },
-  { value: 'cancelled', label: 'Đã hủy' },
-]
-
-const directionOptions = [
-  { value: '', label: 'Tất cả chiều giao dịch' },
-  { value: 'credit', label: 'Cộng vào ví' },
-  { value: 'debit', label: 'Trừ khỏi ví' },
-]
-
-const directionAdjustOptions = [
-  { value: 'credit', label: 'Cộng tiền' },
-  { value: 'debit', label: 'Trừ tiền' },
-]
+import {
+  adjustAdminWalletBalance,
+  getAdminUserDetail,
+  getAdminUsers,
+  getAdminWalletTransactions,
+} from '../../api/adminService.js'
+import {
+  compactId,
+  formatCurrencyVi as formatMoney,
+  formatDateTimeVi as formatDateTime,
+} from '../../utils/formatters.js'
 
 const typeLabelMap = {
   top_up: 'Nạp ví',
@@ -48,723 +31,621 @@ const statusLabelMap = {
 }
 
 const statusToneMap = {
-  pending: 'border-amber-100 bg-amber-50 text-amber-700',
-  succeeded: 'border-emerald-100 bg-emerald-50 text-emerald-700',
-  failed: 'border-rose-100 bg-rose-50 text-rose-700',
-  cancelled: 'border-slate-200 bg-slate-100 text-slate-600',
+  succeeded: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+  pending: 'bg-amber-50 text-amber-700 ring-amber-600/20',
+  failed: 'bg-rose-50 text-rose-700 ring-rose-600/20',
+  cancelled: 'bg-slate-100 text-slate-600 ring-slate-500/10',
 }
 
-const directionToneMap = {
-  credit: 'border-emerald-100 bg-emerald-50 text-emerald-700',
-  debit: 'border-rose-100 bg-rose-50 text-rose-700',
-}
-
-function StatCard({ label, value, tone = 'text-slate-950' }) {
+function PropertyRow({ label, value, mono = false }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-      <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400">{label}</p>
-      <p className={`mt-2 text-2xl font-extrabold ${tone}`}>{value}</p>
+    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-slate-100 text-xs">
+      <span className="text-slate-500 font-medium shrink-0">{label}</span>
+      <span className={`text-slate-900 text-right ${mono ? 'font-mono' : 'font-medium'} break-all`}>
+        {value || '—'}
+      </span>
     </div>
   )
 }
-
-function Field({ label, value }) {
-  return (
-    <div className="rounded-md border border-slate-100 bg-slate-50 p-2.5">
-      <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">{label}</p>
-      <p className="mt-1 text-[12px] font-bold text-slate-800">{value || 'Chưa có'}</p>
-    </div>
-  )
-}
-
-function PickerModal({ title, subtitle, open, onClose, children }) {
-  if (!open) return null
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-4">
-      <div className="max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-          <div>
-            <h3 className="text-[15px] font-extrabold text-slate-950">{title}</h3>
-            <p className="mt-1 text-[12px] font-medium text-slate-500">{subtitle}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
-          >
-            <span className="material-symbols-outlined text-[18px]">close</span>
-          </button>
-        </div>
-        <div className="max-h-[calc(85vh-76px)] overflow-auto">{children}</div>
-      </div>
-    </div>
-  )
-}
-
-function UserPickerModal({ open, onClose, onSelect }) {
-  const [keyword, setKeyword] = useState('')
-  const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (!open) return
-    let active = true
-    const timer = window.setTimeout(() => {
-      setLoading(true)
-      setError('')
-      getAdminUsers({ page: 1, limit: 8, keyword: keyword || undefined })
-        .then((data) => {
-          if (!active) return
-          setUsers(data?.users ?? [])
-        })
-        .catch((err) => {
-          if (active) setError(err.message || 'Không thể tải danh sách người dùng.')
-        })
-        .finally(() => {
-          if (active) setLoading(false)
-        })
-    }, keyword ? 250 : 0)
-
-    return () => {
-      active = false
-      window.clearTimeout(timer)
-    }
-  }, [keyword, open])
-
-  return (
-    <PickerModal
-      open={open}
-      onClose={onClose}
-      title="Chọn người dùng"
-      subtitle="Tìm kiếm và chọn người dùng cho giao dịch ví."
-    >
-      <div className="p-5">
-        <label className="relative block">
-          <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">search</span>
-          <input
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-            placeholder="Tìm theo tên, email hoặc username..."
-            className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-3 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-100"
-          />
-        </label>
-
-        <div className="mt-4 space-y-2">
-          {users.map((user) => (
-            <article key={user._id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="truncate text-[13px] font-extrabold text-slate-950">{user.fullName || user.username || user.email || 'Người dùng chưa đặt tên'}</p>
-                <p className="mt-1 truncate text-[12px] font-medium text-slate-500">{user.email || 'Chưa có email'} · {compactId(user._id)}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onSelect(user)}
-                className="h-9 shrink-0 rounded-md border border-teal-200 bg-teal-50 px-4 text-[12px] font-extrabold text-teal-700 transition hover:bg-teal-100"
-              >
-                Chọn người dùng này
-              </button>
-            </article>
-          ))}
-
-          {!users.length ? (
-            <div className="rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-[13px] font-semibold text-slate-400">
-              {loading ? 'Đang tải danh sách người dùng...' : error || 'Không tìm thấy người dùng phù hợp.'}
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </PickerModal>
-  )
-}
-
-const inputClassName =
-  'h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100'
 
 export default function AdminWalletTransactions() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const location = useLocation()
+  const userIdParam = searchParams.get('user_id') || searchParams.get('userId') || ''
+
   const [transactions, setTransactions] = useState([])
-  const [selectedTransaction, setSelectedTransaction] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [submittingAdjust, setSubmittingAdjust] = useState(false)
-  const [toast, setToast] = useState(null)
-  const [selectedUserPreview, setSelectedUserPreview] = useState(location.state?.userPreview || null)
-  const [userSearchKeyword, setUserSearchKeyword] = useState(() => {
-    const p = location.state?.userPreview
-    return p ? (p.fullName || p.username || p.email || '') : ''
-  })
-  const [searchUsersList, setSearchUsersList] = useState([])
-  const [searchingUsers, setSearchingUsers] = useState(false)
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const searchContainerRef = useRef(null)
-
-  const [isUserPickerOpen, setIsUserPickerOpen] = useState(false)
-  const [isAdjustOpen, setIsAdjustOpen] = useState(false)
-  const [filters, setFilters] = useState({
-    type: '',
-    status: '',
-    direction: '',
-  })
+  const [selectedTx, setSelectedTx] = useState(null)
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, total_pages: 1 })
-  const [adjustForm, setAdjustForm] = useState({
-    amount: '',
-    direction: 'credit',
-    description: '',
-  })
+  const [loading, setLoading] = useState(true)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [adjustOpen, setAdjustOpen] = useState(false)
+  const [toast, setToast] = useState(null)
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
-        setIsDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  // Filters
+  const [keyword, setKeyword] = useState('')
+  const [type, setType] = useState('')
+  const [status, setStatus] = useState('')
+  const [direction, setDirection] = useState('')
+  const [filterUser, setFilterUser] = useState(null)
 
-  useEffect(() => {
-    if (location.state?.userPreview?._id) {
-      setSelectedUserPreview(location.state.userPreview)
-      setUserSearchKeyword(location.state.userPreview.fullName || location.state.userPreview.username || location.state.userPreview.email || '')
-    }
-  }, [location.state])
+  // Adjustment Modal State
+  const [adjustUserSearch, setAdjustUserSearch] = useState('')
+  const [adjustUserResults, setAdjustUserResults] = useState([])
+  const [adjustSelectedUser, setAdjustSelectedUser] = useState(null)
+  const [adjustDirection, setAdjustDirection] = useState('credit')
+  const [adjustAmount, setAdjustAmount] = useState('')
+  const [adjustReason, setAdjustReason] = useState('')
+  const [adjusting, setAdjusting] = useState(false)
+  const [searchUserLoading, setSearchUserLoading] = useState(false)
 
+  // Sync user filter info from URL param or location.state
   useEffect(() => {
-    if (!userSearchKeyword.trim() || selectedUserPreview) {
-      setSearchUsersList([])
+    if (!userIdParam) {
+      setFilterUser(null)
       return
     }
 
-    let active = true
-    const timer = window.setTimeout(() => {
-      setSearchingUsers(true)
-      getAdminUsers({ page: 1, limit: 6, keyword: userSearchKeyword.trim() })
-        .then((data) => {
-          if (!active) return
-          setSearchUsersList(data?.users ?? [])
-        })
-        .catch(() => {
-          if (!active) return
-          setSearchUsersList([])
-        })
-        .finally(() => {
-          if (active) setSearchingUsers(false)
-        })
-    }, 250)
-
-    return () => {
-      active = false
-      window.clearTimeout(timer)
+    if (location.state?.userPreview && String(location.state.userPreview._id) === userIdParam) {
+      setFilterUser(location.state.userPreview)
+      return
     }
-  }, [userSearchKeyword, selectedUserPreview])
 
+    // Otherwise lookup user info
+    getAdminUserDetail(userIdParam)
+      .then((user) => {
+        if (user) setFilterUser(user)
+      })
+      .catch(() => {
+        setFilterUser({ _id: userIdParam, fullName: `Tài khoản ${compactId(userIdParam, { prefix: 6, suffix: 4 })}` })
+      })
+  }, [userIdParam, location.state])
+
+  // Auto-open Adjust modal if navigated with openAdjust state
   useEffect(() => {
-    let active = true
+    if (location.state?.openAdjust && location.state?.userPreview) {
+      setAdjustSelectedUser(location.state.userPreview)
+      setAdjustOpen(true)
+    }
+  }, [location.state])
+
+  const loadTransactions = async () => {
     setLoading(true)
-
-    const userIdToFilter = selectedUserPreview?._id || (/^[a-fA-F0-9]{24}$/.test(userSearchKeyword.trim()) ? userSearchKeyword.trim() : undefined)
-
-    getAdminWalletTransactions({
-      page: pagination.page,
-      limit: pagination.limit,
-      userId: userIdToFilter,
-      type: filters.type || undefined,
-      status: filters.status || undefined,
-      direction: filters.direction || undefined,
-    })
-      .then((data) => {
-        if (!active) return
-        const nextTransactions = data?.transactions ?? []
-        setTransactions(nextTransactions)
-        setPagination((current) => ({ ...current, ...(data?.pagination || {}) }))
-
-        if (selectedTransaction?._id) {
-          const updated = nextTransactions.find((item) => item._id === selectedTransaction._id)
-          if (updated) setSelectedTransaction(updated)
-        }
+    try {
+      const data = await getAdminWalletTransactions({
+        page: pagination.page,
+        limit: pagination.limit,
+        keyword: keyword || undefined,
+        type: type || undefined,
+        status: status || undefined,
+        direction: direction || undefined,
+        userId: userIdParam || undefined,
       })
-      .catch((error) => {
-        if (active) setToast({ type: 'error', message: error.message || 'Không thể tải danh sách giao dịch ví.' })
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-
-    return () => {
-      active = false
+      setTransactions(data?.transactions || data?.data?.transactions || [])
+      setPagination((curr) => ({ ...curr, ...(data?.pagination || {}) }))
+    } catch (error) {
+      setToast({ type: 'error', message: error.message || 'Không thể tải lịch sử giao dịch.' })
+    } finally {
+      setLoading(false)
     }
-  }, [filters.direction, filters.status, filters.type, pagination.limit, pagination.page, selectedTransaction?._id, selectedUserPreview?._id, userSearchKeyword])
+  }
 
+  // Reset page when filter criteria change
   useEffect(() => {
-    setPagination((current) => ({ ...current, page: 1 }))
-  }, [filters.direction, filters.status, filters.type, selectedUserPreview?._id, userSearchKeyword])
+    setPagination((curr) => ({ ...curr, page: 1 }))
+  }, [keyword, type, status, direction, userIdParam])
 
-  const stats = useMemo(
-    () => ({
-      succeeded: transactions.filter((item) => item.status === 'succeeded').length,
-      topup: transactions.filter((item) => item.type === 'top_up').length,
-      promotion: transactions.filter((item) => item.type === 'promotion_purchase').length,
-      adjusted: transactions.filter((item) => item.type === 'adjustment').length,
-    }),
-    [transactions]
-  )
+  // Load transactions whenever any filter or pagination page changes
+  useEffect(() => {
+    loadTransactions()
+  }, [pagination.page, keyword, type, status, direction, userIdParam])
+
+  // User search debounce for adjustment modal
+  useEffect(() => {
+    if (!adjustOpen || !adjustUserSearch.trim()) {
+      setAdjustUserResults([])
+      return
+    }
+    const timer = setTimeout(async () => {
+      setSearchUserLoading(true)
+      try {
+        const data = await getAdminUsers({ page: 1, limit: 5, keyword: adjustUserSearch.trim() })
+        setAdjustUserResults(data?.users ?? [])
+      } catch {
+        setAdjustUserResults([])
+      } finally {
+        setSearchUserLoading(false)
+      }
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [adjustUserSearch, adjustOpen])
+
+  const stats = useMemo(() => {
+    let creditTotal = 0
+    let debitTotal = 0
+    transactions.forEach((tx) => {
+      const amt = Number(tx.amount || 0)
+      if (tx.direction === 'credit') creditTotal += amt
+      else debitTotal += amt
+    })
+    return { creditTotal, debitTotal }
+  }, [transactions])
+
+  const handleClearUserFilter = () => {
+    setFilterUser(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('user_id')
+      next.delete('userId')
+      return next
+    }, { replace: true })
+  }
+
+  const handleResetFilters = () => {
+    setKeyword('')
+    setType('')
+    setStatus('')
+    setDirection('')
+    setFilterUser(null)
+    setPagination((curr) => ({ ...curr, page: 1 }))
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('user_id')
+      next.delete('userId')
+      return next
+    }, { replace: true })
+  }
+
+  const handleOpenDetail = (tx) => {
+    setSelectedTx(tx)
+    setDrawerOpen(true)
+  }
+
+  const handleOpenAdjust = () => {
+    if (!adjustSelectedUser && filterUser) {
+      setAdjustSelectedUser(filterUser)
+    }
+    setAdjustDirection('credit')
+    setAdjustAmount('')
+    setAdjustReason('')
+    setAdjustOpen(true)
+  }
+
+  const handleConfirmAdjust = async (e) => {
+    e.preventDefault()
+    if (!adjustSelectedUser) {
+      setToast({ type: 'error', message: 'Vui lòng tìm và chọn người dùng cần điều chỉnh.' })
+      return
+    }
+    const amt = Number(adjustAmount)
+    if (!amt || amt <= 0) {
+      setToast({ type: 'error', message: 'Số tiền điều chỉnh phải lớn hơn 0.' })
+      return
+    }
+
+    setAdjusting(true)
+    try {
+      await adjustAdminWalletBalance({
+        userId: adjustSelectedUser._id,
+        direction: adjustDirection,
+        amount: amt,
+        description: adjustReason.trim() || undefined,
+      })
+      setToast({ type: 'success', message: 'Đã điều chỉnh số dư ví thành công.' })
+      setAdjustOpen(false)
+      loadTransactions()
+    } catch (error) {
+      setToast({ type: 'error', message: error.message || 'Không thể điều chỉnh số dư ví.' })
+    } finally {
+      setAdjusting(false)
+    }
+  }
 
   const canGoPrev = Number(pagination.page) > 1
   const canGoNext = Number(pagination.page) < Number(pagination.total_pages || 1)
 
-  const handleSubmitAdjust = async (event) => {
-    event.preventDefault()
-    if (!selectedUserPreview?._id) {
-      setToast({ type: 'error', message: 'Hãy chọn người dùng trước khi điều chỉnh ví.' })
-      return
-    }
-
-    const normalizedUserId = String(selectedUserPreview._id || '').trim()
-    const normalizedAmount = Number.parseInt(String(adjustForm.amount || '').trim(), 10)
-    const normalizedDescription = String(adjustForm.description || '').trim()
-    const finalDescription =
-      normalizedDescription ||
-      (adjustForm.direction === 'debit'
-        ? `Dieu chinh tru tien thu cong ${normalizedAmount.toLocaleString('vi-VN')} VND`
-        : `Dieu chinh cong tien thu cong ${normalizedAmount.toLocaleString('vi-VN')} VND`)
-
-    if (!/^[a-fA-F0-9]{24}$/.test(normalizedUserId)) {
-      setToast({ type: 'error', message: 'Người dùng đang chọn không hợp lệ. Hãy chọn lại người dùng trước khi điều chỉnh ví.' })
-      return
-    }
-
-    if (!Number.isInteger(normalizedAmount) || normalizedAmount < 1) {
-      setToast({ type: 'error', message: 'So tien phai la so nguyen duong.' })
-      return
-    }
-
-    setSubmittingAdjust(true)
-    try {
-      const result = await adjustAdminWalletBalance({
-        userId: normalizedUserId,
-        amount: normalizedAmount,
-        direction: adjustForm.direction,
-        description: finalDescription,
-      })
-
-      setAdjustForm({
-        amount: '',
-        direction: 'credit',
-        description: '',
-      })
-
-      if (result?.transaction) setSelectedTransaction(result.transaction)
-      setToast({ type: 'success', message: 'Đã điều chỉnh số dư ví thành công.' })
-      setIsAdjustOpen(false)
-    } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Không thể điều chỉnh số dư ví.' })
-    } finally {
-      setSubmittingAdjust(false)
-    }
-  }
-
-  const handlePickUser = (user) => {
-    setSelectedUserPreview({
-      _id: user._id,
-      fullName: user.fullName,
-      username: user.username,
-      email: user.email,
-    })
-    setIsUserPickerOpen(false)
-  }
-
   return (
     <AdminLayout
-      title="Giao Dịch Ví"
-      subtitle="Theo dõi giao dịch ví toàn hệ thống và thực hiện cộng hoặc trừ tiền trực tiếp vào ví người dùng khi cần."
+      title="Quản lý giao dịch số dư ví"
+      subtitle="Theo dõi dòng tiền nạp ví SePay, thanh toán dịch vụ và lịch sử điều chỉnh số dư."
+      actions={
+        <button
+          type="button"
+          onClick={handleOpenAdjust}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition shadow-sm shadow-indigo-600/20"
+        >
+          <span className="material-symbols-outlined text-[16px]">tune</span>
+          <span>Điều chỉnh số dư ví</span>
+        </button>
+      }
     >
       <Toast toast={toast} onClose={() => setToast(null)} />
-      <UserPickerModal open={isUserPickerOpen} onClose={() => setIsUserPickerOpen(false)} onSelect={handlePickUser} />
 
-      <section className="admin-metrics mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Thành công" value={stats.succeeded} tone="text-emerald-700" />
-        <StatCard label="Nạp ví" value={stats.topup} tone="text-slate-950" />
-        <StatCard label="Mua quảng cáo" value={stats.promotion} tone="text-teal-700" />
-        <StatCard label="Điều chỉnh ví" value={stats.adjusted} tone="text-amber-700" />
+      {/* KPI Cards */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Tổng GD trang này</p>
+          <p className="mt-2 text-xl font-bold tracking-tight text-slate-900">{transactions.length}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Dòng tiền nạp vào (+)</p>
+          <p className="mt-2 text-xl font-bold tracking-tight text-emerald-600 font-mono">
+            +{formatMoney(stats.creditTotal)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Dòng tiền thanh toán (-)</p>
+          <p className="mt-2 text-xl font-bold tracking-tight text-slate-800 font-mono">
+            {stats.debitTotal > 0 ? `-${formatMoney(stats.debitTotal)}` : '0 ₫'}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
+          <p className="text-xs font-medium text-slate-500">Tổng số GD phù hợp</p>
+          <p className="mt-2 text-xl font-bold tracking-tight text-indigo-600 font-mono">
+            {pagination.total || transactions.length}
+          </p>
+        </div>
       </section>
 
-      <section className="mb-3">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div><p className="text-sm font-extrabold text-slate-950">Bộ lọc giao dịch</p><p className="mt-1 text-xs font-medium text-slate-500">Lọc theo user, loại, chiều và trạng thái giao dịch.</p></div>
-          <button type="button" onClick={() => setIsAdjustOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-md bg-teal-700 px-4 text-[13px] font-extrabold text-white transition hover:bg-teal-800"><span aria-hidden="true" className="material-symbols-outlined text-[18px]">edit_square</span>Điều chỉnh ví</button>
+      {/* Filter Toolbar */}
+      <section className="rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_150px_150px_150px_auto]">
+          <div className="relative">
+            <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
+              search
+            </span>
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder={userIdParam ? 'Tìm trong giao dịch của tài khoản này...' : 'Tìm theo mã GD, mã SePay hoặc ghi chú...'}
+              className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50/50 pl-9 pr-3 text-xs text-slate-800 placeholder:text-slate-400 focus:border-indigo-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-600 transition"
+            />
+          </div>
+          <select
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+          >
+            <option value="">Tất cả loại GD</option>
+            <option value="top_up">Nạp ví</option>
+            <option value="promotion_purchase">Mua quảng cáo</option>
+            <option value="refund">Hoàn tiền</option>
+            <option value="adjustment">Điều chỉnh ví</option>
+          </select>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="succeeded">Thành công</option>
+            <option value="pending">Đang chờ</option>
+            <option value="failed">Thất bại</option>
+            <option value="cancelled">Đã hủy</option>
+          </select>
+          <select
+            value={direction}
+            onChange={(e) => setDirection(e.target.value)}
+            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+          >
+            <option value="">Tất cả chiều</option>
+            <option value="credit">Cộng ví (+)</option>
+            <option value="debit">Trừ ví (-)</option>
+          </select>
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            className="h-9 rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+          >
+            Đặt lại
+          </button>
         </div>
-        {isAdjustOpen ? (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-[2px]">
-            <div className="max-h-[90vh] w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-                <div>
-                  <h3 className="text-[16px] font-extrabold text-slate-950">Điều chỉnh số dư ví</h3>
-                  <p className="mt-0.5 text-[12px] font-medium text-slate-500">Chọn người dùng, nhập số tiền và ghi rõ lý do trước khi thực hiện.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsAdjustOpen(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
-                >
-                  <span className="material-symbols-outlined text-[18px]">close</span>
-                </button>
-              </div>
 
-              <form onSubmit={handleSubmitAdjust} className="max-h-[calc(90vh-76px)] overflow-y-auto p-5">
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-500">Người dùng đang chọn</p>
+        {/* Filter User Tag */}
+        {userIdParam ? (
+          <div className="mt-3 flex items-center gap-2 text-xs bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg w-fit">
+            <span className="material-symbols-outlined text-[15px] text-indigo-500">account_circle</span>
+            <span>
+              Đang lọc theo tài khoản:{' '}
+              <strong>
+                {filterUser?.fullName || filterUser?.username || filterUser?.email || `Tài khoản ${compactId(userIdParam, { prefix: 6, suffix: 4 })}`}
+              </strong>
+              {filterUser?.email && filterUser.fullName ? (
+                <span className="text-[11px] text-indigo-500 font-normal ml-1">({filterUser.email})</span>
+              ) : null}
+            </span>
+            <button
+              type="button"
+              onClick={handleClearUserFilter}
+              title="Hủy lọc theo người dùng này"
+              className="inline-flex items-center justify-center h-5 w-5 rounded-full hover:bg-indigo-200/60 text-indigo-600 transition ml-1"
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
+      </section>
+
+      {/* Transactions Table */}
+      <section className="rounded-xl border border-slate-200/90 bg-white shadow-2xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-slate-200 bg-slate-50/70 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
+              <tr>
+                <th className="py-3 px-4">Mã giao dịch</th>
+                <th className="py-3 px-4">Khách hàng</th>
+                <th className="py-3 px-4">Loại nghiệp vụ</th>
+                <th className="py-3 px-4 text-right">Số tiền biến động</th>
+                <th className="py-3 px-4">Trạng thái</th>
+                <th className="py-3 px-4">Thời gian</th>
+                <th className="py-3 px-4 text-right">Chi tiết</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {transactions.map((tx) => {
+                const user = tx.user || (typeof tx.user_id === 'object' ? tx.user_id : null) || {}
+                const isCredit = tx.direction === 'credit'
+                const displayName = user.fullName || user.username || (user.email ? user.email.split('@')[0] : 'Người dùng')
+                const displayEmail = user.email || (typeof tx.user_id === 'string' ? compactId(tx.user_id) : '—')
+
+                return (
+                  <tr key={tx._id} className="hover:bg-slate-50/70 transition">
+                    <td className="py-3 px-4 font-mono text-xs font-semibold text-slate-900 whitespace-nowrap">
+                      {tx.code || tx.transaction_code || tx._id?.slice(-8).toUpperCase()}
+                      {tx.sepay_transaction_id ? (
+                        <span className="block text-[10px] text-slate-400 font-normal">SePay #{tx.sepay_transaction_id}</span>
+                      ) : null}
+                    </td>
+
+                    <td className="py-3 px-4">
+                      <p className="font-semibold text-slate-900 truncate max-w-xs">{displayName}</p>
+                      <p className="text-[11px] text-slate-500 truncate">{displayEmail}</p>
+                    </td>
+
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700">
+                        {typeLabelMap[tx.type] || tx.type}
+                      </span>
+                    </td>
+
+                    <td className={`py-3 px-4 text-right font-mono text-xs font-bold whitespace-nowrap ${
+                      isCredit ? 'text-emerald-600' : 'text-slate-800'
+                    }`}>
+                      {isCredit ? '+' : '-'}{formatMoney(tx.amount)}
+                    </td>
+
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset ${statusToneMap[tx.status] || 'bg-slate-100 text-slate-600'}`}>
+                        <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                        {statusLabelMap[tx.status] || tx.status}
+                      </span>
+                    </td>
+
+                    <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
+                      {formatDateTime(tx.created_at)}
+                    </td>
+
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
                       <button
                         type="button"
-                        onClick={() => setIsUserPickerOpen(true)}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-[12px] font-extrabold text-teal-700 transition hover:bg-teal-100"
+                        onClick={() => handleOpenDetail(tx)}
+                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
                       >
-                        <span className="material-symbols-outlined text-[16px]">person_search</span>
-                        {selectedUserPreview ? 'Đổi người dùng' : 'Chọn người dùng'}
+                        Xem
                       </button>
-                    </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {!transactions.length ? (
+            <div className="py-12 text-center text-xs font-medium text-slate-400">
+              {loading ? 'Đang tải lịch sử giao dịch...' : 'Không có giao dịch nào phù hợp.'}
+            </div>
+          ) : null}
+        </div>
 
-                    {selectedUserPreview ? (
-                      <div className="mt-2.5 rounded-lg border border-slate-200/80 bg-white p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate text-[13px] font-extrabold text-slate-900">
-                              {selectedUserPreview.fullName || selectedUserPreview.username || selectedUserPreview.email || 'Người dùng đã chọn'}
-                            </p>
-                            <p className="mt-0.5 truncate text-[12px] font-medium text-slate-500">
-                              {selectedUserPreview.email || compactId(selectedUserPreview._id)} · <span className="font-mono">{compactId(selectedUserPreview._id)}</span>
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedUserPreview(null)}
-                            className="inline-flex h-7 shrink-0 items-center rounded-md border border-rose-200 bg-rose-50 px-2 text-[11px] font-extrabold text-rose-700 transition hover:bg-rose-100"
-                          >
-                            Bỏ chọn
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="mt-2 text-center py-3">
-                        <p className="text-[12px] font-medium text-slate-500">Chưa có người dùng nào được chọn. Bấm "Chọn người dùng" để tìm kiếm.</p>
-                      </div>
-                    )}
+        {/* Pagination Bar */}
+        <div className="flex flex-col gap-2 border-t border-slate-100 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between bg-slate-50/40">
+          <span>
+            Trang <strong className="text-slate-900 font-semibold">{pagination.page || 1}</strong> / {pagination.total_pages || 1} · Tổng <strong className="text-slate-900 font-semibold">{pagination.total || transactions.length}</strong> giao dịch
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              disabled={!canGoPrev}
+              onClick={() => setPagination((curr) => ({ ...curr, page: Number(curr.page || 1) - 1 }))}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 transition"
+            >
+              Trang trước
+            </button>
+            <button
+              type="button"
+              disabled={!canGoNext}
+              onClick={() => setPagination((curr) => ({ ...curr, page: Number(curr.page || 1) + 1 }))}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 transition"
+            >
+              Trang sau
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Transaction Detail Drawer */}
+      <AdminDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Chi tiết giao dịch số dư"
+        subtitle={selectedTx?.code || selectedTx?.transaction_code}
+      >
+        {selectedTx ? (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div>
+                <p className="text-xs text-slate-500">Số tiền giao dịch</p>
+                <p className={`text-2xl font-bold font-mono mt-0.5 ${
+                  selectedTx.direction === 'credit' ? 'text-emerald-600' : 'text-slate-900'
+                }`}>
+                  {selectedTx.direction === 'credit' ? '+' : '-'}{formatMoney(selectedTx.amount)}
+                </p>
+              </div>
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ring-1 ring-inset ${statusToneMap[selectedTx.status]}`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                {statusLabelMap[selectedTx.status] || selectedTx.status}
+              </span>
+            </div>
+
+            <div>
+              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                Thông tin nghiệp vụ
+              </h4>
+              {(() => {
+                const detailUser = selectedTx.user || (typeof selectedTx.user_id === 'object' ? selectedTx.user_id : null) || {}
+                const customerName = detailUser.fullName || detailUser.username || (detailUser.email ? detailUser.email.split('@')[0] : compactId(selectedTx.user_id))
+
+                return (
+                  <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-slate-50/50 px-3">
+                    <PropertyRow label="Mã giao dịch (Code)" value={selectedTx.code || selectedTx.transaction_code} mono />
+                    <PropertyRow label="Khách hàng" value={customerName} />
+                    <PropertyRow label="Email khách hàng" value={detailUser.email} />
+                    <PropertyRow label="Loại giao dịch" value={typeLabelMap[selectedTx.type] || selectedTx.type} />
+                    <PropertyRow label="Chiều dòng tiền" value={selectedTx.direction === 'credit' ? 'Cộng tiền vào ví' : 'Trừ tiền khỏi ví'} />
+                    <PropertyRow label="Mã tham chiếu SePay" value={selectedTx.sepay_transaction_id} mono />
+                    <PropertyRow label="Ngân hàng thụ hưởng" value={selectedTx.payment_details?.bank_brand_name || selectedTx.bank_brand_name} />
+                    <PropertyRow label="Nội dung chuyển khoản" value={selectedTx.payment_details?.content || selectedTx.description} />
+                    <PropertyRow label="Thời gian tạo" value={formatDateTime(selectedTx.created_at)} mono />
                   </div>
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <label className="block">
-                      <span className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-600">Số tiền (VNĐ)</span>
-                      <input
-                        type="number"
-                        min="1"
-                        placeholder="VD: 50000"
-                        value={adjustForm.amount}
-                        onChange={(event) => setAdjustForm((current) => ({ ...current, amount: event.target.value }))}
-                        className={inputClassName}
-                        required
-                      />
-                    </label>
-
-                    <label className="block">
-                      <span className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-600">Chiều giao dịch</span>
-                      <select
-                        value={adjustForm.direction}
-                        onChange={(event) => setAdjustForm((current) => ({ ...current, direction: event.target.value }))}
-                        className={inputClassName}
-                      >
-                        {directionAdjustOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-
-                  <label className="block">
-                    <span className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-600">Mô tả lý do</span>
-                    <textarea
-                      rows="3"
-                      value={adjustForm.description}
-                      onChange={(event) => setAdjustForm((current) => ({ ...current, description: event.target.value }))}
-                      placeholder="Ví dụ: Điều chỉnh thủ công theo yêu cầu đối soát"
-                      className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
-                    />
-                  </label>
-
-                  <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={() => setIsAdjustOpen(false)}
-                      className="h-10 rounded-lg border border-slate-200 bg-white px-4 text-[13px] font-bold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      Hủy
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submittingAdjust || !selectedUserPreview?._id}
-                      className="flex h-10 items-center justify-center rounded-lg bg-teal-700 px-5 text-[13px] font-extrabold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                    >
-                      {submittingAdjust ? 'Đang xử lý...' : 'Thực hiện điều chỉnh'}
-                    </button>
-                  </div>
-                </div>
-              </form>
+                )
+              })()}
             </div>
           </div>
         ) : null}
+      </AdminDrawer>
 
-        <section className="admin-filter-bar rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_160px_160px_160px_100px]">
-            <div className="relative" ref={searchContainerRef}>
-              <div className="relative flex items-center">
-                <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3 text-[18px] text-slate-400">
-                  search
-                </span>
-                <input
-                  type="text"
-                  value={userSearchKeyword}
-                  onChange={(event) => {
-                    const val = event.target.value
-                    setUserSearchKeyword(val)
-                    setIsDropdownOpen(true)
-                    if (!val.trim()) {
-                      setSelectedUserPreview(null)
-                    }
-                  }}
-                  onFocus={() => {
-                    if (userSearchKeyword.trim() || searchUsersList.length > 0) {
-                      setIsDropdownOpen(true)
-                    }
-                  }}
-                  placeholder="Tìm theo tên người dùng, email hoặc mã ID..."
-                  className="h-10 w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-9 text-[13px] font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-100"
-                />
-                {userSearchKeyword ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUserSearchKeyword('')
-                      setSelectedUserPreview(null)
-                      setIsDropdownOpen(false)
-                    }}
-                    className="absolute right-2.5 flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-600"
-                    title="Xóa tìm kiếm"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">close</span>
-                  </button>
-                ) : null}
-              </div>
-
-              {isDropdownOpen && userSearchKeyword.trim() && !selectedUserPreview && (
-                <div className="absolute left-0 top-full z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-xl">
-                  {searchingUsers ? (
-                    <div className="flex items-center gap-2 px-3 py-2.5 text-[12px] text-slate-500">
-                      <span className="material-symbols-outlined animate-spin text-[16px] text-teal-600">progress_activity</span>
-                      Đang tìm người dùng...
-                    </div>
-                  ) : searchUsersList.length > 0 ? (
-                    searchUsersList.map((user) => (
-                      <button
-                        key={user._id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedUserPreview(user)
-                          setUserSearchKeyword(user.fullName || user.username || user.email || user._id)
-                          setIsDropdownOpen(false)
-                        }}
-                        className="flex w-full items-center justify-between gap-3 border-b border-slate-50 px-3 py-2 text-left transition hover:bg-teal-50/50 last:border-b-0"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-[13px] font-extrabold text-slate-900">
-                            {user.fullName || user.username || user.email || 'Người dùng'}
-                          </p>
-                          <p className="truncate text-[11px] font-medium text-slate-500">
-                            {user.email || 'Chưa có email'} · <span className="font-mono text-slate-400">{compactId(user._id)}</span>
-                          </p>
-                        </div>
-                        <span className="shrink-0 rounded border border-teal-200 bg-teal-50 px-2 py-0.5 text-[11px] font-extrabold text-teal-700">
-                          Lọc
-                        </span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-3 py-3 text-center text-[12px] text-slate-400">
-                      Không tìm thấy người dùng phù hợp
-                    </div>
-                  )}
+      {/* Adjust Wallet Balance Modal */}
+      <AdminModal
+        open={adjustOpen}
+        onClose={() => setAdjustOpen(false)}
+        title="Điều chỉnh số dư ví khách hàng"
+        subtitle="Cộng hoặc trừ số dư ví thủ công kèm ghi chú kiểm toán."
+      >
+        <form onSubmit={handleConfirmAdjust} className="space-y-4 text-xs">
+          {/* User Search & Select */}
+          <div>
+            <label className="block font-medium text-slate-700 mb-1">
+              Tìm khách hàng cần điều chỉnh <span className="text-rose-500">*</span>
+            </label>
+            {adjustSelectedUser ? (
+              <div className="flex items-center justify-between rounded-lg border border-indigo-200 bg-indigo-50/70 p-2.5">
+                <div className="min-w-0">
+                  <p className="font-semibold text-slate-900 truncate">
+                    {adjustSelectedUser.fullName || adjustSelectedUser.username}
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate">{adjustSelectedUser.email}</p>
                 </div>
-              )}
-            </div>
-
-            <select value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))} className={inputClassName}>
-              {transactionTypeOptions.map((option) => (
-                <option key={option.value || 'all'} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))} className={inputClassName}>
-              {transactionStatusOptions.map((option) => (
-                <option key={option.value || 'all'} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <select value={filters.direction} onChange={(event) => setFilters((current) => ({ ...current, direction: event.target.value }))} className={inputClassName}>
-              {directionOptions.map((option) => (
-                <option key={option.value || 'all'} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => {
-                setUserSearchKeyword('')
-                setSelectedUserPreview(null)
-                setIsDropdownOpen(false)
-                setFilters({ type: '', status: '', direction: '' })
-              }}
-              className="h-10 rounded-md border border-slate-200 bg-white px-3 text-[13px] font-extrabold text-slate-600 transition hover:bg-slate-50"
-            >
-              Đặt lại
-            </button>
-          </div>
-        </section>
-      </section>
-
-      <section>
-        <section className="admin-data-panel overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="hidden grid-cols-[minmax(0,1.05fr)_130px_110px_105px_120px_184px] bg-slate-50 px-4 py-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-slate-400 lg:grid">
-            <span>Người dùng</span>
-            <span>Loại</span>
-            <span>Chiều</span>
-            <span>Trạng thái</span>
-            <span>Số tiền</span>
-            <span></span>
-          </div>
-
-          {transactions.map((transaction) => (
-            <article
-              key={transaction._id}
-              className={`border-t border-slate-100 px-4 py-3 text-[12px] transition hover:bg-slate-50 lg:grid lg:grid-cols-[minmax(0,1.05fr)_130px_110px_105px_120px_184px] lg:items-center lg:gap-3 ${
-                selectedTransaction?._id === transaction._id ? 'bg-teal-50/60' : ''
-              }`}
-            >
-              <div className="min-w-0">
-                <p className="truncate font-extrabold text-slate-950">{transaction.user?.fullName || transaction.user?.username || transaction.user?.email || 'Không rõ người dùng'}</p>
-                <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">{transaction.user?.email || compactId(transaction.user_id)}</p>
-              </div>
-
-              <div className="mt-3 lg:mt-0">
-                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-extrabold text-slate-700">
-                  {typeLabelMap[transaction.type] || transaction.type}
-                </span>
-              </div>
-
-              <div className="mt-3 lg:mt-0">
-                <span className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-extrabold ${directionToneMap[transaction.direction] || directionToneMap.credit}`}>
-                  {transaction.direction === 'credit' ? 'Cộng' : 'Trừ'}
-                </span>
-              </div>
-
-              <div className="mt-3 lg:mt-0">
-                <span className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-extrabold ${statusToneMap[transaction.status] || statusToneMap.pending}`}>
-                  {statusLabelMap[transaction.status] || transaction.status}
-                </span>
-              </div>
-
-              <div className="mt-3 text-[12px] font-extrabold lg:mt-0">
-                <span className={transaction.direction === 'credit' ? 'text-emerald-700' : 'text-rose-700'}>
-                  {transaction.direction === 'credit' ? '+' : '-'} {formatMoney(transaction.amount, transaction.currency)}
-                </span>
-              </div>
-
-              <div className="mt-3 lg:mt-0">
                 <button
                   type="button"
-                  onClick={() => setSelectedTransaction(transaction)}
-                  className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-[12px] font-extrabold text-slate-700 transition hover:bg-slate-50"
+                  onClick={() => setAdjustSelectedUser(null)}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition px-2 py-1"
                 >
-                  Xem
+                  Thay đổi
                 </button>
               </div>
-            </article>
-          ))}
+            ) : (
+              <div className="space-y-2">
+                <div className="relative">
+                  <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
+                    search
+                  </span>
+                  <input
+                    value={adjustUserSearch}
+                    onChange={(e) => setAdjustUserSearch(e.target.value)}
+                    placeholder="Nhập email, họ tên hoặc username để tìm..."
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none transition"
+                  />
+                </div>
+                {searchUserLoading ? (
+                  <div className="p-2 text-center text-slate-400 text-xs">Đang tìm tài khoản...</div>
+                ) : adjustUserResults.length > 0 ? (
+                  <div className="max-h-36 overflow-y-auto divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+                    {adjustUserResults.map((u) => (
+                      <button
+                        key={u._id}
+                        type="button"
+                        onClick={() => { setAdjustSelectedUser(u); setAdjustUserSearch('') }}
+                        className="w-full text-left p-2 hover:bg-slate-50 transition flex items-center justify-between"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900 truncate">{u.fullName || u.username}</p>
+                          <p className="text-[11px] text-slate-400 truncate">{u.email}</p>
+                        </div>
+                        <span className="text-[11px] font-semibold text-indigo-600 shrink-0">Chọn</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : adjustUserSearch ? (
+                  <div className="p-2 text-center text-slate-400 text-xs">Không tìm thấy người dùng phù hợp.</div>
+                ) : null}
+              </div>
+            )}
+          </div>
 
-          {!transactions.length ? (
-            <div className="px-4 py-10 text-center text-[13px] font-semibold text-slate-400">
-              {loading ? 'Đang tải danh sách giao dịch ví...' : 'Không có giao dịch ví phù hợp.'}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Thao tác</label>
+              <select
+                value={adjustDirection}
+                onChange={(e) => setAdjustDirection(e.target.value)}
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+              >
+                <option value="credit">Cộng tiền (+)</option>
+                <option value="debit">Trừ tiền (-)</option>
+              </select>
             </div>
-          ) : null}
-
-          <div className="flex flex-col gap-2 border-t border-slate-100 px-4 py-3 text-[12px] font-semibold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-            <span>Trang {pagination.page || 1}/{pagination.total_pages || 1} · Tổng {pagination.total || transactions.length} giao dịch</span>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-              <button
-                type="button"
-                disabled={!canGoPrev}
-                onClick={() => setPagination((current) => ({ ...current, page: Number(current.page || 1) - 1 }))}
-                className="h-8 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Trước
-              </button>
-              <button
-                type="button"
-                disabled={!canGoNext}
-                onClick={() => setPagination((current) => ({ ...current, page: Number(current.page || 1) + 1 }))}
-                className="h-8 rounded-md border border-slate-200 bg-white px-3 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Sau
-              </button>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">
+                Số tiền (VND) <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="number"
+                value={adjustAmount}
+                onChange={(e) => setAdjustAmount(e.target.value)}
+                placeholder="Ví dụ: 100000"
+                required
+                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-800 font-mono focus:border-indigo-600 focus:outline-none transition"
+              />
             </div>
           </div>
-        </section>
 
-        <AdminDrawer open={Boolean(selectedTransaction)} onClose={() => setSelectedTransaction(null)} title="Chi tiết giao dịch" subtitle={selectedTransaction ? `${typeLabelMap[selectedTransaction.type] || selectedTransaction.type} · ${selectedTransaction.user?.email || compactId(selectedTransaction.user_id)}` : ''} wide>
-          {selectedTransaction ? (
-            <div className="p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="text-lg font-extrabold leading-6 text-slate-950">{typeLabelMap[selectedTransaction.type] || selectedTransaction.type}</h3>
-                  <p className="mt-1 text-[12px] font-medium text-slate-500">{selectedTransaction.user?.email || compactId(selectedTransaction.user_id)}</p>
-                </div>
-                <span className={`rounded-full border px-2 py-1 text-[11px] font-extrabold ${statusToneMap[selectedTransaction.status] || statusToneMap.pending}`}>
-                  {statusLabelMap[selectedTransaction.status] || selectedTransaction.status}
-                </span>
-              </div>
+          <div>
+            <label className="block font-medium text-slate-700 mb-1">Lý do điều chỉnh / Ghi chú</label>
+            <textarea
+              value={adjustReason}
+              onChange={(e) => setAdjustReason(e.target.value)}
+              placeholder="Nhập lý do điều chỉnh số dư (ví dụ: Hoàn tiền dịch vụ quảng cáo theo yêu cầu)..."
+              rows={2}
+              className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-800 focus:border-indigo-600 focus:outline-none transition"
+            />
+          </div>
 
-              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Field label="Mã giao dịch" value={compactId(selectedTransaction._id)} />
-                <Field label="Mã ví" value={compactId(selectedTransaction.wallet_id)} />
-                <Field label="Mã người dùng" value={compactId(selectedTransaction.user_id)} />
-                <Field label="Loại" value={typeLabelMap[selectedTransaction.type] || selectedTransaction.type} />
-                <Field label="Chiều giao dịch" value={selectedTransaction.direction === 'credit' ? 'Cộng vào ví' : 'Trừ khỏi ví'} />
-                <Field label="Trạng thái" value={statusLabelMap[selectedTransaction.status] || selectedTransaction.status} />
-                <Field label="Số tiền" value={formatMoney(selectedTransaction.amount, selectedTransaction.currency)} />
-                <Field label="Tiền tệ" value={selectedTransaction.currency} />
-                <Field label="Số dư trước" value={formatMoney(selectedTransaction.balance_before, selectedTransaction.currency)} />
-                <Field label="Số dư sau" value={formatMoney(selectedTransaction.balance_after, selectedTransaction.currency)} />
-                <Field label="Reference type" value={selectedTransaction.reference_type || 'Chưa có'} />
-                <Field label="Reference id" value={selectedTransaction.reference_id ? compactId(selectedTransaction.reference_id) : 'Chưa có'} />
-                <Field label="Tạo lúc" value={formatDateTime(selectedTransaction.created_at)} />
-                <Field label="Cập nhật" value={formatDateTime(selectedTransaction.updated_at)} />
-              </div>
-
-
-
-              {selectedTransaction.description ? (
-                <div className="mt-3 rounded-md border border-slate-100 bg-slate-50 p-3">
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-slate-400">Mô tả</p>
-                  <p className="mt-2 whitespace-pre-line text-[12px] font-medium leading-5 text-slate-600">{selectedTransaction.description}</p>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </AdminDrawer>
-      </section>
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setAdjustOpen(false)}
+              className="h-8 rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={adjusting || !adjustSelectedUser}
+              className="h-8 rounded-lg bg-indigo-600 px-4 text-xs font-semibold text-white hover:bg-indigo-700 transition shadow-sm shadow-indigo-600/20 disabled:opacity-50"
+            >
+              {adjusting ? 'Đang thực hiện...' : 'Xác nhận điều chỉnh'}
+            </button>
+          </div>
+        </form>
+      </AdminModal>
     </AdminLayout>
   )
 }

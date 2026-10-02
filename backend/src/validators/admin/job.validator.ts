@@ -1,4 +1,4 @@
-import { z } from 'zod'
+﻿import { z } from 'zod'
 import { JobModerationStatus, JobStatus } from '~/constants/enums.js'
 import UserMessages from '~/constants/messages/index.js'
 
@@ -15,6 +15,13 @@ const adminJobModerationStatusValues = [JobModerationStatus.ACTIVE, JobModeratio
 export const getAdminJobsValidator = z.object({
   query: z.object({
     companyId: z
+      .string()
+      .trim()
+      .regex(/^[a-fA-F0-9]{24}$/, {
+        message: UserMessages.COMPANY_ID_INVALID
+      })
+      .optional(),
+    company_id: z
       .string()
       .trim()
       .regex(/^[a-fA-F0-9]{24}$/, {
@@ -74,3 +81,17 @@ export const updateAdminJobModerationStatusValidator = z
       })
     }
   })
+export const getAdminJobApplicationsValidator = z.object({
+  params: z.object({
+    jobId: z
+      .string()
+      .trim()
+      .regex(/^[a-fA-F0-9]{24}$/, {
+        message: UserMessages.JOB_ID_INVALID
+      })
+  }),
+  query: z.object({
+    page: z.coerce.number().int().min(1).optional().default(1),
+    limit: z.coerce.number().int().min(1).max(100).optional().default(20)
+  })
+})

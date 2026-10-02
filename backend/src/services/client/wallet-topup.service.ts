@@ -323,7 +323,7 @@ class WalletTopUpService {
       status: WalletTransactionStatus.SUCCEEDED,
       reference_type: WalletTransactionReferenceType.PAYMENT,
       reference_id: order._id,
-      description: `Nap tien vi qua SePay - ${order.order_code}`,
+      description: `Nạp tiền ví qua SePay - ${order.order_code}`,
       created_at: paidAt,
       updated_at: paidAt
     })
@@ -335,8 +335,8 @@ class WalletTopUpService {
     const notification = new Notification({
       user_id: order.user_id,
       type: NotificationType.WALLET_TOPUP_SUCCEEDED,
-      title: 'Nạp tiền thành công',
-      content: `Bạn đã nạp thành công ${order.amount} ${order.currency} vào ví.`,
+      title: 'Nạp tiền ví thành công',
+      content: `Bạn đã nạp thành công ${new Intl.NumberFormat('vi-VN').format(order.amount)} ${order.currency} vào ví.`,
       data: {
         order_id: String(order._id),
         order_code: order.order_code,
@@ -413,7 +413,7 @@ class WalletTopUpService {
       status: WalletTransactionStatus.SUCCEEDED,
       reference_type: WalletTransactionReferenceType.PAYMENT,
       reference_id: order._id,
-      description: `Nap tien vi qua SePay - ${order.order_code}`,
+      description: `Nạp tiền ví qua SePay - ${order.order_code}`,
       created_at: paidAt,
       updated_at: paidAt
     })
@@ -423,8 +423,8 @@ class WalletTopUpService {
     const notification = new Notification({
       user_id: order.user_id,
       type: NotificationType.WALLET_TOPUP_SUCCEEDED,
-      title: 'Nạp tiền thành công',
-      content: `Bạn đã nạp thành công ${order.amount} ${order.currency} vào ví.`,
+      title: 'Nạp tiền ví thành công',
+      content: `Bạn đã nạp thành công ${new Intl.NumberFormat('vi-VN').format(order.amount)} ${order.currency} vào ví.`,
       data: {
         order_id: String(order._id),
         order_code: order.order_code,
