@@ -29,3 +29,11 @@ export const rotateAdminRagChatSecretsValidator = z.object({
     })
     .refine((value) => Object.keys(value).length > 0)
 })
+
+export const testAdminRagChatConnectionValidator = z.object({
+  body: z
+    .object({
+      provider: z.enum(['gemini', 'openai']).optional()
+    })
+    .default({})
+})

@@ -8,7 +8,8 @@ const AdminMessages = {
   ADMIN_SESSION_NOT_FOUND: 'Phiên đăng nhập admin không tồn tại',
   ADMIN_SESSION_EXPIRED: 'Phiên đăng nhập admin đã hết hạn',
   ADMIN_COMPANY_VERIFICATION_UPDATED_SUCCESS: 'Cập nhật trạng thái xác minh công ty thành công',
-  ADMIN_SEPAY_CONNECTION_TEST_SUCCESS: 'Kiểm tra kết nối SePay thành công'
+  ADMIN_SEPAY_CONNECTION_TEST_SUCCESS: 'Kiểm tra kết nối SePay thành công',
+  ADMIN_RAG_CHAT_CONNECTION_TEST_SUCCESS: 'Kiểm tra kết nối RAG Chat thành công'
 } as const
 
 export default AdminMessages

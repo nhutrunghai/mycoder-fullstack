@@ -1,4 +1,4 @@
-﻿export enum AdminAuditAction {
+export enum AdminAuditAction {
   ADMIN_LOGIN = 'admin.login',
   ADMIN_LOGOUT = 'admin.logout',
   USER_STATUS_UPDATE = 'user.status.update',
@@ -18,6 +18,7 @@
   RAG_CHAT_CONFIG_UPDATE = 'rag_chat.config.update',
   RAG_CHAT_SECRET_ROTATE = 'rag_chat.secret.rotate',
   RAG_CHAT_HEALTH_VIEW = 'rag_chat.health.view',
+  RAG_CHAT_CONNECTION_TEST = 'rag_chat.test_connection',
   JOB_PROMOTION_VIEW = 'job_promotion.view',
   JOB_PROMOTION_CREATE = 'job_promotion.create',
   JOB_PROMOTION_UPDATE = 'job_promotion.update',

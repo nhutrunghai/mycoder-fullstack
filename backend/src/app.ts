@@ -18,8 +18,12 @@ export const createApp = async () => {
   await databaseService.connect()
   await adminJobPromotionPlanService.ensureDefaultPlans()
   startPromotionStatusWorker()
-  await ensurePublicJobsSearchIndex()
-  await ensureResumeChunksSearchIndex()
+  try {
+    await ensurePublicJobsSearchIndex()
+    await ensureResumeChunksSearchIndex()
+  } catch (err) {
+    logger.warn({ err }, 'Elasticsearch unavailable – search features disabled')
+  }
   const app = express()
   app.set('trust proxy', true)
   app.use(

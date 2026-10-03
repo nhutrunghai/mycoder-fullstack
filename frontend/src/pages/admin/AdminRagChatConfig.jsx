@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import AdminLayout from '../../components/AdminLayout.jsx'
 import AdminModal from '../../components/admin/AdminModal.jsx'
 import Toast from '../../components/Toast.jsx'
@@ -6,6 +6,7 @@ import {
   getAdminRagChatConfig,
   getAdminRagChatHealth,
   rotateAdminRagChatSecrets,
+  testAdminRagChatConnection,
   updateAdminRagChatConfig,
 } from '../../api/adminService.js'
 
@@ -14,6 +15,17 @@ const ragLimitHelp = {
   job_explanation_top_k: 'Số ngữ cảnh dùng khi AI giải thích, so sánh chi tiết các công việc tìm được.',
   cv_review_top_k: 'Số đoạn văn bản CV được đối soát từ vector index để đánh giá sự phù hợp.',
   answer_context_limit: 'Giới hạn số đoạn văn bản đưa vào prompt cuối cùng để tạo câu trả lời.',
+}
+
+const defaultModelsByProvider = {
+  openai: {
+    intent_model: 'gpt-4o-mini',
+    chat_model: 'gpt-4o-mini',
+  },
+  gemini: {
+    intent_model: 'gemini-1.5-flash',
+    chat_model: 'gemini-1.5-flash',
+  },
 }
 
 const textModelOptions = {
@@ -63,6 +75,8 @@ export default function AdminRagChatConfig() {
   const [saving, setSaving] = useState(false)
   const [rotating, setRotating] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState(null)
+  const [testModalOpen, setTestModalOpen] = useState(false)
   const [toast, setToast] = useState(null)
   const [secretOpen, setSecretOpen] = useState(false)
   const [selectedSecretProvider, setSelectedSecretProvider] = useState('openai')
@@ -87,12 +101,15 @@ export default function AdminRagChatConfig() {
   const selectedSecretOption = secretProviderOptions.find((opt) => opt.value === selectedSecretProvider) || secretProviderOptions[0]
 
   const syncForm = useCallback((nextConfig) => {
+    const provider = nextConfig?.provider || 'openai'
+    const defaults = defaultModelsByProvider[provider] || defaultModelsByProvider.openai
+
     setConfigForm({
       enabled: Boolean(nextConfig?.enabled),
-      provider: nextConfig?.provider || 'openai',
-      intent_model: nextConfig?.intent_model || '',
-      chat_model: nextConfig?.chat_model || '',
-      cv_visual_review_model: nextConfig?.cv_visual_review_model || '',
+      provider,
+      intent_model: nextConfig?.intent_model || defaults.intent_model,
+      chat_model: nextConfig?.chat_model || defaults.chat_model,
+      cv_visual_review_model: nextConfig?.cv_visual_review_model || 'gpt-4o-mini',
       job_search_top_k: nextConfig?.job_search_top_k ?? 5,
       job_explanation_top_k: nextConfig?.job_explanation_top_k ?? 5,
       cv_review_top_k: nextConfig?.cv_review_top_k ?? 6,
@@ -104,6 +121,16 @@ export default function AdminRagChatConfig() {
       maintenance_message: nextConfig?.maintenance_message || '',
     })
   }, [])
+
+  const handleProviderChange = (newProvider) => {
+    const defaults = defaultModelsByProvider[newProvider] || defaultModelsByProvider.openai
+    setConfigForm((prev) => ({
+      ...prev,
+      provider: newProvider,
+      intent_model: defaults.intent_model,
+      chat_model: defaults.chat_model,
+    }))
+  }
 
   const loadConfig = useCallback(async () => {
     const data = await getAdminRagChatConfig()
@@ -168,12 +195,29 @@ export default function AdminRagChatConfig() {
     }
   }
 
-  const handleTestHealth = async () => {
+  const handleTestConnection = async (targetProvider = configForm.provider) => {
     setTesting(true)
     try {
+      const res = await testAdminRagChatConnection({ provider: targetProvider })
+      const resultData = res?.data || res
+      setTestResult(resultData)
+      setTestModalOpen(true)
       await loadHealth()
-      setToast({ type: 'success', message: 'Đã cập nhật trạng thái kết nối AI Gateway.' })
+      if (resultData?.connected) {
+        setToast({ type: 'success', message: `Kết nối thành công tới ${targetProvider.toUpperCase()} (${resultData.latency_ms}ms).` })
+      } else {
+        setToast({ type: 'error', message: `Kết nối thất bại: ${resultData?.message || 'Lỗi không xác định'}` })
+      }
     } catch (error) {
+      const errData = {
+        connected: false,
+        provider: targetProvider,
+        message: error.message || 'Lỗi kết nối máy chủ',
+        latency_ms: 0,
+        checked_at: new Date(),
+      }
+      setTestResult(errData)
+      setTestModalOpen(true)
       setToast({ type: 'error', message: error.message || 'Kiểm tra kết nối thất bại.' })
     } finally {
       setTesting(false)
@@ -191,11 +235,11 @@ export default function AdminRagChatConfig() {
           <button
             type="button"
             disabled={testing}
-            onClick={handleTestHealth}
+            onClick={() => handleTestConnection(configForm.provider)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-2xs disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-[16px]">sync</span>
-            <span>{testing ? 'Đang kiểm tra...' : 'Kiểm tra sức khỏe AI'}</span>
+            <span className="material-symbols-outlined text-[16px] text-slate-500">wifi_tethering</span>
+            <span>{testing ? 'Đang kiểm tra kết nối...' : 'Kiểm tra kết nối thực tế'}</span>
           </button>
           <button
             type="button"
@@ -235,9 +279,11 @@ export default function AdminRagChatConfig() {
         </div>
         <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs">
           <p className="text-xs font-medium text-slate-500">Kết nối Vector DB</p>
-          <p className="mt-2 text-sm font-bold text-emerald-700 flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            Sẵn sàng
+          <p className={`mt-2 text-sm font-bold flex items-center gap-1.5 ${
+            health?.vector_db_connected ? 'text-emerald-700' : 'text-amber-700'
+          }`}>
+            <span className={`h-2 w-2 rounded-full ${health?.vector_db_connected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            {health?.vector_db_connected ? 'Sẵn sàng' : 'Chưa kết nối (Dự phòng)'}
           </p>
         </div>
       </section>
@@ -256,7 +302,7 @@ export default function AdminRagChatConfig() {
               <label className="block font-medium text-slate-700 mb-1">Nhà cung cấp (LLM Provider)</label>
               <select
                 value={configForm.provider}
-                onChange={(e) => setConfigForm({ ...configForm, provider: e.target.value })}
+                onChange={(e) => handleProviderChange(e.target.value)}
                 className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition font-semibold"
               >
                 <option value="openai">OpenAI (ChatGPT)</option>
@@ -407,6 +453,34 @@ export default function AdminRagChatConfig() {
             </label>
           </div>
 
+          {/* Maintenance Message Field */}
+          <div className="pt-2 border-t border-slate-100 text-xs">
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-medium text-slate-700 flex items-center gap-1.5">
+                <span>Thông điệp bảo trì khi tắt Chatbot</span>
+                {!configForm.enabled && (
+                  <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200">
+                    Đang kích hoạt do bot tắt
+                  </span>
+                )}
+              </label>
+              <span className="text-[11px] text-slate-400 font-mono">
+                {(configForm.maintenance_message || '').length}/500 ký tự
+              </span>
+            </div>
+            <textarea
+              rows={2}
+              maxLength={500}
+              value={configForm.maintenance_message || ''}
+              onChange={(e) => setConfigForm({ ...configForm, maintenance_message: e.target.value })}
+              placeholder="Ví dụ: Trợ lý AI đang tạm dừng để nâng cấp hệ thống định kỳ. Quý khách vui lòng thử lại sau ít phút..."
+              className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs text-slate-800 placeholder-slate-400 focus:border-indigo-600 focus:outline-none transition leading-relaxed resize-none"
+            />
+            <p className="mt-1 text-[11px] text-slate-400">
+              Câu thông báo này sẽ được gửi cho người dùng khi nhắn tin trong lúc Trợ lý AI đang tắt. Nếu để trống, hệ thống sẽ sử dụng câu mặc định: <span className="text-slate-600 italic">"Chatbot đang tạm bảo trì. Vui lòng thử lại sau."</span>
+            </p>
+          </div>
+
           <div className="pt-2 flex justify-end">
             <button
               type="submit"
@@ -418,6 +492,197 @@ export default function AdminRagChatConfig() {
           </div>
         </section>
       </form>
+
+      {/* System Technical Specifications */}
+      <section className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-2xs space-y-4">
+        <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">4. Thông số kỹ thuật & Môi trường chạy</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Chi tiết cấu hình hạ tầng Vector Search, Embedding và nguồn bảo mật khóa API.</p>
+          </div>
+          <button
+            type="button"
+            onClick={loadHealth}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline"
+          >
+            <span className="material-symbols-outlined text-[14px]">refresh</span>
+            Làm mới thông số
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-xs">
+          <div className="flex items-center justify-between py-2 border-b border-slate-100">
+            <span className="text-slate-500 font-medium">Chỉ mục tìm việc (Jobs Search Index)</span>
+            <span className="font-mono font-medium text-slate-800">{health?.public_jobs_search_index || 'public_jobs'}</span>
+          </div>
+
+          <div className="flex items-center justify-between py-2 border-b border-slate-100">
+            <span className="text-slate-500 font-medium">Chỉ mục Vector CV (Resume Search Index)</span>
+            <span className="font-mono font-medium text-slate-800">{health?.resume_search_index || 'resume_chunks'}</span>
+          </div>
+
+          <div className="flex items-center justify-between py-2 border-b border-slate-100">
+            <span className="text-slate-500 font-medium">Embedding API Endpoint</span>
+            <span className="font-mono font-medium text-slate-800 truncate max-w-[260px]" title={health?.embedding_api_url}>
+              {health?.embedding_api_url || 'Mặc định (HuggingFace)'}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between py-2 border-b border-slate-100">
+            <span className="text-slate-500 font-medium">Chuẩn mã hóa Secrets</span>
+            <span className="font-mono font-medium text-emerald-700 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">lock</span>
+              AES-256-GCM
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between py-2 border-b border-slate-100">
+            <span className="text-slate-500 font-medium">Khóa API OpenAI</span>
+            <span className="font-medium">
+              {health?.openai_api_key_configured ? (
+                <span className="inline-flex items-center gap-1 text-emerald-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  {health?.openai_api_key_source === 'database' ? 'Lưu trữ DB bảo mật' : 'Biến môi trường (.env)'}
+                </span>
+              ) : (
+                <span className="text-slate-400">Chưa thiết lập</span>
+              )}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between py-2 border-b border-slate-100">
+            <span className="text-slate-500 font-medium">Khóa API Google Gemini</span>
+            <span className="font-medium">
+              {health?.gemini_api_key_configured ? (
+                <span className="inline-flex items-center gap-1 text-emerald-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  {health?.gemini_api_key_source === 'database' ? 'Lưu trữ DB bảo mật' : 'Biến môi trường (.env)'}
+                </span>
+              ) : (
+                <span className="text-slate-400">Chưa thiết lập</span>
+              )}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Real Connection Test Result Modal (Center Modal) */}
+      <AdminModal
+        open={testModalOpen}
+        onClose={() => setTestModalOpen(false)}
+        title="Kết quả kiểm tra kết nối AI Gateway"
+        subtitle="Thông tin phản hồi thực tế từ API nhà cung cấp mô hình ngôn ngữ."
+      >
+        <div className="space-y-4 text-xs">
+          {testResult && (
+            <div className={`rounded-xl border p-4 ${
+              testResult.connected
+                ? 'border-emerald-200 bg-emerald-50/50 text-emerald-900'
+                : 'border-rose-200 bg-rose-50/50 text-rose-900'
+            }`}>
+              <div className="flex items-start gap-3">
+                <span className={`material-symbols-outlined text-[24px] shrink-0 ${
+                  testResult.connected ? 'text-emerald-600' : 'text-rose-600'
+                }`}>
+                  {testResult.connected ? 'check_circle' : 'error'}
+                </span>
+                <div className="space-y-1 flex-1">
+                  <p className="font-bold text-sm">
+                    {testResult.connected ? 'Kết nối thành công!' : 'Kết nối thất bại'}
+                  </p>
+                  <p className="text-xs leading-relaxed opacity-90">
+                    {testResult.connected
+                      ? `Hệ thống đã gửi lời gọi kiểm tra và nhận được phản hồi hợp lệ từ nhà cung cấp ${testResult.provider?.toUpperCase()}.`
+                      : testResult.message || 'Không thể liên lạc với máy chủ nhà cung cấp AI.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 space-y-2.5">
+            <div className="flex items-center justify-between py-1 border-b border-slate-200/60">
+              <span className="text-slate-500 font-medium">Nhà cung cấp kiểm tra</span>
+              <span className="font-mono font-bold uppercase text-slate-800">{testResult?.provider || configForm.provider}</span>
+            </div>
+
+            <div className="flex items-center justify-between py-1 border-b border-slate-200/60">
+              <span className="text-slate-500 font-medium">Mô hình thử nghiệm</span>
+              <span className="font-mono font-semibold text-indigo-700">{testResult?.model || configForm.chat_model}</span>
+            </div>
+
+            <div className="flex items-center justify-between py-1 border-b border-slate-200/60">
+              <span className="text-slate-500 font-medium">Độ trễ phản hồi (Latency)</span>
+              <span className="font-mono font-bold">
+                {testResult?.latency_ms !== undefined ? (
+                  <span className={
+                    testResult.latency_ms < 1500
+                      ? 'text-emerald-700'
+                      : testResult.latency_ms < 3500
+                      ? 'text-amber-700'
+                      : 'text-rose-700'
+                  }>
+                    {testResult.latency_ms} ms
+                  </span>
+                ) : (
+                  '—'
+                )}
+              </span>
+            </div>
+
+            {testResult?.response_sample && (
+              <div className="pt-1">
+                <span className="text-slate-500 font-medium block mb-1">Mẫu phản hồi:</span>
+                <div className="rounded-lg bg-white border border-slate-200 p-2 font-mono text-[11px] text-slate-700 break-all">
+                  {testResult.response_sample}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between py-1 text-slate-400 text-[11px]">
+              <span>Thời điểm kiểm tra</span>
+              <span>
+                {testResult?.checked_at
+                  ? new Date(testResult.checked_at).toLocaleTimeString('vi-VN', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                    })
+                  : 'Vừa xong'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={testing}
+                onClick={() => handleTestConnection('openai')}
+                className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+              >
+                Thử OpenAI
+              </button>
+              <button
+                type="button"
+                disabled={testing}
+                onClick={() => handleTestConnection('gemini')}
+                className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+              >
+                Thử Gemini
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setTestModalOpen(false)}
+              className="h-8 rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white hover:bg-slate-800 transition"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      </AdminModal>
 
       {/* API Key Rotation Modal */}
       <AdminModal

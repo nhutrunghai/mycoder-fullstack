@@ -1,9 +1,11 @@
+import ElasticsearchConfig from '~/configs/elasticsearch.config.js'
+import UserMessages from '~/constants/messages/admin.message.js'
 import { Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
 import env from '~/configs/env.config.js'
 import { AdminAuditAction, AdminAuditTargetType } from '~/constants/enums.js'
 import adminAuditLogService from '~/services/admin/audit-log.service.js'
-import adminSystemSettingService, { RagChatRuntimeConfig } from '~/services/admin/system-setting.service.js'
+import adminSystemSettingService, { LlmProvider, RagChatRuntimeConfig } from '~/services/admin/system-setting.service.js'
 
 export const getAdminRagChatConfigController = async (req: Request, res: Response) => {
   const config = await adminSystemSettingService.getRagChatConfig()
@@ -75,6 +77,14 @@ export const getAdminRagChatHealthController = async (req: Request, res: Respons
   const providerConfigured =
     config.provider === 'openai' ? secretStatus.openai_api_key_configured : secretStatus.gemini_api_key_configured
 
+  let vectorDbConnected = false
+  try {
+    const es = ElasticsearchConfig.getInstance()
+    vectorDbConnected = await es.ping()
+  } catch {
+    vectorDbConnected = false
+  }
+
   return res.status(StatusCodes.OK).json({
     status: 'success',
     data: {
@@ -85,9 +95,37 @@ export const getAdminRagChatHealthController = async (req: Request, res: Respons
       openai_api_key_source: secretStatus.openai_api_key_source,
       gemini_api_key_configured: secretStatus.gemini_api_key_configured,
       gemini_api_key_source: secretStatus.gemini_api_key_source,
+      vector_db_connected: vectorDbConnected,
       resume_search_index: env.RESUME_SEARCH_INDEX,
       public_jobs_search_index: env.PUBLIC_JOBS_SEARCH_INDEX,
       embedding_api_url: env.EMBEDDING_API_URL
     }
+  })
+}
+
+export const testAdminRagChatConnectionController = async (req: Request, res: Response) => {
+  const requestedProvider = req.body?.provider as LlmProvider | undefined
+  const result = await adminSystemSettingService.testRagChatConnection(requestedProvider)
+
+  await adminAuditLogService.create({
+    req,
+    action: AdminAuditAction.RAG_CHAT_CONNECTION_TEST,
+    targetType: AdminAuditTargetType.RAG_CHAT,
+    statusCode: result.connected ? StatusCodes.OK : StatusCodes.BAD_REQUEST,
+    metadata: {
+      provider: result.provider,
+      model: result.model,
+      connected: result.connected,
+      latency_ms: result.latency_ms,
+      reason: (result as any).reason || null
+    }
+  })
+
+  return res.status(StatusCodes.OK).json({
+    status: 'success',
+    message: result.connected
+      ? UserMessages.ADMIN_RAG_CHAT_CONNECTION_TEST_SUCCESS
+      : 'Kiểm tra kết nối AI thất bại: ' + ((result as any).message || ''),
+    data: result
   })
 }

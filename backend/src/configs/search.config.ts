@@ -2,7 +2,7 @@ import env from './env.config'
 import ElasticsearchConfig from './elasticsearch.config'
 import logger from './logger.config.js'
 
-const ELASTICSEARCH_BOOT_RETRY_ATTEMPTS = 10
+const ELASTICSEARCH_BOOT_RETRY_ATTEMPTS = 1
 const ELASTICSEARCH_BOOT_RETRY_DELAY_MS = 3000
 
 export const PUBLIC_JOBS_SEARCH_INDEX = env.PUBLIC_JOBS_SEARCH_INDEX

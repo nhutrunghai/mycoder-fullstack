@@ -1,4 +1,4 @@
-﻿import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 
 function getFocusableElements(container) {
   if (!container) return []

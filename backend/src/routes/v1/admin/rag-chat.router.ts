@@ -4,7 +4,8 @@ import {
   getAdminRagChatConfigController,
   getAdminRagChatHealthController,
   rotateAdminRagChatSecretsController,
-  updateAdminRagChatConfigController
+  updateAdminRagChatConfigController,
+  testAdminRagChatConnectionController
 } from '~/controllers/admin/rag-chat.controller.js'
 import { adminAuthMiddleware } from '~/middlewares/admin/auth.middleware.js'
 import { authorizeAdmin } from '~/middlewares/admin/authorization.middleware.js'
@@ -12,7 +13,8 @@ import { adminLimiter, paymentLimiter } from '~/middlewares/common/rate-limit.mi
 import validate from '~/middlewares/common/validator.middleware.js'
 import {
   rotateAdminRagChatSecretsValidator,
-  updateAdminRagChatConfigValidator
+  updateAdminRagChatConfigValidator,
+  testAdminRagChatConnectionValidator
 } from '~/validators/admin/rag-chat.validator.js'
 
 const adminRagChatRouter = Router()
@@ -35,5 +37,14 @@ adminRagChatRouter.patch(
   rotateAdminRagChatSecretsController
 )
 adminRagChatRouter.get('/health', adminAuthMiddleware, authorizeAdmin([UserRole.ADMIN]), getAdminRagChatHealthController)
+
+adminRagChatRouter.post(
+  '/test-connection',
+  adminAuthMiddleware,
+  authorizeAdmin([UserRole.ADMIN]),
+  adminLimiter,
+  validate(testAdminRagChatConnectionValidator),
+  testAdminRagChatConnectionController
+)
 
 export default adminRagChatRouter

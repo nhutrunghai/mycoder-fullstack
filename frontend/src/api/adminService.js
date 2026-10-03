@@ -323,6 +323,12 @@ export async function getAdminRagChatHealth() {
   return adminRequest('GET', '/admin/rag-chat/health')
 }
 
+export async function testAdminRagChatConnection(body = {}) {
+  return adminRequest('POST', '/admin/rag-chat/test-connection', {
+    data: body,
+  })
+}
+
 export async function getAdminAuditLogs(params = {}) {
   return adminRequest('GET', '/admin/audit-logs', { params })
 }

@@ -1,3 +1,4 @@
+import axios, { AxiosError } from 'axios'
 import { ObjectId } from 'mongodb'
 import databaseService from '~/configs/database.config.js'
 import env from '~/configs/env.config.js'
@@ -196,6 +197,146 @@ class AdminSystemSettingService {
         returnDocument: 'after'
       }
     )
+  }
+
+  async testRagChatConnection(requestedProvider?: LlmProvider) {
+    const config = await this.getRagChatConfig()
+    const provider = requestedProvider || config.provider
+    const startedAt = Date.now()
+
+    if (provider === 'openai') {
+      const apiKey = await this.getOpenAiApiKey()
+      const testModel = config.chat_model && config.chat_model.startsWith('gpt') ? config.chat_model : 'gpt-4o-mini'
+
+      if (!apiKey) {
+        return {
+          connected: false,
+          provider,
+          model: testModel,
+          latency_ms: 0,
+          reason: 'missing_key',
+          message: 'Chưa cấu hình API Key cho OpenAI. Vui lòng kiểm tra file .env hoặc cập nhật trong Quản lý khóa API.',
+          checked_at: new Date()
+        }
+      }
+
+      try {
+        const response = await axios.post(
+          `${env.OPENAI_BASE_URL}/chat/completions`,
+          {
+            model: testModel,
+            messages: [{ role: 'user', content: 'ping' }],
+            max_tokens: 5
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 10000
+          }
+        )
+
+        const latency_ms = Date.now() - startedAt
+        return {
+          connected: true,
+          provider,
+          model: testModel,
+          latency_ms,
+          response_sample: response.data?.choices?.[0]?.message?.content?.trim() || 'pong',
+          checked_at: new Date()
+        }
+      } catch (error) {
+        const latency_ms = Date.now() - startedAt
+        const axiosError = error as AxiosError<{ error?: { message?: string } }>
+        const statusCode = axiosError.response?.status
+        let errorMsg = axiosError.response?.data?.error?.message || axiosError.message
+
+        if (statusCode === 401) {
+          errorMsg = 'API Key OpenAI không hợp lệ hoặc đã bị vô hiệu hóa (401 Unauthorized).'
+        } else if (statusCode === 429) {
+          errorMsg = 'Tài khoản OpenAI đã hết hạn mức (Quota exceeded) hoặc bị giới hạn tần suất (429 Too Many Requests).'
+        } else if (axiosError.code === 'ECONNABORTED') {
+          errorMsg = 'Kết nối đến máy chủ OpenAI quá thời gian chờ (Timeout sau 10 giây).'
+        }
+
+        return {
+          connected: false,
+          provider,
+          model: testModel,
+          latency_ms,
+          reason: 'api_error',
+          status_code: statusCode || null,
+          message: errorMsg,
+          checked_at: new Date()
+        }
+      }
+    } else {
+      // gemini
+      const apiKey = await this.getGeminiApiKey()
+      const testModel = config.chat_model && config.chat_model.startsWith('gemini') ? config.chat_model : 'gemini-1.5-flash'
+
+      if (!apiKey) {
+        return {
+          connected: false,
+          provider,
+          model: testModel,
+          latency_ms: 0,
+          reason: 'missing_key',
+          message: 'Chưa cấu hình API Key cho Gemini. Vui lòng kiểm tra file .env hoặc cập nhật trong Quản lý khóa API.',
+          checked_at: new Date()
+        }
+      }
+
+      try {
+        const response = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/${testModel}:generateContent?key=${apiKey}`,
+          {
+            contents: [{ role: 'user', parts: [{ text: 'ping' }] }]
+          },
+          {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 10000
+          }
+        )
+
+        const latency_ms = Date.now() - startedAt
+        const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'pong'
+
+        return {
+          connected: true,
+          provider,
+          model: testModel,
+          latency_ms,
+          response_sample: text,
+          checked_at: new Date()
+        }
+      } catch (error) {
+        const latency_ms = Date.now() - startedAt
+        const axiosError = error as AxiosError<{ error?: { message?: string } }>
+        const statusCode = axiosError.response?.status
+        let errorMsg = axiosError.response?.data?.error?.message || axiosError.message
+
+        if (statusCode === 400 || statusCode === 403 || statusCode === 401) {
+          errorMsg = `API Key Gemini không hợp lệ hoặc chưa kích hoạt Generative Language API (${statusCode}).`
+        } else if (statusCode === 429) {
+          errorMsg = 'Tài khoản Gemini đã vượt quá giới hạn lượt gọi (429 Rate Limit Exceeded).'
+        } else if (axiosError.code === 'ECONNABORTED') {
+          errorMsg = 'Kết nối đến Google Gemini quá thời gian chờ (Timeout sau 10 giây).'
+        }
+
+        return {
+          connected: false,
+          provider,
+          model: testModel,
+          latency_ms,
+          reason: 'api_error',
+          status_code: statusCode || null,
+          message: errorMsg,
+          checked_at: new Date()
+        }
+      }
+    }
   }
 
   private async rotateSecrets(
