@@ -29,11 +29,26 @@ export const maskSecret = (value?: string | null, visibleTail = 4) => {
     return null
   }
 
-  if (value.length <= visibleTail) {
-    return '*'.repeat(value.length)
+  const str = value.trim()
+  if (str.length <= visibleTail) {
+    return '••••'
   }
 
-  return `${'*'.repeat(Math.max(value.length - visibleTail, 4))}${value.slice(-visibleTail)}`
+  if (str.startsWith('sk-proj-')) {
+    return `sk-proj-••••${str.slice(-visibleTail)}`
+  }
+  if (str.startsWith('sk-')) {
+    return `sk-••••${str.slice(-visibleTail)}`
+  }
+  if (str.startsWith('AIzaSy')) {
+    return `AIzaSy••••${str.slice(-visibleTail)}`
+  }
+  if (str.startsWith('AIza')) {
+    return `AIza••••${str.slice(-visibleTail)}`
+  }
+
+  const head = str.length > 8 ? str.slice(0, 3) : ''
+  return head ? `${head}••••${str.slice(-visibleTail)}` : `••••${str.slice(-visibleTail)}`
 }
 
 export const encryptSystemSecret = (value: string): EncryptedSystemSecret => {

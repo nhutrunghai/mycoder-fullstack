@@ -40,7 +40,8 @@ export const updateAdminRagChatConfigController = async (
   return res.status(StatusCodes.OK).json({
     status: 'success',
     data: {
-      config
+      config,
+      ...config
     }
   })
 }
@@ -80,7 +81,10 @@ export const getAdminRagChatHealthController = async (req: Request, res: Respons
   let vectorDbConnected = false
   try {
     const es = ElasticsearchConfig.getInstance()
-    vectorDbConnected = await es.ping()
+    vectorDbConnected = await Promise.race([
+      es.ping(),
+      new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('timeout')), 800))
+    ])
   } catch {
     vectorDbConnected = false
   }
@@ -93,8 +97,10 @@ export const getAdminRagChatHealthController = async (req: Request, res: Respons
       provider_configured: providerConfigured,
       openai_api_key_configured: secretStatus.openai_api_key_configured,
       openai_api_key_source: secretStatus.openai_api_key_source,
+      openai_api_key_preview: secretStatus.openai_api_key_preview,
       gemini_api_key_configured: secretStatus.gemini_api_key_configured,
       gemini_api_key_source: secretStatus.gemini_api_key_source,
+      gemini_api_key_preview: secretStatus.gemini_api_key_preview,
       vector_db_connected: vectorDbConnected,
       resume_search_index: env.RESUME_SEARCH_INDEX,
       public_jobs_search_index: env.PUBLIC_JOBS_SEARCH_INDEX,

@@ -73,7 +73,8 @@ class CvVisualReviewService {
   }
 
   async reviewResumePdf({ message, resume }: { message: string; resume: Resume }): Promise<CvVisualReviewResult> {
-    const model = env.OPENAI_MODEL_CV_VISUAL_REVIEW
+    const config = await adminSystemSettingService.getRagChatConfig()
+    const model = config.cv_visual_review_model || env.OPENAI_MODEL_CV_VISUAL_REVIEW || 'gpt-4o'
     const apiKey = await adminSystemSettingService.getOpenAiApiKey()
 
     if (!apiKey) {

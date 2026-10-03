@@ -23,32 +23,37 @@ const defaultModelsByProvider = {
     chat_model: 'gpt-4o-mini',
   },
   gemini: {
-    intent_model: 'gemini-1.5-flash',
-    chat_model: 'gemini-1.5-flash',
+    intent_model: 'gemini-2.0-flash',
+    chat_model: 'gemini-2.0-flash',
   },
 }
 
 const textModelOptions = {
   openai: [
-    { value: 'gpt-4o-mini', label: 'GPT-4o mini (Nhanh & Tối ưu chi phí)' },
-    { value: 'gpt-4o', label: 'GPT-4o (Thông minh & Toàn diện)' },
-    { value: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
-    { value: 'gpt-4.1', label: 'GPT-4.1' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o mini (Nhanh, tối ưu chi phí & latency - Khuyên dùng)' },
+    { value: 'gpt-4o', label: 'GPT-4o (Thông minh & Đa phương thức toàn diện)' },
+    { value: 'chatgpt-4o-latest', label: 'ChatGPT-4o Latest (Bản ChatGPT-4o mới nhất liên tục)' },
+    { value: 'gpt-4.5-preview', label: 'GPT-4.5 Preview (Frontier Model - Kiến thức sâu rộng nhất)' },
+    { value: 'o3-mini', label: 'o3-mini (Suy luận thế hệ mới 2025 - Logic, Coding & Tốc độ cao)' },
+    { value: 'o1', label: 'o1 (Mô hình suy luận sâu - Toán học & Phân tích chuyên sâu)' },
+    { value: 'o1-mini', label: 'o1-mini (Suy luận nhanh chuyên sâu lập trình)' },
+    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo (Bản Turbo truyền thống - 128k context)' },
+    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo (Mô hình kế thừa - Tốc độ cao)' },
   ],
   gemini: [
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Thế hệ mới nhất - Tốc độ cực cao)' },
+    { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash-Lite (Siêu nhẹ & Tiết kiệm)' },
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Ổn định & Nhanh)' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Phân tích chuyên sâu - Ngữ cảnh 2M token)' },
   ],
 }
 
 const visionModelOptions = [
-  { value: 'gpt-4o-mini', label: 'GPT-4o mini' },
-  { value: 'gpt-4o', label: 'GPT-4o' },
-  { value: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
-  { value: 'gpt-4.1', label: 'GPT-4.1' },
+  { value: 'gpt-4o', label: 'GPT-4o (Độ nét & trích xuất bố cục CV tốt nhất - Khuyên dùng)' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o mini (Nhanh & Tối ưu chi phí quét tài liệu)' },
+  { value: 'chatgpt-4o-latest', label: 'ChatGPT-4o Latest (Phiên bản ChatGPT thị giác mới nhất)' },
+  { value: 'gpt-4.5-preview', label: 'GPT-4.5 Preview (Kiến thức mở rộng & Thị giác)' },
+  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo with Vision' },
 ]
 
 const secretProviderOptions = [
@@ -78,6 +83,9 @@ export default function AdminRagChatConfig() {
   const [testResult, setTestResult] = useState(null)
   const [testModalOpen, setTestModalOpen] = useState(false)
   const [toast, setToast] = useState(null)
+  const [customChat, setCustomChat] = useState(false)
+  const [customIntent, setCustomIntent] = useState(false)
+  const [customVision, setCustomVision] = useState(false)
   const [secretOpen, setSecretOpen] = useState(false)
   const [selectedSecretProvider, setSelectedSecretProvider] = useState('openai')
 
@@ -100,7 +108,8 @@ export default function AdminRagChatConfig() {
   const [secretForm, setSecretForm] = useState({ openai_api_key: '', gemini_api_key: '' })
   const selectedSecretOption = secretProviderOptions.find((opt) => opt.value === selectedSecretProvider) || secretProviderOptions[0]
 
-  const syncForm = useCallback((nextConfig) => {
+  const syncForm = useCallback((rawConfig) => {
+    const nextConfig = rawConfig?.config || rawConfig || {}
     const provider = nextConfig?.provider || 'openai'
     const defaults = defaultModelsByProvider[provider] || defaultModelsByProvider.openai
 
@@ -161,9 +170,10 @@ export default function AdminRagChatConfig() {
     e.preventDefault()
     setSaving(true)
     try {
-      const updated = await updateAdminRagChatConfig(configForm)
-      setConfig(updated)
-      syncForm(updated)
+      const res = await updateAdminRagChatConfig(configForm)
+      const nextConfig = res?.config || res
+      setConfig(nextConfig)
+      syncForm(nextConfig)
       setToast({ type: 'success', message: 'Đã lưu cấu hình trợ lý AI RAG thành công.' })
     } catch (error) {
       setToast({ type: 'error', message: error.message || 'Không thể cập nhật cấu hình RAG.' })
@@ -297,9 +307,11 @@ export default function AdminRagChatConfig() {
             <p className="text-xs text-slate-500 mt-0.5">Chọn engine xử lý ngôn ngữ tự nhiên và phân tích thị giác CV.</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Nhà cung cấp (LLM Provider)</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-medium text-slate-700">Nhà cung cấp (LLM)</label>
+              </div>
               <select
                 value={configForm.provider}
                 onChange={(e) => handleProviderChange(e.target.value)}
@@ -311,34 +323,146 @@ export default function AdminRagChatConfig() {
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Mô hình hội thoại (Chat Model)</label>
-              <select
-                value={configForm.chat_model}
-                onChange={(e) => setConfigForm({ ...configForm, chat_model: e.target.value })}
-                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition"
-              >
-                {currentTextModels.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-medium text-slate-700">Mô hình hội thoại (Chat)</label>
+                <button
+                  type="button"
+                  onClick={() => setCustomChat((p) => !p)}
+                  className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
+                >
+                  {customChat ? '← Gợi ý' : '✎ Tự nhập mã'}
+                </button>
+              </div>
+              {customChat ? (
+                <input
+                  type="text"
+                  value={configForm.chat_model}
+                  onChange={(e) => setConfigForm({ ...configForm, chat_model: e.target.value })}
+                  placeholder="Nhập mã model (VD: gpt-5, gpt-4.5...)"
+                  className="h-9 w-full rounded-lg border border-indigo-300 bg-indigo-50/20 px-3 text-xs font-mono text-slate-800 focus:border-indigo-600 focus:bg-white focus:outline-none transition"
+                />
+              ) : (
+                <select
+                  value={configForm.chat_model}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setCustomChat(true)
+                    } else {
+                      setConfigForm({ ...configForm, chat_model: e.target.value })
+                    }
+                  }}
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+                >
+                  {currentTextModels.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                  {!currentTextModels.some((m) => m.value === configForm.chat_model) && configForm.chat_model && (
+                    <option value={configForm.chat_model}>
+                      {configForm.chat_model} (Mã tùy chỉnh)
+                    </option>
+                  )}
+                  <option value="__custom__">+ Tự nhập mã mô hình khác...</option>
+                </select>
+              )}
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Mô hình thị giác (Vision CV Model)</label>
-              <select
-                value={configForm.cv_visual_review_model}
-                onChange={(e) => setConfigForm({ ...configForm, cv_visual_review_model: e.target.value })}
-                className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition"
-              >
-                {visionModelOptions.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-medium text-slate-700">Nhận diện ý định (Intent)</label>
+                <button
+                  type="button"
+                  onClick={() => setCustomIntent((p) => !p)}
+                  className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
+                >
+                  {customIntent ? '← Gợi ý' : '✎ Tự nhập mã'}
+                </button>
+              </div>
+              {customIntent ? (
+                <input
+                  type="text"
+                  value={configForm.intent_model}
+                  onChange={(e) => setConfigForm({ ...configForm, intent_model: e.target.value })}
+                  placeholder="Nhập mã model (VD: gpt-4o-mini...)"
+                  className="h-9 w-full rounded-lg border border-indigo-300 bg-indigo-50/20 px-3 text-xs font-mono text-slate-800 focus:border-indigo-600 focus:bg-white focus:outline-none transition"
+                />
+              ) : (
+                <select
+                  value={configForm.intent_model}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setCustomIntent(true)
+                    } else {
+                      setConfigForm({ ...configForm, intent_model: e.target.value })
+                    }
+                  }}
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+                >
+                  {currentTextModels.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                  {!currentTextModels.some((m) => m.value === configForm.intent_model) && configForm.intent_model && (
+                    <option value={configForm.intent_model}>
+                      {configForm.intent_model} (Mã tùy chỉnh)
+                    </option>
+                  )}
+                  <option value="__custom__">+ Tự nhập mã mô hình khác...</option>
+                </select>
+              )}
             </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-medium text-slate-700">Thị giác CV (Vision)</label>
+                <button
+                  type="button"
+                  onClick={() => setCustomVision((p) => !p)}
+                  className="text-[11px] font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
+                >
+                  {customVision ? '← Gợi ý' : '✎ Tự nhập mã'}
+                </button>
+              </div>
+              {customVision ? (
+                <input
+                  type="text"
+                  value={configForm.cv_visual_review_model}
+                  onChange={(e) => setConfigForm({ ...configForm, cv_visual_review_model: e.target.value })}
+                  placeholder="Nhập mã vision model..."
+                  className="h-9 w-full rounded-lg border border-indigo-300 bg-indigo-50/20 px-3 text-xs font-mono text-slate-800 focus:border-indigo-600 focus:bg-white focus:outline-none transition"
+                />
+              ) : (
+                <select
+                  value={configForm.cv_visual_review_model}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setCustomVision(true)
+                    } else {
+                      setConfigForm({ ...configForm, cv_visual_review_model: e.target.value })
+                    }
+                  }}
+                  className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+                >
+                  {visionModelOptions.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                  {!visionModelOptions.some((m) => m.value === configForm.cv_visual_review_model) && configForm.cv_visual_review_model && (
+                    <option value={configForm.cv_visual_review_model}>
+                      {configForm.cv_visual_review_model} (Mã tùy chỉnh)
+                    </option>
+                  )}
+                  <option value="__custom__">+ Tự nhập mã mô hình khác...</option>
+                </select>
+              )}
+            </div>
+          </div>
+          <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-[11px] text-slate-500 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[15px] text-indigo-600">info</span>
+            <span>Mẹo: Bạn có thể chọn các mô hình gợi ý chuẩn hoặc nhấn <strong>✎ Tự nhập mã</strong> để cấu hình bất kỳ phiên bản mô hình nào mới được OpenAI/Google phát hành.</span>
           </div>
         </section>
 

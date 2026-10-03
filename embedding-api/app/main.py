@@ -53,11 +53,15 @@ class EmbeddingResponse(BaseModel):
 
 
 def load_model() -> SentenceTransformer:
-    if not os.path.isdir(MODEL_DIR):
-        raise RuntimeError(f"Model directory not found: {MODEL_DIR}")
+    if os.path.isdir(MODEL_DIR):
+        local_files_only = os.environ.get("LOCAL_FILES_ONLY", "1").lower() not in {"0", "false", "no"}
+        return SentenceTransformer(MODEL_DIR, trust_remote_code=True, local_files_only=local_files_only)
 
     local_files_only = os.environ.get("LOCAL_FILES_ONLY", "1").lower() not in {"0", "false", "no"}
-    return SentenceTransformer(MODEL_DIR, trust_remote_code=True, local_files_only=local_files_only)
+    if not local_files_only:
+        return SentenceTransformer(DEFAULT_MODEL_ID, trust_remote_code=True)
+
+    raise RuntimeError(f"Model directory not found: {MODEL_DIR}")
 
 
 @asynccontextmanager

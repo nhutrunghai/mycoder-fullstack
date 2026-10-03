@@ -206,7 +206,7 @@ class AdminSystemSettingService {
 
     if (provider === 'openai') {
       const apiKey = await this.getOpenAiApiKey()
-      const testModel = config.chat_model && config.chat_model.startsWith('gpt') ? config.chat_model : 'gpt-4o-mini'
+      const testModel = config.chat_model?.trim() || 'gpt-4o-mini'
 
       if (!apiKey) {
         return {
@@ -226,7 +226,7 @@ class AdminSystemSettingService {
           {
             model: testModel,
             messages: [{ role: 'user', content: 'ping' }],
-            max_tokens: 5
+            ...(testModel.startsWith('o1') || testModel.startsWith('o3') ? { max_completion_tokens: 25 } : { max_tokens: 5 })
           },
           {
             headers: {
@@ -274,7 +274,7 @@ class AdminSystemSettingService {
     } else {
       // gemini
       const apiKey = await this.getGeminiApiKey()
-      const testModel = config.chat_model && config.chat_model.startsWith('gemini') ? config.chat_model : 'gemini-1.5-flash'
+      const testModel = config.chat_model?.trim() || 'gemini-2.0-flash'
 
       if (!apiKey) {
         return {

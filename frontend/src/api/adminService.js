@@ -305,9 +305,10 @@ export async function getAdminRagChatConfig() {
 }
 
 export async function updateAdminRagChatConfig(body) {
-  return adminRequest('PATCH', '/admin/rag-chat/config', {
+  const result = await adminRequest('PATCH', '/admin/rag-chat/config', {
     data: body,
   })
+  return result?.config ?? result
 }
 
 export async function rotateAdminRagChatSecrets(body) {

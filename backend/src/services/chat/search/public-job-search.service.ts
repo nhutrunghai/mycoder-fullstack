@@ -58,10 +58,23 @@ class PublicJobSearchService {
     const startedAt = performance.now()
 
     const lexicalStartedAt = performance.now()
-    const lexicalPromise = lexicalJobSearchService.search(normalized).then((hits) => ({
-      hits,
-      elapsedMs: performance.now() - lexicalStartedAt
-    }))
+    const lexicalPromise = lexicalJobSearchService
+      .search(normalized)
+      .then((hits) => ({
+        hits,
+        elapsedMs: performance.now() - lexicalStartedAt
+      }))
+      .catch((error) => {
+        logger.warn(
+          { err: error, query_length: (normalized.q ?? '').length },
+          'Public jobs lexical search failed; using fallback'
+        )
+
+        return {
+          hits: [],
+          elapsedMs: performance.now() - lexicalStartedAt
+        }
+      })
 
     const semanticStartedAt = performance.now()
     const semanticPromise = semanticJobSearchService

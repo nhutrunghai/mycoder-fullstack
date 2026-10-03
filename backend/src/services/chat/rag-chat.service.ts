@@ -45,96 +45,123 @@ class RagChatService {
       }
     }
 
-    const session = await sessionService.loadOrCreateSession(session_id, user_id, normalizedMessage)
-    const sessionObjectId = session._id as ObjectId
+    let sessionObjectId: ObjectId | undefined
+    let currentSessionId = session_id
 
-    await sessionService.appendMessage(sessionObjectId, 'user', normalizedMessage)
+    try {
+      const session = await sessionService.loadOrCreateSession(session_id, user_id, normalizedMessage)
+      sessionObjectId = session._id as ObjectId
+      currentSessionId = sessionService.getSessionId(session)
 
-    const intentResult = await intentRouterService.detectIntent(normalizedMessage, config)
+      await sessionService.appendMessage(sessionObjectId, 'user', normalizedMessage)
 
-    if (this.isIntentDisabled(intentResult.intent, config)) {
-      const answer = this.buildFallbackAnswer(intentResult.intent)
-      await sessionService.appendMessage(sessionObjectId, 'assistant', answer)
+      const intentResult = await intentRouterService.detectIntent(normalizedMessage, config)
+
+      if (this.isIntentDisabled(intentResult.intent, config)) {
+        const answer = this.buildFallbackAnswer(intentResult.intent)
+        await sessionService.appendMessage(sessionObjectId, 'assistant', answer)
+        await sessionService.saveState(sessionObjectId, {
+          lastIntent: intentResult.intent,
+          jobIds: []
+        })
+
+        return {
+          session_id: currentSessionId,
+          intent: intentResult.intent,
+          answer,
+          sources: []
+        }
+      }
+
+      if (intentResult.intent === 'cv_review') {
+        const response = await this.buildCvReviewAnswer({
+          message: normalizedMessage,
+          resumeId: resume_id,
+          userId: user_id,
+          config
+        })
+
+        await sessionService.appendMessage(sessionObjectId, 'assistant', response.answer, response.sources)
+        await sessionService.saveState(sessionObjectId, {
+          lastIntent: intentResult.intent,
+          jobIds: []
+        })
+
+        return {
+          session_id: currentSessionId,
+          intent: intentResult.intent,
+          answer: response.answer,
+          sources: response.sources
+        }
+      }
+
+      if (intentResult.intent === 'cv_job_match' || intentResult.intent === 'cv_match_previous_jobs') {
+        const response = await this.buildCvJobMatchAnswer({
+          intent: intentResult.intent,
+          message: normalizedMessage,
+          resumeId: resume_id,
+          userId: user_id,
+          lastJobIds: session.last_retrieved_job_ids || [],
+          config
+        })
+
+        const jobIds = response.sources.filter((source) => source.type === 'job').map((source) => source.job_id)
+
+        await sessionService.appendMessage(sessionObjectId, 'assistant', response.answer, response.sources)
+        await sessionService.saveState(sessionObjectId, {
+          lastIntent: intentResult.intent,
+          jobIds
+        })
+
+        return {
+          session_id: currentSessionId,
+          intent: intentResult.intent,
+          answer: response.answer,
+          sources: response.sources
+        }
+      }
+
+      const jobs = await this.retrieveJobsByIntent(
+        intentResult.intent,
+        normalizedMessage,
+        session.last_retrieved_job_ids || [],
+        config
+      )
+      const response = await this.buildAnswer(intentResult.intent, normalizedMessage, jobs, config)
+
+      await sessionService.appendMessage(sessionObjectId, 'assistant', response.answer, response.sources)
       await sessionService.saveState(sessionObjectId, {
         lastIntent: intentResult.intent,
-        jobIds: []
+        jobIds: jobs.map((job) => job.job_id)
       })
 
       return {
-        session_id: sessionService.getSessionId(session),
+        session_id: currentSessionId,
         intent: intentResult.intent,
-        answer,
+        answer: response.answer,
+        sources: response.sources
+      }
+    } catch (error) {
+      logger.error({ err: error, user_id, message: normalizedMessage }, 'RAG Chat Service execution failed')
+
+      const fallbackAnswer =
+        config.maintenance_message ||
+        'Trợ lý AI đang tạm thời gián đoạn kết nối hoặc đang được bảo trì. Vui lòng thử lại sau ít phút nhé!'
+
+      if (sessionObjectId) {
+        try {
+          await sessionService.appendMessage(sessionObjectId, 'assistant', fallbackAnswer, [])
+        } catch {
+          // ignore session append failure
+        }
+      }
+
+      return {
+        session_id: currentSessionId,
+        intent: 'general_chat' as ChatIntent,
+        answer: fallbackAnswer,
         sources: []
       }
-    }
-
-    if (intentResult.intent === 'cv_review') {
-      const response = await this.buildCvReviewAnswer({
-        message: normalizedMessage,
-        resumeId: resume_id,
-        userId: user_id,
-        config
-      })
-
-      await sessionService.appendMessage(sessionObjectId, 'assistant', response.answer, response.sources)
-      await sessionService.saveState(sessionObjectId, {
-        lastIntent: intentResult.intent,
-        jobIds: []
-      })
-
-      return {
-        session_id: sessionService.getSessionId(session),
-        intent: intentResult.intent,
-        answer: response.answer,
-        sources: response.sources
-      }
-    }
-
-    if (intentResult.intent === 'cv_job_match' || intentResult.intent === 'cv_match_previous_jobs') {
-      const response = await this.buildCvJobMatchAnswer({
-        intent: intentResult.intent,
-        message: normalizedMessage,
-        resumeId: resume_id,
-        userId: user_id,
-        lastJobIds: session.last_retrieved_job_ids || [],
-        config
-      })
-
-      const jobIds = response.sources.filter((source) => source.type === 'job').map((source) => source.job_id)
-
-      await sessionService.appendMessage(sessionObjectId, 'assistant', response.answer, response.sources)
-      await sessionService.saveState(sessionObjectId, {
-        lastIntent: intentResult.intent,
-        jobIds
-      })
-
-      return {
-        session_id: sessionService.getSessionId(session),
-        intent: intentResult.intent,
-        answer: response.answer,
-        sources: response.sources
-      }
-    }
-
-    const jobs = await this.retrieveJobsByIntent(
-      intentResult.intent,
-      normalizedMessage,
-      session.last_retrieved_job_ids || [],
-      config
-    )
-    const response = await this.buildAnswer(intentResult.intent, normalizedMessage, jobs, config)
-
-    await sessionService.appendMessage(sessionObjectId, 'assistant', response.answer, response.sources)
-    await sessionService.saveState(sessionObjectId, {
-      lastIntent: intentResult.intent,
-      jobIds: jobs.map((job) => job.job_id)
-    })
-
-    return {
-      session_id: sessionService.getSessionId(session),
-      intent: intentResult.intent,
-      answer: response.answer,
-      sources: response.sources
     }
   }
 
