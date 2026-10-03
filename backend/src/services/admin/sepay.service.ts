@@ -1,4 +1,4 @@
-import axios, { AxiosError } from 'axios'
+﻿import axios, { AxiosError } from 'axios'
 import env from '~/configs/env.config.js'
 import databaseService from '~/configs/database.config.js'
 import { WalletTopUpOrderStatus } from '~/constants/enums.js'
@@ -79,7 +79,7 @@ class AdminSePayService {
     }
   }
 
-  async getDiagnostics({ recentLimit }: { recentLimit: number }) {
+  async getDiagnostics({ fromDate, toDate }: { fromDate?: Date, toDate?: Date } = {}) {
     const statusValues = [
       WalletTopUpOrderStatus.PENDING,
       WalletTopUpOrderStatus.PAID,
@@ -122,8 +122,9 @@ class AdminSePayService {
       }),
       databaseService.walletTopUpOrders
         .aggregate([
+          ...(fromDate || toDate ? [{ $match: { $or: [{ created_at: { ...(fromDate ? { $gte: fromDate } : {}) , ...(toDate ? { $lte: toDate } : {}) } }, { updated_at: { ...(fromDate ? { $gte: fromDate } : {}) , ...(toDate ? { $lte: toDate } : {}) } }] } }] : []), 
           { $sort: { updated_at: -1 } },
-          { $limit: recentLimit },
+          { $limit: 200 },
           {
             $lookup: {
               from: databaseService.users.collectionName,

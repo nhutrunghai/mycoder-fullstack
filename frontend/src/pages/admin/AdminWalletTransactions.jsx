@@ -68,6 +68,7 @@ export default function AdminWalletTransactions() {
   const [type, setType] = useState('')
   const [status, setStatus] = useState('')
   const [direction, setDirection] = useState('')
+  const [dateRange, setDateRange] = useState('')
   const [filterUser, setFilterUser] = useState(null)
 
   // Adjustment Modal State
@@ -120,6 +121,7 @@ export default function AdminWalletTransactions() {
         type: type || undefined,
         status: status || undefined,
         direction: direction || undefined,
+        dateRange: dateRange || undefined,
         userId: userIdParam || undefined,
       })
       setTransactions(data?.transactions || data?.data?.transactions || [])
@@ -138,12 +140,12 @@ export default function AdminWalletTransactions() {
   // Reset page when filter criteria change
   useEffect(() => {
     setPagination((curr) => ({ ...curr, page: 1 }))
-  }, [keyword, type, status, direction, userIdParam])
+  }, [keyword, type, status, direction, dateRange, userIdParam])
 
   // Load transactions whenever any filter or pagination page changes
   useEffect(() => {
     loadTransactions()
-  }, [pagination.page, keyword, type, status, direction, userIdParam])
+  }, [pagination.page, keyword, type, status, direction, dateRange, userIdParam])
 
   // User search debounce for adjustment modal
   useEffect(() => {
@@ -175,20 +177,7 @@ export default function AdminWalletTransactions() {
     }, { replace: true })
   }
 
-  const handleResetFilters = () => {
-    setKeyword('')
-    setType('')
-    setStatus('')
-    setDirection('')
-    setFilterUser(null)
-    setPagination((curr) => ({ ...curr, page: 1 }))
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
-      next.delete('user_id')
-      next.delete('userId')
-      return next
-    }, { replace: true })
-  }
+
 
   const handleOpenDetail = (tx) => {
     setSelectedTx(tx)
@@ -367,13 +356,20 @@ export default function AdminWalletTransactions() {
             <option value="credit">Cộng ví (+)</option>
             <option value="debit">Trừ ví (-)</option>
           </select>
-          <button
-            type="button"
-            onClick={handleResetFilters}
-            className="h-9 rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+            title="Thời gian"
           >
-            Đặt lại
-          </button>
+            <option value="">Tất cả thời gian</option>
+            <option value="today">Hôm nay</option>
+            <option value="7days">7 ngày qua</option>
+            <option value="30days">30 ngày qua</option>
+            <option value="this_month">Tháng này</option>
+            <option value="last_month">Tháng trước</option>
+          </select>
+
         </div>
 
         {/* Filter User Tag */}

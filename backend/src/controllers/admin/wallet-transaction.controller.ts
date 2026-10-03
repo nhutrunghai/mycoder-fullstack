@@ -14,6 +14,7 @@ import adminAuditLogService from '~/services/admin/audit-log.service.js'
 import adminWalletTransactionService from '~/services/admin/wallet-transaction.service.js'
 import notificationService from '~/services/client/notification.service.js'
 import logger from '~/configs/logger.config.js'
+import { parseDateFilter } from '~/utils/date-range.util.js'
 
 export const getAdminWalletTransactionsController = async (req: Request, res: Response) => {
   const page = Number(req.query.page || 1)
@@ -24,6 +25,7 @@ export const getAdminWalletTransactionsController = async (req: Request, res: Re
   const type = req.query.type as WalletTransactionType | undefined
   const status = req.query.status as WalletTransactionStatus | undefined
   const direction = req.query.direction as WalletTransactionDirection | undefined
+  const { fromDate, toDate } = parseDateFilter(req.query)
 
   const result = await adminWalletTransactionService.getWalletTransactions({
     keyword,
@@ -31,6 +33,8 @@ export const getAdminWalletTransactionsController = async (req: Request, res: Re
     type,
     status,
     direction,
+    fromDate,
+    toDate,
     page,
     limit
   })

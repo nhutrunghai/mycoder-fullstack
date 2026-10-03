@@ -1,4 +1,4 @@
-import { StatusCodes } from 'http-status-codes'
+﻿import { StatusCodes } from 'http-status-codes'
 import { ClientSession, ObjectId } from 'mongodb'
 import databaseService from '~/configs/database.config.js'
 import {
@@ -18,6 +18,8 @@ class AdminWalletTransactionService {
     type,
     status,
     direction,
+    fromDate,
+    toDate,
     page,
     limit
   }: {
@@ -26,6 +28,8 @@ class AdminWalletTransactionService {
     type?: WalletTransactionType
     status?: WalletTransactionStatus
     direction?: WalletTransactionDirection
+    fromDate?: Date
+    toDate?: Date
     page: number
     limit: number
   }) {
@@ -45,6 +49,12 @@ class AdminWalletTransactionService {
 
     if (direction) {
       match.direction = direction
+    }
+
+    if (fromDate || toDate) {
+      match.created_at = {}
+      if (fromDate) match.created_at.$gte = fromDate
+      if (toDate) match.created_at.$lte = toDate
     }
 
     if (keyword) {
@@ -466,3 +476,4 @@ class AdminWalletTransactionService {
 const adminWalletTransactionService = new AdminWalletTransactionService()
 
 export default adminWalletTransactionService
+

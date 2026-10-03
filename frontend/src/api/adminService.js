@@ -1,4 +1,4 @@
-import { buildApiUrl, createJsonHeaders } from '../config/api.js'
+﻿import { buildApiUrl, createJsonHeaders } from '../config/api.js'
 
 const ADMIN_AUTH_STORAGE_KEYS = ['adminToken', 'adminAccessToken', 'adminRefreshToken', 'adminUser']
 
@@ -249,8 +249,40 @@ export async function deleteAdminJobPromotion(promotionId) {
   return result?.promotion ?? result
 }
 
+export function normalizeDateRangeParams(params = {}) {
+  const result = { ...params }
+  if (result.dateRange) {
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+
+    if (result.dateRange === 'today') {
+      result.fromDate = todayStart.toISOString()
+      result.toDate = todayEnd.toISOString()
+    } else if (result.dateRange === '7days') {
+      const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0, 0)
+      result.fromDate = from.toISOString()
+      result.toDate = todayEnd.toISOString()
+    } else if (result.dateRange === '30days') {
+      const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0, 0)
+      result.fromDate = from.toISOString()
+      result.toDate = todayEnd.toISOString()
+    } else if (result.dateRange === 'this_month') {
+      const from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+      result.fromDate = from.toISOString()
+      result.toDate = todayEnd.toISOString()
+    } else if (result.dateRange === 'last_month') {
+      const from = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0)
+      const to = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
+      result.fromDate = from.toISOString()
+      result.toDate = to.toISOString()
+    }
+  }
+  return result
+}
+
 export async function getAdminWalletTransactions(params = {}) {
-  const normalizedParams = { ...params }
+  const normalizedParams = normalizeDateRangeParams(params)
   if (normalizedParams.user_id && !normalizedParams.userId) {
     normalizedParams.userId = normalizedParams.user_id
   }
@@ -297,7 +329,7 @@ export async function testAdminSePayConnection() {
 }
 
 export async function getAdminSePayDiagnostics(params = {}) {
-  return adminRequest('GET', '/admin/sepay/diagnostics', { params })
+  return adminRequest('GET', '/admin/sepay/diagnostics', { params: normalizeDateRangeParams(params) })
 }
 
 export async function getAdminRagChatConfig() {
@@ -331,5 +363,5 @@ export async function testAdminRagChatConnection(body = {}) {
 }
 
 export async function getAdminAuditLogs(params = {}) {
-  return adminRequest('GET', '/admin/audit-logs', { params })
+  return adminRequest('GET', '/admin/audit-logs', { params: normalizeDateRangeParams(params) })
 }

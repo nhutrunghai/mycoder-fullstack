@@ -42,7 +42,7 @@ function formatSecretDisplay(secretStr) {
 export default function AdminSePayConfig() {
   const [config, setConfig] = useState(null)
   const [diagnostics, setDiagnostics] = useState(null)
-  const [recentLimit, setRecentLimit] = useState('10')
+  const [dateRangeParam, setDateRangeParam] = useState('')
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [secretOpen, setSecretOpen] = useState(false)
@@ -75,15 +75,15 @@ export default function AdminSePayConfig() {
     return data
   }, [syncConfigForm])
 
-  const loadDiagnostics = useCallback(async (limit = '10') => {
-    const data = await getAdminSePayDiagnostics({ recentLimit: Number(limit || 10) })
+  const loadDiagnostics = useCallback(async (dateRange = '') => {
+    const data = await getAdminSePayDiagnostics({ dateRange: dateRange || undefined })
     setDiagnostics(data)
     return data
   }, [])
 
   useEffect(() => {
     let active = true
-    Promise.all([loadConfig(), loadDiagnostics('10')])
+    Promise.all([loadConfig(), loadDiagnostics('')])
       .catch((error) => {
         if (active) setToast({ type: 'error', message: error.message || 'Không thể tải cấu hình SePay.' })
       })
@@ -357,16 +357,19 @@ export default function AdminSePayConfig() {
             <p className="text-xs text-slate-500 mt-0.5">Danh sách các yêu cầu nạp tiền và trạng thái khớp lệnh thanh toán.</p>
           </div>
           <select
-            value={recentLimit}
+            value={dateRangeParam}
             onChange={(e) => {
-              setRecentLimit(e.target.value)
+              setDateRangeParam(e.target.value)
               loadDiagnostics(e.target.value)
             }}
             className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs text-slate-700"
           >
-            <option value="10">10 đơn mới nhất</option>
-            <option value="20">20 đơn mới nhất</option>
-            <option value="50">50 đơn mới nhất</option>
+            <option value="">Tất cả thời gian</option>
+            <option value="today">Hôm nay</option>
+            <option value="7days">7 ngày qua</option>
+            <option value="30days">30 ngày qua</option>
+            <option value="this_month">Tháng này</option>
+            <option value="last_month">Tháng trước</option>
           </select>
         </div>
 

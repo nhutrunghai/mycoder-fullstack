@@ -1,10 +1,11 @@
-import { Request, Response } from 'express'
+﻿import { Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
 import { AdminAuditAction, AdminAuditTargetType } from '~/constants/enums.js'
 import UserMessages from '~/constants/messages/index.js'
 import adminAuditLogService from '~/services/admin/audit-log.service.js'
 import adminSePayService from '~/services/admin/sepay.service.js'
 import adminSystemSettingService, { SePayRuntimeConfig } from '~/services/admin/system-setting.service.js'
+import { parseDateFilter } from '~/utils/date-range.util.js'
 
 export const getAdminSePayConfigController = async (req: Request, res: Response) => {
   const config = await adminSePayService.getConfigStatus()
@@ -74,8 +75,8 @@ export const testAdminSePayConnectionController = async (req: Request, res: Resp
 }
 
 export const getAdminSePayDiagnosticsController = async (req: Request, res: Response) => {
-  const recentLimit = Number(req.query.recentLimit || 10)
-  const diagnostics = await adminSePayService.getDiagnostics({ recentLimit })
+  const { fromDate, toDate } = parseDateFilter(req.query)
+  const diagnostics = await adminSePayService.getDiagnostics({ fromDate, toDate })
 
   return res.status(StatusCodes.OK).json({
     status: 'success',

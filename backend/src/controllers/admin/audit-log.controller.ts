@@ -1,7 +1,8 @@
-import { Request, Response } from 'express'
+﻿import { Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
 import { ObjectId } from 'mongodb'
 import adminAuditLogService from '~/services/admin/audit-log.service.js'
+import { parseDateFilter } from '~/utils/date-range.util.js'
 
 export const getAdminAuditLogsController = async (req: Request, res: Response) => {
   const page = Number(req.query.page || 1)
@@ -32,8 +33,7 @@ export const getAdminAuditLogsController = async (req: Request, res: Response) =
         ? false
         : undefined
 
-  const fromDate = typeof req.query.fromDate === 'string' && req.query.fromDate ? new Date(req.query.fromDate) : undefined
-  const toDate = typeof req.query.toDate === 'string' && req.query.toDate ? new Date(req.query.toDate) : undefined
+  const { fromDate, toDate } = parseDateFilter(req.query)
 
   const result = await adminAuditLogService.getLogs({
     keyword,

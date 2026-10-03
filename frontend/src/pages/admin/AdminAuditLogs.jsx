@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout.jsx'
 import AdminModal from '../../components/admin/AdminModal.jsx'
@@ -120,6 +120,7 @@ export default function AdminAuditLogs() {
   const targetTypeParam = searchParams.get('targetType') || searchParams.get('target_type') || ''
   const adminIdParam = searchParams.get('adminId') || searchParams.get('admin_id') || ''
   const successParam = searchParams.get('success') || ''
+  const dateRangeParam = searchParams.get('dateRange') || ''
   const pageParam = Number(searchParams.get('page') || 1)
 
   const [keywordInput, setKeywordInput] = useState(keywordParam)
@@ -153,7 +154,7 @@ export default function AdminAuditLogs() {
       })
 
       // Reset page to 1 if filter criteria changed
-      if ('keyword' in newParams || 'action' in newParams || 'targetType' in newParams || 'adminId' in newParams || 'success' in newParams) {
+      if ('keyword' in newParams || 'action' in newParams || 'targetType' in newParams || 'adminId' in newParams || 'success' in newParams || 'dateRange' in newParams) {
         delete merged.page
       }
 
@@ -173,6 +174,7 @@ export default function AdminAuditLogs() {
     try {
       const data = await getAdminAuditLogs({
         page: pageParam,
+        dateRange: dateRangeParam || undefined,
         limit: 12,
         keyword: keywordParam.trim() || undefined,
         action: actionParam || undefined,
@@ -195,7 +197,7 @@ export default function AdminAuditLogs() {
     } finally {
       setLoading(false)
     }
-  }, [pageParam, keywordParam, actionParam, targetTypeParam, adminIdParam, successParam])
+  }, [pageParam, keywordParam, actionParam, targetTypeParam, adminIdParam, successParam, dateRangeParam])
 
   useEffect(() => {
     loadLogs()
@@ -302,6 +304,21 @@ export default function AdminAuditLogs() {
                 {opt.label}
               </option>
             ))}
+          </select>
+
+          {/* Time Range Filter */}
+          <select
+            value={dateRangeParam}
+            onChange={(e) => updateFilters({ dateRange: e.target.value })}
+            className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 focus:border-indigo-600 focus:outline-none transition"
+            title="Thời gian"
+          >
+            <option value="">Tất cả thời gian</option>
+            <option value="today">Hôm nay</option>
+            <option value="7days">7 ngày qua</option>
+            <option value="30days">30 ngày qua</option>
+            <option value="this_month">Tháng này</option>
+            <option value="last_month">Tháng trước</option>
           </select>
 
           {/* Status Filter */}
@@ -420,7 +437,7 @@ export default function AdminAuditLogs() {
                       ) : (
                         <p className="font-semibold text-slate-900 truncate max-w-xs">{adminName}</p>
                       )}
-                      <p className="text-[11px] text-slate-400 font-mono truncate">{adminEmail}</p>
+                      {adminEmail && adminName !== adminEmail && <p className="text-[11px] text-slate-400 font-mono truncate">{adminEmail}</p>}
                     </td>
 
                     {/* Action & Status */}
@@ -621,7 +638,7 @@ export default function AdminAuditLogs() {
                           className="font-semibold text-indigo-600 hover:underline text-xs"
                           title="Mở hồ sơ người dùng"
                         >
-                          {adminName} {adminEmail ? `(${adminEmail})` : ''}
+                          {adminName} {adminEmail && adminName !== adminEmail ? `(${adminEmail})` : ''}
                         </Link>
                       ) : (
                         <span className="font-medium text-slate-900 text-xs">{adminName}</span>
