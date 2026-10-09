@@ -508,7 +508,7 @@ export default function App() {
                   ))}
                   {!isLoadingJobs && featuredJobs.length === 0 && (
                     <div className="soft-radius border border-dashed border-slate-200 bg-white px-4 py-5 text-center text-[13px] text-slate-500">
-                      Chưa có job promotion để hiển thị.
+                      Chưa có việc làm nổi bật để hiển thị.
                     </div>
                   )}
                   {featuredPagination?.has_next && (

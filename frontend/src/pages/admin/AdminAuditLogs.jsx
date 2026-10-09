@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+﻿import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout.jsx'
 import AdminModal from '../../components/admin/AdminModal.jsx'
@@ -6,28 +6,44 @@ import Toast from '../../components/Toast.jsx'
 import { getAdminAuditLogs, getAdminUsers } from '../../api/adminService.js'
 import { formatDateTimeVi as formatDateTime } from '../../utils/formatters.js'
 
+const actionLabels = {
+  'admin.login': 'Đăng nhập hệ thống quản trị',
+  'admin.logout': 'Đăng xuất hệ thống quản trị',
+  'user.status.update': 'Cập nhật trạng thái tài khoản',
+  'user.role.update': 'Thay đổi vai trò người dùng',
+  'company.verification.update': 'Cập nhật trạng thái xác minh doanh nghiệp',
+  'job.moderation.update': 'Cập nhật trạng thái kiểm duyệt tin tuyển dụng',
+  'wallet.adjust': 'Điều chỉnh số dư ví',
+  'wallet.transactions.view': 'Xem lịch sử giao dịch ví',
+  'user.wallet.view': 'Xem ví người dùng',
+  'user.topup_orders.view': 'Xem đơn nạp tiền của người dùng',
+  'sepay.config.view': 'Xem cấu hình SePay',
+  'sepay.config.update': 'Cập nhật cấu hình SePay',
+  'sepay.secret.rotate': 'Thay đổi khóa bảo mật SePay',
+  'sepay.test_connection': 'Kiểm tra kết nối SePay',
+  'sepay.diagnostics.view': 'Xem chẩn đoán SePay',
+  'rag_chat.config.view': 'Xem cấu hình trợ lý RAG AI',
+  'rag_chat.config.update': 'Cập nhật cấu hình trợ lý RAG AI',
+  'rag_chat.secret.rotate': 'Thay đổi khóa bảo mật trợ lý RAG AI',
+  'rag_chat.health.view': 'Kiểm tra tình trạng trợ lý RAG AI',
+  'rag_chat.test_connection': 'Kiểm tra kết nối trợ lý RAG AI',
+  'job_promotion.view': 'Xem chiến dịch quảng cáo',
+  'job_promotion.create': 'Tạo chiến dịch quảng cáo',
+  'job_promotion.update': 'Cập nhật chiến dịch quảng cáo',
+  'job_promotion.delete': 'Xóa chiến dịch quảng cáo',
+  'job_promotion_plan.create': 'Tạo gói quảng cáo',
+  'job_promotion_plan.update': 'Cập nhật gói quảng cáo',
+  'job_promotion_plan.delete': 'Xóa gói quảng cáo',
+}
+
 const actionOptions = [
   { value: '', label: 'Tất cả hành động' },
-  { value: 'admin.login', label: 'admin.login (Đăng nhập quản trị)' },
-  { value: 'admin.logout', label: 'admin.logout (Đăng xuất quản trị)' },
-  { value: 'user.status.update', label: 'user.status.update (Đổi trạng thái tài khoản)' },
-  { value: 'user.role.update', label: 'user.role.update (Đổi vai trò người dùng)' },
-  { value: 'company.verification.update', label: 'company.verification.update (Xác minh doanh nghiệp)' },
-  { value: 'job.moderation.update', label: 'job.moderation.update (Kiểm duyệt tin tuyển dụng)' },
-  { value: 'wallet.adjust', label: 'wallet.adjust (Điều chỉnh số dư ví)' },
-  { value: 'wallet.transactions.view', label: 'wallet.transactions.view (Xem lịch sử giao dịch ví)' },
-  { value: 'sepay.config.update', label: 'sepay.config.update (Cập nhật cấu hình SePay)' },
-  { value: 'sepay.secret.rotate', label: 'sepay.secret.rotate (Xoay khóa bảo mật SePay)' },
-  { value: 'sepay.test_connection', label: 'sepay.test_connection (Kiểm tra kết nối SePay)' },
-  { value: 'rag_chat.config.update', label: 'rag_chat.config.update (Cập nhật cấu hình RAG AI)' },
-  { value: 'rag_chat.secret.rotate', label: 'rag_chat.secret.rotate (Xoay khóa bảo mật RAG AI)' },
-  { value: 'job_promotion.create', label: 'job_promotion.create (Tạo chiến dịch quảng cáo)' },
-  { value: 'job_promotion.update', label: 'job_promotion.update (Cập nhật chiến dịch quảng cáo)' },
-  { value: 'job_promotion.delete', label: 'job_promotion.delete (Xóa chiến dịch quảng cáo)' },
-  { value: 'job_promotion_plan.create', label: 'job_promotion_plan.create (Tạo gói quảng cáo mới)' },
-  { value: 'job_promotion_plan.update', label: 'job_promotion_plan.update (Cập nhật gói quảng cáo)' },
-  { value: 'job_promotion_plan.delete', label: 'job_promotion_plan.delete (Xóa gói quảng cáo)' },
+  ...Object.entries(actionLabels).map(([value, label]) => ({ value, label })),
 ]
+
+function getActionLabel(action) {
+  return actionLabels[action] || action || 'Hành động không xác định'
+}
 
 const targetTypeOptions = [
   { value: '', label: 'Tất cả đối tượng' },
@@ -442,17 +458,20 @@ export default function AdminAuditLogs() {
 
                     {/* Action & Status */}
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block px-2 py-0.5 rounded-md font-mono text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-200">
-                          {log.action}
+                      <div className="grid min-w-[380px] grid-cols-[minmax(0,1fr)_96px] items-center gap-2">
+                        <span
+                          className="min-w-0 max-w-full justify-self-start truncate rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-mono font-semibold text-slate-800"
+                          title={getActionLabel(log.action)}
+                        >
+                          {getActionLabel(log.action)}
                         </span>
                         {isSuccess ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-emerald-200 bg-emerald-50/70 text-[10px] font-medium text-emerald-700">
+                          <span className="inline-flex w-24 items-center justify-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50/70 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                             Thành công
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-rose-200 bg-rose-50/70 text-[10px] font-medium text-rose-700">
+                          <span className="inline-flex w-24 items-center justify-center gap-1.5 rounded-md border border-rose-200 bg-rose-50/70 px-2 py-0.5 text-[10px] font-medium text-rose-700">
                             <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
                             Thất bại
                           </span>
@@ -579,7 +598,7 @@ export default function AdminAuditLogs() {
         open={detailModalOpen}
         onClose={() => setDetailModalOpen(false)}
         title="Chi tiết bản ghi kiểm toán"
-        subtitle={selectedLog ? `Hành động: ${selectedLog.action}` : ''}
+        subtitle={selectedLog ? `Hành động: ${getActionLabel(selectedLog.action)}` : ''}
         size="lg"
       >
         {selectedLog ? (
@@ -630,7 +649,7 @@ export default function AdminAuditLogs() {
                 return (
                   <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-white px-3 shadow-2xs">
                     <PropertyRow label="Mã bản ghi (Log ID)" value={selectedLog._id} mono />
-                    <PropertyRow label="Hành động" value={selectedLog.action} mono />
+                    <PropertyRow label="Hành động" value={getActionLabel(selectedLog.action)} />
                     <PropertyRow label="Quản trị viên thực hiện">
                       {adminEmail ? (
                         <Link
