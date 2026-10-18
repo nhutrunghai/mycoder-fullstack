@@ -42,15 +42,36 @@ describe('intent router', () => {
     )
   })
 
-  it('overrides an incorrect LLM classification for CV review requests', async () => {
+  it('preserves a valid LLM classification for CV review requests', async () => {
     generateJson.mockResolvedValueOnce({
       intent: 'job_search',
       confidence: 0.9
     })
 
     await expect(intentRouterService.detectIntent('Review my CV please')).resolves.toEqual({
-      intent: 'cv_review',
+      intent: 'job_search',
       confidence: 0.9
+    })
+  })
+
+  it('preserves a valid LLM classification when the user says not to use their CV', async () => {
+    generateJson.mockResolvedValueOnce({
+      intent: 'job_search',
+      confidence: 0.93
+    })
+
+    await expect(intentRouterService.detectIntent('Tìm job Frontend, không cần dùng CV')).resolves.toEqual({
+      intent: 'job_search',
+      confidence: 0.93
+    })
+  })
+
+  it('uses CV review fallback when the LLM is unavailable', async () => {
+    generateJson.mockRejectedValueOnce(new Error('provider unavailable'))
+
+    await expect(intentRouterService.detectIntent('Đánh giá CV của tôi')).resolves.toEqual({
+      intent: 'cv_review',
+      confidence: 0.25
     })
   })
 

@@ -4,6 +4,7 @@ export const updateAdminRagChatConfigValidator = z.object({
   body: z
     .object({
       enabled: z.boolean().optional(),
+      agentic_enabled: z.boolean().optional(),
       provider: z.enum(['gemini', 'openai']).optional(),
       intent_model: z.string().trim().min(1).max(100).optional(),
       chat_model: z.string().trim().min(1).max(100).optional(),

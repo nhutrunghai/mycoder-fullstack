@@ -23,10 +23,7 @@ class IntentRouterService {
 
       const parsed = intentRouterSchema.parse(raw)
 
-      return {
-        ...parsed,
-        intent: this.applyIntentOverrides(parsed.intent, normalizedMessage)
-      }
+      return parsed
     } catch (error) {
       const fallbackIntent = this.detectFallbackIntent(normalizedMessage)
 
@@ -71,26 +68,6 @@ class IntentRouterService {
     }
 
     return 'unsupported'
-  }
-
-  private applyIntentOverrides(intent: ChatIntent, message: string): ChatIntent {
-    if (this.isCvPreviousJobsMatchMessage(message)) {
-      return 'cv_match_previous_jobs'
-    }
-
-    if (this.isCvJobMatchMessage(message)) {
-      return 'cv_job_match'
-    }
-
-    if (this.isCvReviewMessage(message)) {
-      return 'cv_review'
-    }
-
-    if (this.isPolicyQuestion(message)) {
-      return 'policy_qa'
-    }
-
-    return intent
   }
 
   private isCvReviewMessage(message: string) {

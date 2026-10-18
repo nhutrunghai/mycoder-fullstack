@@ -11,6 +11,7 @@ import adminRagChatRouter from './rag-chat.router.js'
 import adminSePayRouter from './sepay.router.js'
 import adminUserRouter from './user.router.js'
 import adminWalletTransactionRouter from './wallet-transaction.router.js'
+import adminPolicyDocumentRouter from './policy-document.router.js'
 
 const adminRouter = Router()
 
@@ -26,5 +27,6 @@ adminRouter.use('/rag-chat', adminRagChatRouter)
 adminRouter.use('/sepay', adminSePayRouter)
 adminRouter.use('/users', adminUserRouter)
 adminRouter.use('/wallet-transactions', adminWalletTransactionRouter)
+adminRouter.use('/policy-documents', adminPolicyDocumentRouter)
 
 export default adminRouter

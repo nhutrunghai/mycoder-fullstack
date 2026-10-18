@@ -3,7 +3,11 @@ import cookieParser from 'cookie-parser'
 import 'dotenv/config'
 import env from './configs/env.config.js'
 import databaseService from './configs/database.config.js'
-import { ensurePublicJobsSearchIndex, ensureResumeChunksSearchIndex } from './configs/search.config.js'
+import {
+  ensurePolicyChunksSearchIndex,
+  ensurePublicJobsSearchIndex,
+  ensureResumeChunksSearchIndex
+} from './configs/search.config.js'
 import BASE_PATH from './constants/api-path.js'
 import globalErrorHandle from './middlewares/common/error-handler.middleware.js'
 import v1Router from './routes/v1/index.js'
@@ -21,6 +25,7 @@ export const createApp = async () => {
   try {
     await ensurePublicJobsSearchIndex()
     await ensureResumeChunksSearchIndex()
+    await ensurePolicyChunksSearchIndex()
   } catch (err) {
     logger.warn({ err }, 'Elasticsearch unavailable – search features disabled')
   }

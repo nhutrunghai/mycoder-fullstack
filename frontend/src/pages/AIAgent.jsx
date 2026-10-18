@@ -7,6 +7,7 @@ import PublicHeader from '../components/layout/PublicHeader.jsx'
 import useCurrentUser from '../hooks/useCurrentUser.js'
 import { useFavoriteStore } from '../stores/useFavoriteStore.js'
 import { toSafeExternalUrl, toSafeResourceUrl } from '../utils/safeUrl.js'
+import { deepRepair, repairText } from '../utils/textRepair.js'
 import {
   deleteChatSession,
   loadChatSessionDetail,
@@ -135,6 +136,7 @@ function getIntentLabel(intent) {
     job_explanation: 'Giải thích job',
     cv_review: 'Đánh giá CV',
     policy_qa: 'Hỏi đáp',
+    general_chat: 'Hỏi đáp tổng quát',
     unsupported: 'Ngoài phạm vi',
   }
   return labels[intent] || ''
@@ -625,16 +627,17 @@ export default function AIAgent() {
     loadChatSessions()
       .then((items) => {
         if (!active) return
-        setConversations(items)
+        const repairedItems = deepRepair(items)
+        setConversations(repairedItems)
 
-        if (!items.length) {
+        if (!repairedItems.length) {
           setActiveConversationId('')
           setActiveSessionId('')
           setMessages([buildWelcomeMessage()])
           return
         }
 
-        const firstSessionId = items[0].sessionId || items[0].id
+        const firstSessionId = repairedItems[0].sessionId || repairedItems[0].id
         setActiveConversationId(firstSessionId)
         setActiveSessionId(firstSessionId)
       })
@@ -666,7 +669,8 @@ export default function AIAgent() {
       .then(async (session) => {
         if (!active) return
         const enrichedMessages = await Promise.all(
-          (session.messages || []).map(async (message) => {
+          (session.messages || []).map(async (rawMessage) => {
+            const message = deepRepair(rawMessage)
             if (message.role !== 'assistant') {
               return message
             }
@@ -849,14 +853,15 @@ export default function AIAgent() {
         sessionId: activeSessionId,
         resumeId: selectedResumeId || undefined,
       })
-      const enrichedSources = await enrichChatSources(getChatResponseSources(response))
+      const repairedResponse = deepRepair(response)
+      const enrichedSources = await enrichChatSources(getChatResponseSources(repairedResponse))
 
-      const nextSessionId = response.session_id || activeSessionId
+      const nextSessionId = repairedResponse.session_id || activeSessionId
       const assistantMessage = {
         id: createLocalId('assistant'),
         role: 'assistant',
-        content: response.answer || 'Tôi chưa nhận được câu trả lời phù hợp từ hệ thống.',
-        intent: response.intent || '',
+        content: repairedResponse.answer || 'Tôi chưa nhận được câu trả lời phù hợp từ hệ thống.',
+        intent: repairedResponse.intent || '',
         sources: enrichedSources,
         createdAt: new Date().toISOString(),
       }
@@ -871,7 +876,7 @@ export default function AIAgent() {
       const message =
         error?.status === 401
           ? 'Bạn cần đăng nhập để sử dụng AI Agent.'
-          : error?.message || 'Không thể gửi câu hỏi tới AI Agent. Vui lòng thử lại.'
+          : repairText(error?.message) || 'Không thể gửi câu hỏi tới AI Agent. Vui lòng thử lại.'
       const errorMessage = {
         id: createLocalId('assistant'),
         role: 'assistant',

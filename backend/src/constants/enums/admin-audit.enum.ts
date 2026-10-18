@@ -25,7 +25,10 @@ export enum AdminAuditAction {
   JOB_PROMOTION_DELETE = 'job_promotion.delete',
   JOB_PROMOTION_PLAN_CREATE = 'job_promotion_plan.create',
   JOB_PROMOTION_PLAN_UPDATE = 'job_promotion_plan.update',
-  JOB_PROMOTION_PLAN_DELETE = 'job_promotion_plan.delete'
+  JOB_PROMOTION_PLAN_DELETE = 'job_promotion_plan.delete',
+  POLICY_DOCUMENT_CREATE = 'policy_document.create',
+  POLICY_DOCUMENT_UPDATE = 'policy_document.update',
+  POLICY_DOCUMENT_DELETE = 'policy_document.delete'
 }
 
 export enum AdminAuditTargetType {
@@ -40,5 +43,6 @@ export enum AdminAuditTargetType {
   RAG_CHAT = 'rag_chat',
   SYSTEM_SETTING = 'system_setting',
   JOB_PROMOTION = 'job_promotion',
-  JOB_PROMOTION_PLAN = 'job_promotion_plan'
+  JOB_PROMOTION_PLAN = 'job_promotion_plan',
+  POLICY_DOCUMENT = 'policy_document'
 }

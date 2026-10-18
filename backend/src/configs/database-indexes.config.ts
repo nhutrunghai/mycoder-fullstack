@@ -261,6 +261,26 @@ const indexes: DatabaseIndexDefinition[] = [
     collection: env.DB_CHAT_SESSION_NAME,
     key: { user_id: 1, updated_at: -1 },
     option: { name: 'user_id_updated_at' }
+  },
+  {
+    collection: env.DB_POLICY_DOCUMENT_NAME,
+    key: { status: 1, updated_at: -1 },
+    option: { name: 'status_updated_at_policy_document' }
+  },
+  {
+    collection: env.DB_AGENT_EXECUTION_LOG_NAME,
+    key: { user_id: 1, created_at: -1 },
+    option: { name: 'user_id_created_at_agent_execution' }
+  },
+  {
+    collection: env.DB_AGENT_EXECUTION_LOG_NAME,
+    key: { session_id: 1, created_at: -1 },
+    option: { name: 'session_id_created_at_agent_execution' }
+  },
+  {
+    collection: env.DB_AGENT_EXECUTION_LOG_NAME,
+    key: { execution_status: 1, created_at: -1 },
+    option: { name: 'execution_status_created_at_agent_execution' }
   }
 ]
 

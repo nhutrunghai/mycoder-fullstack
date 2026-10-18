@@ -14,6 +14,7 @@ export type LlmProvider = 'gemini' | 'openai'
 
 export type RagChatRuntimeConfig = {
   enabled: boolean
+  agentic_enabled: boolean
   provider: LlmProvider
   intent_model: string
   chat_model: string
@@ -47,6 +48,7 @@ class AdminSystemSettingService {
   getDefaultRagChatConfig(): RagChatRuntimeConfig {
     return {
       enabled: true,
+      agentic_enabled: false,
       provider: env.LLM_PROVIDER,
       intent_model: env.LLM_MODEL_INTENT,
       chat_model: env.LLM_MODEL_CHAT,

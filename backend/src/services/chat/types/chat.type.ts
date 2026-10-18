@@ -1,6 +1,6 @@
 import { ObjectId } from 'mongodb'
 import { ChatIntent } from '~/constants/chat-intent'
-import { ResumeStatus } from '~/constants/enums'
+import { JobLevel, JobType, ResumeStatus } from '~/constants/enums'
 
 export type JobChatSource = {
   type: 'job'
@@ -37,6 +37,26 @@ export type ChatSessionTurn = {
   sources?: ChatSource[]
 }
 
+export type SearchContextStatus = 'active' | 'superseded' | 'expired'
+
+export type SearchContextFilters = {
+  location?: string
+  job_type?: JobType
+  level?: JobLevel
+  category_id?: string
+}
+
+export type SearchContext = {
+  context_id: string
+  label: string
+  query: string
+  filters: SearchContextFilters
+  job_ids: string[]
+  created_at: Date
+  updated_at: Date
+  status: SearchContextStatus
+}
+
 export type ChatSessionDocument = {
   _id?: ObjectId
   user_id?: ObjectId
@@ -44,6 +64,7 @@ export type ChatSessionDocument = {
   turns: ChatSessionTurn[]
   last_intent?: ChatIntent
   last_retrieved_job_ids: string[]
+  search_contexts?: SearchContext[]
   created_at: Date
   updated_at: Date
 }

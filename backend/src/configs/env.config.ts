@@ -41,6 +41,7 @@ const envSchema = z.object({
   DB_JOB_APPLICATION_NAME: z.string().min(1, { message: 'DB_JOB_APPLICATION_NAME không được rỗng' }),
   DB_REFRESH_TOKEN_NAME: z.string().min(1, { message: 'DB_REFRESH_TOKEN_NAME không được rỗng' }),
   DB_OTP_CODE_NAME: z.string().min(1, { message: 'DB_OTP_CODE_NAME không được rỗng' }),
+  DB_POLICY_DOCUMENT_NAME: z.string().min(1, { message: 'DB_POLICY_DOCUMENT_NAME không được rỗng' }).default('policy_documents'),
   ExpiresIn_EMAIL_VERIFY_TOKEN: z.string().min(1, { message: 'ExpiresIn_EMAIL_VERIFY_TOKEN không được rỗng' }),
   ExpiresIn_FORGOT_PASSWORD_TOKEN: z.string().min(1, { message: 'ExpiresIn_FORGOT_PASSWORD_TOKEN không được rỗng' }),
   // JWT
@@ -68,6 +69,7 @@ const envSchema = z.object({
   ELASTICSEARCH_URL: z.string().min(1, { message: 'Không tồn tại ELASTICSEARCH_URL' }),
   PUBLIC_JOBS_SEARCH_INDEX: z.string().min(1, { message: 'PUBLIC_JOBS_SEARCH_INDEX không được rỗng' }),
   RESUME_SEARCH_INDEX: z.string().min(1, { message: 'RESUME_SEARCH_INDEX không được rỗng' }),
+  POLICY_SEARCH_INDEX: z.string().min(1, { message: 'POLICY_SEARCH_INDEX không được rỗng' }).default('policy_documents_chunks'),
   RESUME_EMBEDDING_DIMS: z.coerce.number().min(1).default(1536),
   // Embedding service
   EMBEDDING_API_URL: z
@@ -102,6 +104,7 @@ const envSchema = z.object({
     .default('text-embedding-3-small'),
   OPENAI_API_TIMEOUT_MS: z.coerce.number().min(1000).default(30000),
   DB_CHAT_SESSION_NAME: z.string().min(1, { message: 'DB_CHAT_SESSION_NAME không được rỗng' }),
+  DB_AGENT_EXECUTION_LOG_NAME: z.string().min(1, { message: 'DB_AGENT_EXECUTION_LOG_NAME không được rỗng' }).default('agent_execution_logs'),
   // Admin session
   ADMIN_SESSION_COOKIE_NAME: z.string().min(1).default('admin_sid'),
   ADMIN_SESSION_PREFIX: z.string().min(1).default('admin:sessions'),

@@ -18,6 +18,7 @@ import jobChatRetrievalService from './retrieval/job-retrieval.service'
 import { buildJobChatAnswerPrompt, buildJobChatJsonAnswerPrompt } from './prompts/job-chat-answer.prompt'
 import sessionService from './session.service'
 import adminSystemSettingService, { RagChatRuntimeConfig } from '~/services/admin/system-setting.service'
+import agentChatOrchestratorService from './agent/agent-chat-orchestrator.service'
 
 type JobChatJsonAnswer = {
   answer: string
@@ -54,6 +55,35 @@ class RagChatService {
       currentSessionId = sessionService.getSessionId(session)
 
       await sessionService.appendMessage(sessionObjectId, 'user', normalizedMessage)
+
+      if (config.agentic_enabled) {
+        try {
+          const response = await agentChatOrchestratorService.respond({
+            message: normalizedMessage,
+            user_id,
+            resume_id,
+            session,
+            config
+          })
+
+          const jobIds = response.sources.filter((source) => source.type === 'job').map((source) => source.job_id)
+          await sessionService.appendMessage(sessionObjectId, 'assistant', response.answer, response.sources)
+          await sessionService.saveState(sessionObjectId, {
+            lastIntent: response.intent,
+            jobIds,
+            searchContexts: response.search_contexts
+          })
+
+          return {
+            session_id: currentSessionId,
+            intent: response.intent,
+            answer: response.answer,
+            sources: response.sources
+          }
+        } catch (error) {
+          logger.warn({ err: error, user_id, session_id: currentSessionId }, 'Agentic RAG failed; using legacy fallback')
+        }
+      }
 
       const intentResult = await intentRouterService.detectIntent(normalizedMessage, config)
 
@@ -545,7 +575,7 @@ class RagChatService {
     )
       return !config.allow_job_qa
     if (intent === 'policy_qa') return !config.allow_policy_qa
-    if (intent === 'unsupported') return !config.allow_general_qa
+    if (intent === 'general_chat' || intent === 'unsupported') return !config.allow_general_qa
     return false
   }
 

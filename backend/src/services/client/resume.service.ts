@@ -4,7 +4,7 @@ import databaseService from '~/configs/database.config.js'
 import { ResumeStatus } from '~/constants/enums.js'
 import UserMessages from '~/constants/messages/index.js'
 import { AppError } from '~/errors/app-error.js'
-import Resume from '~/models/schema/client/resumes.schema.js'
+import Resume, { ResumeIndexing, ResumeIndexingStatus } from '~/models/schema/client/resumes.schema.js'
 import uploadThingProvider from '~/providers/uploadthing.provider.js'
 import resumeIngestionService from '~/services/chat/ingestion/resume-ingestion.service.js'
 import resumeIndexService from '~/services/chat/indexing/resume-index.service.js'
@@ -15,6 +15,14 @@ type CreateResumePayload = {
   cv_url: string
   resume_file_key: string
   is_default?: boolean
+}
+
+type ResumeIndexingUpdate = {
+  status: ResumeIndexingStatus
+  chunks_indexed: number
+  error?: string
+  started_at?: Date
+  completed_at?: Date
 }
 
 class ResumeService {
@@ -49,11 +57,48 @@ class ResumeService {
     return {
       insertedId: result.insertedId,
       resume: newResume,
-      resume_indexing: {
-        status: 'queued',
-        chunks_indexed: 0
-      }
+      resume_indexing: newResume.indexing
     }
+  }
+
+  async updateResumeIndexingState(
+    candidateId: ObjectId,
+    resumeId: ObjectId,
+    update: ResumeIndexingUpdate
+  ): Promise<ResumeIndexing> {
+    const now = new Date()
+    const indexing: ResumeIndexing = {
+      status: update.status,
+      chunks_indexed: Math.max(0, update.chunks_indexed),
+      updated_at: now
+    }
+
+    if (update.error) {
+      indexing.error = update.error
+    }
+
+    if (update.started_at) {
+      indexing.started_at = update.started_at
+    }
+
+    if (update.completed_at) {
+      indexing.completed_at = update.completed_at
+    }
+
+    await databaseService.resumes.updateOne(
+      {
+        _id: resumeId,
+        candidate_id: candidateId
+      },
+      {
+        $set: {
+          indexing,
+          updated_at: now
+        }
+      }
+    )
+
+    return indexing
   }
 
   async getMyResumes(userId: string) {
@@ -164,10 +209,49 @@ class ResumeService {
     }
   ) {
     void (async () => {
-      const resumeIndexing = await resumeIngestionService.ingestResume(resume)
+      const startedAt = new Date()
+      await this.updateResumeIndexingState(resume.candidate_id, resume._id as ObjectId, {
+        status: 'processing',
+        chunks_indexed: 0,
+        started_at: startedAt
+      })
 
-      if (options.shouldSyncDefaultMetadata && resumeIndexing.status === 'completed') {
-        await resumeIndexService.syncCandidateDefaultResume(String(resume.candidate_id), String(resume._id))
+      try {
+        const resumeIndexing = await resumeIngestionService.ingestResume(resume)
+        const completedAt = new Date()
+
+        if (resumeIndexing.status === 'completed') {
+          await this.updateResumeIndexingState(resume.candidate_id, resume._id as ObjectId, {
+            status: 'completed',
+            chunks_indexed: resumeIndexing.chunks_indexed,
+            started_at: startedAt,
+            completed_at: completedAt
+          })
+
+          if (options.shouldSyncDefaultMetadata) {
+            await resumeIndexService.syncCandidateDefaultResume(String(resume.candidate_id), String(resume._id))
+          }
+
+          return
+        }
+
+        await this.updateResumeIndexingState(resume.candidate_id, resume._id as ObjectId, {
+          status: 'failed',
+          chunks_indexed: resumeIndexing.chunks_indexed,
+          error: resumeIndexing.error || 'Unable to process resume PDF.',
+          started_at: startedAt,
+          completed_at: completedAt
+        })
+      } catch (error) {
+        await this.updateResumeIndexingState(resume.candidate_id, resume._id as ObjectId, {
+          status: 'failed',
+          chunks_indexed: 0,
+          error: 'Unable to process resume PDF.',
+          started_at: startedAt,
+          completed_at: new Date()
+        })
+
+        throw error
       }
     })().catch((error) => {
       logger.error(

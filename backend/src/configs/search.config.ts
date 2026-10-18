@@ -9,6 +9,8 @@ export const PUBLIC_JOBS_SEARCH_INDEX = env.PUBLIC_JOBS_SEARCH_INDEX
 export const JOB_EMBEDDING_DIMS = 768
 export const RESUME_SEARCH_INDEX = env.RESUME_SEARCH_INDEX
 export const RESUME_EMBEDDING_DIMS = env.RESUME_EMBEDDING_DIMS
+export const POLICY_SEARCH_INDEX = env.POLICY_SEARCH_INDEX
+export const POLICY_EMBEDDING_DIMS = RESUME_EMBEDDING_DIMS
 
 export const PUBLIC_JOB_SEARCHABLE_FIELDS = ['title', 'description', 'requirements', 'benefits', 'search_text'] as const
 
@@ -99,6 +101,31 @@ export const resumeChunksSearchMapping = {
   }
 } as const
 
+export const policyChunksSearchSchema = {
+  policy_document_id: { type: 'keyword' },
+  chunk_id: { type: 'keyword' },
+  chunk_index: { type: 'integer' },
+  title: { type: 'text' },
+  text: { type: 'text' },
+  source_url: { type: 'keyword', index: false },
+  status: { type: 'keyword' },
+  version: { type: 'keyword' },
+  created_at: { type: 'date' },
+  updated_at: { type: 'date' },
+  embedding_model: { type: 'keyword' },
+  embedding: {
+    type: 'dense_vector',
+    dims: POLICY_EMBEDDING_DIMS
+  }
+} as const
+
+export const policyChunksSearchMapping = {
+  settings: publicJobsSearchSettings,
+  mappings: {
+    properties: policyChunksSearchSchema
+  }
+} as const
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export const ensurePublicJobsSearchIndex = async () => {
@@ -107,6 +134,10 @@ export const ensurePublicJobsSearchIndex = async () => {
 
 export const ensureResumeChunksSearchIndex = async () => {
   return ensureSearchIndex(RESUME_SEARCH_INDEX, resumeChunksSearchMapping, 'resume_chunks_search_index_ready')
+}
+
+export const ensurePolicyChunksSearchIndex = async () => {
+  return ensureSearchIndex(POLICY_SEARCH_INDEX, policyChunksSearchMapping, 'policy_chunks_search_index_ready')
 }
 
 const ensureSearchIndex = async (index: string, mapping: object, readyTag: string) => {

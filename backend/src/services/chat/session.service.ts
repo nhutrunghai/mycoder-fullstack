@@ -8,7 +8,8 @@ import {
   ChatSessionDocument,
   ChatSessionSummary,
   ChatSessionTurnRole,
-  ChatSource
+  ChatSource,
+  SearchContext
 } from '~/services/chat/types/chat.type'
 import ChatSession from '~/models/schema/client/chatSessions.schema'
 import { StatusCodes } from 'http-status-codes'
@@ -66,13 +67,17 @@ class SessionService {
     )
   }
 
-  async saveState(sessionId: ObjectId, payload: { lastIntent: ChatIntent; jobIds: string[] }) {
+  async saveState(
+    sessionId: ObjectId,
+    payload: { lastIntent: ChatIntent; jobIds: string[]; searchContexts?: SearchContext[] }
+  ) {
     await databaseService.chatSessions.updateOne(
       { _id: sessionId },
       {
         $set: {
           last_intent: payload.lastIntent,
           last_retrieved_job_ids: payload.jobIds,
+          ...(payload.searchContexts ? { search_contexts: payload.searchContexts } : {}),
           updated_at: new Date()
         }
       }

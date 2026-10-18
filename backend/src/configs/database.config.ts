@@ -19,6 +19,8 @@ import WalletTransaction from '~/models/schema/client/walletTransactions.schema.
 import Notification from '~/models/schema/client/notifications.schema.js'
 import AdminAuditLog from '~/models/schema/admin/adminAuditLogs.schema.js'
 import SystemSetting from '~/models/schema/system/systemSettings.schema.js'
+import PolicyDocument from '~/models/schema/system/policyDocuments.schema.js'
+import AgentExecutionLog from '~/models/schema/system/agentExecutionLogs.schema.js'
 import logger from './logger.config.js'
 
 class DatabaseService {
@@ -111,6 +113,14 @@ class DatabaseService {
 
   get chatSessions(): Collection<ChatSession> {
     return this.db.collection(env.DB_CHAT_SESSION_NAME)
+  }
+
+  get policyDocuments(): Collection<PolicyDocument> {
+    return this.db.collection(env.DB_POLICY_DOCUMENT_NAME)
+  }
+
+  get agentExecutionLogs(): Collection<AgentExecutionLog> {
+    return this.db.collection(env.DB_AGENT_EXECUTION_LOG_NAME)
   }
 
   async withTransaction<T>(callback: (session: ClientSession) => Promise<T>): Promise<T> {

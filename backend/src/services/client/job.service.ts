@@ -140,6 +140,14 @@ class JobsService {
     return publicJobSearchService.searchForChat(params)
   }
 
+  async countPublicJobs(params: SearchPublicJobsParams) {
+    return publicJobSearchService.countPublicJobs(params)
+  }
+
+  async getPublicJobDetail(jobId: string) {
+    return publicJobSearchService.getPublicJobDetail(jobId)
+  }
+
   async getLatestPublicJobs(params: GetLatestPublicJobsParams) {
     const page = params.page
     const limit = params.limit

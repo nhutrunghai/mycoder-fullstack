@@ -1,12 +1,41 @@
 import { performance } from 'node:perf_hooks'
-import { ObjectId } from 'mongodb'
+import { Filter, ObjectId } from 'mongodb'
+import _ from 'lodash'
 import databaseService from '~/configs/database.config'
 import { JobModerationStatus, JobStatus } from '~/constants/enums'
+import Job from '~/models/schema/client/jobs.schema'
 import hybridJobSearchService from './hybrid-job-search.service'
 import lexicalJobSearchService from './lexical-job-search.service'
 import semanticJobSearchService from './semantic-job-search.service'
 import { PublicJobListItem, SearchCandidate, SearchPublicJobsParams, SearchScorePreview } from './job-search.type'
 import logger from '~/configs/logger.config.js'
+
+export type PublicJobDetail = {
+  job: {
+    _id: ObjectId
+    title: string
+    description: string
+    requirements: string
+    benefits: string
+    salary: Job['salary']
+    location: string
+    job_type: Job['job_type']
+    level: Job['level']
+    category_ids: ObjectId[]
+    skills: string[]
+    quantity: number
+    expired_at: Date
+    published_at?: Date
+  }
+  company: {
+    _id: ObjectId
+    company_name: string
+    logo?: string
+    website?: string
+    address: string
+    description?: string
+  }
+}
 
 class PublicJobSearchService {
   async searchForPublicPage(params: SearchPublicJobsParams) {
@@ -105,8 +134,18 @@ class PublicJobSearchService {
     ])
 
     const mergeStartedAt = performance.now()
-    const candidates = hybridJobSearchService.mergeSearchCandidates(lexicalHits, semanticResult.hits)
-    const rankingResult = hybridJobSearchService.applySearchThresholdAndSort(candidates)
+    const requiresLexicalMatch = this.isShortRoleKeywordQuery(normalized.q)
+    const candidates =
+      requiresLexicalMatch && lexicalHits.length === 0
+        ? []
+        : hybridJobSearchService.mergeSearchCandidates(lexicalHits, semanticResult.hits)
+    const rankingResult = normalized.q
+      ? hybridJobSearchService.applySearchThresholdAndSort(candidates)
+      : {
+          // A filter-only search has no relevance score; keep all lexical matches.
+          items: candidates,
+          semanticRescueCount: 0
+        }
     const ranked = rankingResult.items
     const mergeElapsedMs = performance.now() - mergeStartedAt
 
@@ -157,9 +196,118 @@ class PublicJobSearchService {
     return {
       ...params,
       q: params.q?.trim() || '',
+      location: this.normalizeLocation(params.location),
       page: Math.max(1, params.page),
       limit: Math.max(1, params.limit)
     }
+  }
+
+  private normalizeLocation(location?: string) {
+    if (!location) {
+      return undefined
+    }
+
+    return location
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\u0111/g, 'd')
+      .replace(/\u0110/g, 'D')
+      .replace(/\s+/g, ' ')
+  }
+
+  private isShortRoleKeywordQuery(query?: string) {
+    if (!query) {
+      return false
+    }
+
+    return query.trim().split(/\s+/).filter(Boolean).length <= 2
+  }
+
+  async countPublicJobs(params: SearchPublicJobsParams): Promise<number> {
+    const normalized = this.normalizeSearchParams(params)
+    return databaseService.jobs.countDocuments(this.buildPublicMongoMatch(normalized))
+  }
+
+  async getPublicJobDetail(jobId: string): Promise<PublicJobDetail | null> {
+    if (!ObjectId.isValid(jobId)) {
+      return null
+    }
+
+    const [job] = await databaseService.jobs
+      .aggregate<PublicJobDetail>([
+        {
+          $match: {
+            _id: new ObjectId(jobId),
+            ...this.buildPublicMongoMatch({ page: 1, limit: 1 })
+          }
+        },
+        {
+          $lookup: {
+            from: databaseService.companies.collectionName,
+            localField: 'company_id',
+            foreignField: '_id',
+            as: 'company'
+          }
+        },
+        {
+          $unwind: '$company'
+        },
+        {
+          $project: {
+            job: {
+              _id: '$_id',
+              title: '$title',
+              description: '$description',
+              requirements: '$requirements',
+              benefits: '$benefits',
+              salary: '$salary',
+              location: '$location',
+              job_type: '$job_type',
+              level: '$level',
+              category_ids: '$category_ids',
+              skills: '$skills',
+              quantity: '$quantity',
+              expired_at: '$expired_at',
+              published_at: '$published_at'
+            },
+            company: {
+              _id: '$company._id',
+              company_name: '$company.company_name',
+              logo: '$company.logo',
+              website: '$company.website',
+              address: '$company.address',
+              description: '$company.description'
+            }
+          }
+        }
+      ])
+      .toArray()
+
+    return job || null
+  }
+
+  private buildPublicMongoMatch(params: SearchPublicJobsParams) {
+    const match = {
+      status: JobStatus.OPEN,
+      moderation_status: JobModerationStatus.ACTIVE,
+      published_at: { $ne: null },
+      expired_at: { $gt: new Date() }
+    } as unknown as Filter<Job>
+
+    if (params.location) match.location = params.location
+    if (params.job_type) match.job_type = params.job_type
+    if (params.level) match.level = params.level
+    if (params.category_id) match.category_ids = new ObjectId(params.category_id)
+
+    if (params.q) {
+      const escapedQuery = _.escapeRegExp(params.q)
+      match.$or = ['title', 'skills', 'description', 'requirements', 'benefits'].map((field) => ({
+        [field]: { $regex: escapedQuery, $options: 'i' }
+      }))
+    }
+
+    return match
   }
 
   private async hydratePublicJobsFromMongo(jobIds: string[]) {

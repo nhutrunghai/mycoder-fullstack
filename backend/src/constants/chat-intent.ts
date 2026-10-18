@@ -5,6 +5,7 @@ export const CHAT_INTENTS = [
   'cv_job_match',
   'cv_match_previous_jobs',
   'policy_qa',
+  'general_chat',
   'unsupported'
 ] as const
 

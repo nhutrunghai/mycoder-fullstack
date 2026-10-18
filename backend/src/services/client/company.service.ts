@@ -3,6 +3,16 @@ import { ObjectId } from 'mongodb'
 import Company from '~/models/schema/client/companies.schema'
 import uploadThingProvider from '~/providers/uploadthing.provider'
 
+export type PublicCompanyDetail = {
+  _id: ObjectId
+  company_name: string
+  logo?: string
+  website?: string
+  address: string
+  description?: string
+  verified?: boolean
+}
+
 class CompanyService {
   async createCompany(data: Company) {
     return databaseService.companies.insertOne(data)
@@ -37,6 +47,27 @@ class CompanyService {
     if (oldLogoFileKey && oldLogoFileKey !== payload.logo_file_key) {
       await uploadThingProvider.deleteFile(oldLogoFileKey)
     }
+  }
+
+  async getPublicCompanyDetail(companyId: string): Promise<PublicCompanyDetail | null> {
+    if (!ObjectId.isValid(companyId)) {
+      return null
+    }
+
+    return databaseService.companies.findOne(
+      { _id: new ObjectId(companyId) },
+      {
+        projection: {
+          _id: 1,
+          company_name: 1,
+          logo: 1,
+          website: 1,
+          address: 1,
+          description: 1,
+          verified: 1
+        }
+      }
+    )
   }
 }
 

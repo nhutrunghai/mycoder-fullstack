@@ -1,6 +1,6 @@
 import { ObjectId } from 'mongodb'
 import { ChatIntent } from '~/constants/chat-intent'
-import { ChatSessionDocument, ChatSessionTurn } from '~/services/chat/types/chat.type'
+import { ChatSessionDocument, ChatSessionTurn, SearchContext } from '~/services/chat/types/chat.type'
 
 type ChatSessionSchemaType = {
   _id?: ObjectId
@@ -9,6 +9,7 @@ type ChatSessionSchemaType = {
   turns?: ChatSessionTurn[]
   last_intent?: ChatIntent
   last_retrieved_job_ids?: string[]
+  search_contexts?: SearchContext[]
   created_at?: Date
   updated_at?: Date
 }
@@ -20,6 +21,7 @@ export default class ChatSession implements ChatSessionDocument {
   turns: ChatSessionTurn[]
   last_intent?: ChatIntent
   last_retrieved_job_ids: string[]
+  search_contexts?: SearchContext[]
   created_at: Date
   updated_at: Date
 
@@ -32,6 +34,7 @@ export default class ChatSession implements ChatSessionDocument {
     this.turns = session.turns || []
     this.last_intent = session.last_intent
     this.last_retrieved_job_ids = session.last_retrieved_job_ids || []
+    this.search_contexts = session.search_contexts
     this.created_at = session.created_at || date
     this.updated_at = session.updated_at || date
   }

@@ -16,6 +16,9 @@ class ResumeIngestionService {
   private static readonly MAX_RESUME_BYTES = 10 * 1024 * 1024
   private static readonly CHUNK_SIZE = 1800
   private static readonly CHUNK_OVERLAP = 250
+  private static readonly UNSUPPORTED_FORMAT_MESSAGE = 'Resume ingestion only supports PDF files.'
+  private static readonly EMPTY_TEXT_MESSAGE = 'Resume PDF does not contain extractable text.'
+  private static readonly PROCESSING_FAILED_MESSAGE = 'Unable to process resume PDF.'
 
   async ingestResume(resume: Resume): Promise<ResumeIndexingResult> {
     try {
@@ -35,7 +38,7 @@ class ResumeIngestionService {
         return {
           status: 'skipped',
           chunks_indexed: 0,
-          error: 'No text content extracted from resume PDF'
+          error: ResumeIngestionService.EMPTY_TEXT_MESSAGE
         }
       }
 
@@ -68,7 +71,7 @@ class ResumeIngestionService {
       return {
         status: 'failed',
         chunks_indexed: 0,
-        error: error instanceof Error ? error.message : String(error)
+        error: this.getSafeErrorMessage(error)
       }
     }
   }
@@ -83,15 +86,28 @@ class ResumeIngestionService {
 
     const contentType = String(response.headers['content-type'] || '').toLowerCase()
     if (contentType && !contentType.includes('pdf') && !url.toLowerCase().includes('.pdf')) {
-      throw new Error(`Unsupported resume file content type: ${contentType}`)
+      throw new Error(ResumeIngestionService.UNSUPPORTED_FORMAT_MESSAGE)
     }
 
     const buffer = Buffer.from(response.data)
     if (buffer.byteLength > ResumeIngestionService.MAX_RESUME_BYTES) {
       throw new Error('Resume PDF exceeds maximum ingestion size')
     }
+    if (!buffer.subarray(0, 4).equals(Buffer.from('%PDF'))) {
+      throw new Error(ResumeIngestionService.UNSUPPORTED_FORMAT_MESSAGE)
+    }
 
     return buffer
+  }
+
+  private getSafeErrorMessage(error: unknown) {
+    const message = error instanceof Error ? error.message : ''
+    const allowedMessages = [
+      ResumeIngestionService.UNSUPPORTED_FORMAT_MESSAGE,
+      'Resume PDF exceeds maximum ingestion size'
+    ]
+
+    return allowedMessages.includes(message) ? message : ResumeIngestionService.PROCESSING_FAILED_MESSAGE
   }
 
   private async extractPdfText(buffer: Buffer) {
